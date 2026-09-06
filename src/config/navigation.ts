@@ -1,0 +1,15 @@
+export const navigation = [
+  { label: "Dashboard", path: "/dashboard" },
+  { label: "Bookings", path: "/bookings" },
+  { label: "Services", path: "/services" },
+  { label: "Gallery", path: "/gallery" },
+  { label: "Courses", path: "/courses" },
+  { label: "Messages", path: "/messages" },
+  { label: "Blogs", path: "/blogs" },
+  { label: "Orders", path: "/orders" },
+  { label: "Products", path: "/products" },
+  { label: "Popups", path: "/popups" },
+  { label: "Events", path: "/events" },
+  { label: "Careers", path: "/careers" },
+  { label: "Settings", path: "/settings" },
+];
