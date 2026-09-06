@@ -94,12 +94,12 @@ const AdminEvents = () => {
   // CROP COMPLETE
   // =============================
 
-  const onCropComplete = (
-    croppedArea: Area,
-    croppedAreaPixels: Area
-  ) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  };
+const onCropComplete = (
+  _: Area,
+  croppedAreaPixels: Area
+) => {
+  setCroppedAreaPixels(croppedAreaPixels);
+};
 
   // =============================
   // IMAGE SELECT
