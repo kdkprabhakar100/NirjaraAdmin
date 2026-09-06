@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import AdminLayout from "./layouts/AdminLayout";
+import ProtectedRoute from "./routes/ProtectedRoute";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -21,139 +22,179 @@ import AdminPopup from "./pages/AdminPopup";
 import AdminEvents from "./pages/AdminEvents";
 import AdminCareers from "./pages/AdminCareers";
 import AdminSettings from "./pages/AdminSettings";
-import TiptapEditor from "./components/TiptapEditor";
+
+function ProtectedPage({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ProtectedRoute>
+      <AdminLayout>{children}</AdminLayout>
+    </ProtectedRoute>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        {/* LOGIN */}
+        <Route
+          path="/login"
+          element={<Login />}
+        />
 
+        {/* DASHBOARD */}
         <Route
           path="/dashboard"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <Dashboard />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* BOOKINGS */}
         <Route
           path="/bookings"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <BookingsAdmin />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* SERVICES */}
         <Route
           path="/services"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <ServicesAdmin />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* GALLERY */}
         <Route
           path="/gallery"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <GalleryAdmin />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* COURSES */}
         <Route
           path="/courses"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <CoursesAdmin />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* MESSAGES */}
         <Route
           path="/messages"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <ContactMessagesAdmin />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* BLOGS */}
         <Route
           path="/blogs"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <BlogAdmin />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* ORDERS */}
         <Route
           path="/orders"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <AdminOrders />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* PRODUCTS */}
         <Route
           path="/products"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <AdminProducts />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* POPUPS */}
         <Route
           path="/popups"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <AdminPopup />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* EVENTS */}
         <Route
           path="/events"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <AdminEvents />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* CAREERS */}
         <Route
           path="/careers"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <AdminCareers />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* SETTINGS */}
         <Route
           path="/settings"
           element={
-            <AdminLayout>
+            <ProtectedPage>
               <AdminSettings />
-            </AdminLayout>
+            </ProtectedPage>
           }
         />
 
+        {/* ROOT */}
         <Route
           path="/"
-          element={<Navigate to="/dashboard" replace />}
+          element={
+            <Navigate
+              to="/dashboard"
+              replace
+            />
+          }
         />
 
+        {/* 404 */}
         <Route
           path="*"
-          element={<Navigate to="/dashboard" replace />}
+          element={
+            <Navigate
+              to="/dashboard"
+              replace
+            />
+          }
         />
       </Routes>
     </BrowserRouter>

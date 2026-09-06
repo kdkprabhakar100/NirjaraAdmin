@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 
-import getCroppedImg from "../utils/cropImage";
+import getCroppedImg from "../utils/cropImage";  
 
 interface EventType {
   _id: string;

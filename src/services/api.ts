@@ -1,16 +1,19 @@
 import axios from "axios";
-import { appConfig } from "../config/appConfig";
 
-export const api = axios.create({
-  baseURL: appConfig.apiUrl,
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("adminToken");
+  const token =
+    localStorage.getItem("adminToken");
 
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization =
+      `Bearer ${token}`;
   }
 
   return config;
 });
+
+export default api;
