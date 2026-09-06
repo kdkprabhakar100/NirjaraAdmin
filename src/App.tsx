@@ -5,6 +5,9 @@ import {
   Routes,
 } from "react-router-dom";
 
+import {ToastContainer} from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 import AdminLayout from "./layouts/AdminLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
@@ -38,6 +41,16 @@ function ProtectedPage({
 export default function App() {
   return (
     <BrowserRouter>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        theme="light"
+      />
+      
       <Routes>
         {/* LOGIN */}
         <Route
