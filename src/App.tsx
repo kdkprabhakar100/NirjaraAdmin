@@ -26,6 +26,8 @@ import AdminEvents from "./pages/AdminEvents";
 import AdminCareers from "./pages/AdminCareers";
 import AdminSettings from "./pages/AdminSettings";
 
+import CustomersAdmin from "./pages/CustomersAdmin";
+
 function ProtectedPage({
   children,
 }: {
@@ -198,7 +200,14 @@ export default function App() {
             />
           }
         />
-
+        <Route
+          path="/customers"
+          element={
+            <ProtectedPage>
+              <CustomersAdmin />
+            </ProtectedPage>
+        }
+      />
         {/* 404 */}
         <Route
           path="*"
@@ -210,6 +219,8 @@ export default function App() {
           }
         />
       </Routes>
+
+      
     </BrowserRouter>
   );
 }

@@ -17,6 +17,7 @@ const adminLinks = [
   { label: "Popups", path: "/admin/popup" },
   { label: "Events", path: "/admin/events" },
   { label: "Careers", path: "/admin/careers" },
+  { label: "Customers", path: "/admin/customers" },
   { label: "Settings", path: "/admin/settings" },
 ];
 
