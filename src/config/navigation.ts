@@ -10,7 +10,6 @@ export const navigation = [
   { label: "Products", path: "/products" },
   { label: "Popups", path: "/popups" },
   { label: "Events", path: "/events" },
-  
   { label: "Customers", path: "/customers" },
   { label: "Careers", path: "/careers" },
   { label: "Settings", path: "/settings" },
