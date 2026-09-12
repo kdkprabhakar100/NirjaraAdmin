@@ -13,4 +13,5 @@ export const navigation = [
   { label: "Customers", path: "/customers" },
   { label: "Careers", path: "/careers" },
   { label: "Settings", path: "/settings" },
+  
 ];
