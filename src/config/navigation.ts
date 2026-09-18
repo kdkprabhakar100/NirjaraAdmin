@@ -12,5 +12,6 @@ export const navigation = [
   { label: "Events", path: "/events" },
   { label: "Customers", path: "/customers" },
   { label: "Careers", path: "/careers" },
+  { label: "Team", path: "/team" },
   { label: "Settings", path: "/settings" },
 ];

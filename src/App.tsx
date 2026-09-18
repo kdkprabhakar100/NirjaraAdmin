@@ -5,7 +5,7 @@ import {
   Routes,
 } from "react-router-dom";
 
-import {ToastContainer} from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import AdminLayout from "./layouts/AdminLayout";
@@ -24,9 +24,9 @@ import AdminProducts from "./pages/AdminProducts";
 import AdminPopup from "./pages/AdminPopup";
 import AdminEvents from "./pages/AdminEvents";
 import AdminCareers from "./pages/AdminCareers";
-import AdminSettings from "./pages/AdminSettings";
-
 import CustomersAdmin from "./pages/CustomersAdmin";
+import AdminTeam from "./pages/AdminTeam";
+import AdminSettings from "./pages/AdminSettings";
 
 function ProtectedPage({
   children,
@@ -35,7 +35,9 @@ function ProtectedPage({
 }) {
   return (
     <ProtectedRoute>
-      <AdminLayout>{children}</AdminLayout>
+      <AdminLayout>
+        {children}
+      </AdminLayout>
     </ProtectedRoute>
   );
 }
@@ -52,7 +54,7 @@ export default function App() {
         pauseOnHover
         theme="light"
       />
-      
+
       <Routes>
         {/* LOGIN */}
         <Route
@@ -180,6 +182,26 @@ export default function App() {
           }
         />
 
+        {/* CUSTOMERS */}
+        <Route
+          path="/customers"
+          element={
+            <ProtectedPage>
+              <CustomersAdmin />
+            </ProtectedPage>
+          }
+        />
+
+        {/* TEAM */}
+        <Route
+          path="/team"
+          element={
+            <ProtectedPage>
+              <AdminTeam />
+            </ProtectedPage>
+          }
+        />
+
         {/* SETTINGS */}
         <Route
           path="/settings"
@@ -200,14 +222,7 @@ export default function App() {
             />
           }
         />
-        <Route
-          path="/customers"
-          element={
-            <ProtectedPage>
-              <CustomersAdmin />
-            </ProtectedPage>
-        }
-      />
+
         {/* 404 */}
         <Route
           path="*"
@@ -219,8 +234,6 @@ export default function App() {
           }
         />
       </Routes>
-
-      
     </BrowserRouter>
   );
 }
