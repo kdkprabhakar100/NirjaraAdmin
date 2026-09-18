@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { toast } from "react-toastify";
+import api from "../services/api";
+
+const getAuthHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+});
 
 type Popup = {
   _id: string;
@@ -56,7 +60,10 @@ export default function AdminPopup() {
   const fetchPopups = async () => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/popup`
+        `${import.meta.env.VITE_API_URL}/api/popup`,
+        {
+          headers: getAuthHeaders(),
+        }
       );
 
       const data = await res.json();
@@ -93,6 +100,8 @@ export default function AdminPopup() {
         {
           method: "POST",
 
+          headers: getAuthHeaders(),
+
           body: formData,
         }
       );
@@ -125,15 +134,15 @@ export default function AdminPopup() {
       setLoading(true);
 
       if (editingId) {
-        await axios.put(
-          `${import.meta.env.VITE_API_URL}/api/popup/${editingId}`,
+        await api.put(
+          `/api/popup/${editingId}`,
           form
         );
 
         toast.success("Popup updated 💖");
       } else {
-        await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/popup`,
+        await api.post(
+          `/api/popup`,
           form
         );
 
@@ -175,8 +184,8 @@ export default function AdminPopup() {
     if (!window.confirm("Delete popup?")) return;
 
     try {
-      await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/popup/${id}`
+      await api.delete(
+        `/api/popup/${id}`
       );
 
       toast.success("Popup deleted");
@@ -192,8 +201,8 @@ export default function AdminPopup() {
   // TOGGLE ACTIVE
 const togglePopup = async (id: string) => {
   try {
-    await axios.put(
-      `${import.meta.env.VITE_API_URL}/api/popup/${id}/toggle`
+    await api.put(
+      `/api/popup/${id}/toggle`
     );
 
     toast.success("Popup updated 💖");

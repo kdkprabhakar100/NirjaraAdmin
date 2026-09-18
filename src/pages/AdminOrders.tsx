@@ -139,7 +139,7 @@ export default function AdminOrders() {
 
         {/* TABLE */}
         <div className="overflow-x-auto rounded-[30px] bg-white shadow-sm">
-          <table className="min-w-[1450px] w-full">
+          <table className="min-w-362.5 w-full">
             
             <thead className="bg-[#FDE7EF]">
               <tr>
@@ -212,7 +212,7 @@ export default function AdminOrders() {
                     </td>
 
                     {/* ADDRESS */}
-                    <td className="max-w-[220px] px-5 py-6 text-[#8A6F78]">
+                    <td className="max-w-55 px-5 py-6 text-[#8A6F78]">
                       {order.address || "No address"}
                     </td>
 
@@ -301,7 +301,7 @@ export default function AdminOrders() {
 
                     {/* ACTIONS */}
                     <td className="px-5 py-6">
-                      <div className="flex min-w-[160px] flex-col gap-3">
+                      <div className="flex min-w-40 flex-col gap-3">
                         
                         <button
                           onClick={() =>
