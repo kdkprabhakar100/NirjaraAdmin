@@ -20,13 +20,21 @@ type Order = {
   createdAt: string;
 };
 
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+});
+
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
 
   const fetchOrders = async () => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/orders`
+        `${import.meta.env.VITE_API_URL}/api/orders`,
+        {
+          headers: getAuthHeaders(),
+        }
       );
 
       const data = await res.json();
@@ -54,9 +62,7 @@ export default function AdminOrders() {
         {
           method: "PUT",
 
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: getAuthHeaders(),
 
           body: JSON.stringify({ status }),
         }
@@ -95,6 +101,8 @@ export default function AdminOrders() {
         `${import.meta.env.VITE_API_URL}/api/orders/${id}`,
         {
           method: "DELETE",
+
+          headers: getAuthHeaders(),
         }
       );
 
