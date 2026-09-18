@@ -1,279 +1,206 @@
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
+  createTeamMember,
+  deleteTeamMember,
+  getTeamMembers,
+  reorderTeamMembers,
+  updateTeamMember,
+  type TeamMember,
+  type TeamMemberPayload,
+  type TeamStatus,
+} from "../services/teamService";
 
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { toast } from "react-toastify";
 
-import { CSS } from "@dnd-kit/utilities";
+// ========================================
+// FORM TYPE
+// ========================================
 
-type TeamStatus = "Active" | "Hidden";
-
-type TeamMember = {
-  id: string;
+type TeamFormState = {
   name: string;
   designation: string;
   bio: string;
-  photo: string;
-  order: number;
+  image: string;
   status: TeamStatus;
 };
 
-type TeamForm = {
-  name: string;
-  designation: string;
-  bio: string;
-  photo: string;
-  status: TeamStatus;
-};
-
-const initialMembers: TeamMember[] = [
-  {
-    id: "1",
-    name: "Demo Team Member",
-    designation: "Founder & Director",
-    bio: "Professional beauty specialist and member of the Nirjara Beauty team.",
-    photo: "",
-    order: 1,
-    status: "Active",
-  },
-  {
-    id: "2",
-    name: "Demo Team Member",
-    designation: "Senior Beauty Professional",
-    bio: "Providing professional and personalized beauty services.",
-    photo: "",
-    order: 2,
-    status: "Active",
-  },
-];
-
-const emptyForm: TeamForm = {
+const EMPTY_FORM: TeamFormState = {
   name: "",
   designation: "",
   bio: "",
-  photo: "",
+  image: "",
   status: "Active",
 };
 
-/* ========================================
-   SORTABLE TEAM ROW
-======================================== */
+// ========================================
+// IMAGE SETTINGS
+// ========================================
 
-type SortableTeamRowProps = {
-  member: TeamMember;
-  onEdit: (member: TeamMember) => void;
-  onToggleStatus: (id: string) => void;
-  onDelete: (id: string) => void;
-};
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
-function SortableTeamRow({
-  member,
-  onEdit,
-  onToggleStatus,
-  onDelete,
-}: SortableTeamRowProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: member.id,
-  });
+const ACCEPTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.55 : 1,
-    zIndex: isDragging ? 10 : "auto",
-  };
-
-  return (
-    <tr
-      ref={setNodeRef}
-      style={style}
-      className={`border-t border-[#E75480]/10 ${
-        isDragging ? "bg-[#FFF5F8]" : "bg-white"
-      }`}
-    >
-      {/* DRAG */}
-      <td className="px-4 py-4">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="cursor-grab rounded-lg px-2 py-2 text-xl text-[#E75480] hover:bg-[#FFF0F5] active:cursor-grabbing"
-          title="Drag to reorder"
-        >
-          ☷
-        </button>
-      </td>
-
-      {/* PHOTO */}
-      <td className="px-4 py-4">
-        {member.photo ? (
-          <img
-            src={member.photo}
-            alt={member.name}
-            className="h-14 w-14 rounded-2xl object-cover"
-          />
-        ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF5F8] text-lg text-[#E75480]">
-            ♡
-          </div>
-        )}
-      </td>
-
-      {/* NAME */}
-      <td className="px-4 py-4">
-        <div className="font-medium text-[#3A2A2F]">
-          {member.name}
-        </div>
-
-        <div className="mt-1 max-w-[260px] truncate text-xs text-[#8A6F78]">
-          {member.bio || "No biography added."}
-        </div>
-      </td>
-
-      {/* DESIGNATION */}
-      <td className="px-4 py-4 text-sm text-[#8A6F78]">
-        {member.designation}
-      </td>
-
-      {/* ORDER */}
-      <td className="px-4 py-4 text-sm text-[#8A6F78]">
-        {member.order}
-      </td>
-
-      {/* STATUS */}
-      <td className="px-4 py-4">
-        <span
-          className={`rounded-full px-3 py-1 text-xs ${
-            member.status === "Active"
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          {member.status}
-        </span>
-      </td>
-
-      {/* ACTIONS */}
-      <td className="px-4 py-4">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onEdit(member)}
-            className="rounded-full border border-[#E75480] px-4 py-2 text-xs text-[#E75480] transition hover:bg-[#E75480] hover:text-white"
-          >
-            Edit
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onToggleStatus(member.id)}
-            className="rounded-full bg-[#FFF5F8] px-4 py-2 text-xs text-[#E75480] transition hover:bg-[#FCE7EF]"
-          >
-            {member.status === "Active" ? "Hide" : "Show"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onDelete(member.id)}
-            className="rounded-full bg-red-50 px-4 py-2 text-xs text-red-600 transition hover:bg-red-100"
-          >
-            Delete
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-/* ========================================
-   ADMIN TEAM
-======================================== */
+// ========================================
+// COMPONENT
+// ========================================
 
 export default function AdminTeam() {
-  const [members, setMembers] =
-    useState<TeamMember[]>(initialMembers);
+  // ======================================
+  // TEAM STATE
+  // ======================================
 
-  const [form, setForm] =
-    useState<TeamForm>(emptyForm);
+  const [members, setMembers] = useState<
+    TeamMember[]
+  >([]);
 
-  const [editingId, setEditingId] =
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [deletingId, setDeletingId] =
     useState<string | null>(null);
 
-  const [currentPage, setCurrentPage] =
-    useState(1);
+  // ======================================
+  // FORM STATE
+  // ======================================
+
+  const [form, setForm] =
+    useState<TeamFormState>(EMPTY_FORM);
+
+  const [editingMember, setEditingMember] =
+    useState<TeamMember | null>(null);
+
+  // ======================================
+  // IMAGE STATE
+  // ======================================
+
+  const [imageFile, setImageFile] =
+    useState<File | null>(null);
+
+  const [imagePreview, setImagePreview] =
+    useState("");
+
+  const fileInputRef =
+    useRef<HTMLInputElement | null>(null);
+
+  // ======================================
+  // PAGINATION
+  // ======================================
+
+  const [page, setPage] = useState(1);
 
   const [pageSize, setPageSize] =
     useState(5);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    })
-  );
+  // ======================================
+  // DRAG AND DROP
+  // ======================================
 
-  /* ========================================
-     PAGINATION
-  ======================================== */
+  const [draggedId, setDraggedId] =
+    useState<string | null>(null);
+
+  const [dragOverId, setDragOverId] =
+    useState<string | null>(null);
+
+  const [reordering, setReordering] =
+    useState(false);
+
+  // ======================================
+  // API URL
+  // ======================================
+
+  const API_URL =
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:5000";
+
+  // ======================================
+  // LOAD TEAM
+  // ======================================
+
+  const loadTeam = async () => {
+    try {
+      setLoading(true);
+
+      const data = await getTeamMembers();
+
+      const sorted = [...data].sort(
+        (a, b) =>
+          (a.order ?? 0) -
+          (b.order ?? 0)
+      );
+
+      setMembers(sorted);
+    } catch (error) {
+      console.error(
+        "LOAD TEAM ERROR:",
+        error
+      );
+
+      toast.error(
+        "Unable to load team members."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTeam();
+  }, []);
+
+  // ======================================
+  // PAGINATION CALCULATIONS
+  // ======================================
 
   const totalPages = Math.max(
     1,
     Math.ceil(members.length / pageSize)
   );
 
-  const startIndex =
-    (currentPage - 1) * pageSize;
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
-  const endIndex =
-    startIndex + pageSize;
+  const paginatedMembers = useMemo(() => {
+    const start =
+      (page - 1) * pageSize;
 
-  const paginatedMembers = useMemo(
-    () =>
-      members.slice(
-        startIndex,
-        endIndex
-      ),
-    [
-      members,
-      startIndex,
-      endIndex,
-    ]
-  );
+    return members.slice(
+      start,
+      start + pageSize
+    );
+  }, [members, page, pageSize]);
 
-  /* ========================================
-     FORM
-  ======================================== */
+  // ======================================
+  // FORM CHANGE
+  // ======================================
 
   const handleChange = (
-    e:
+    event:
       | React.ChangeEvent<HTMLInputElement>
-      | React.ChangeEvent<HTMLTextAreaElement>
-      | React.ChangeEvent<HTMLSelectElement>
+      | React.ChangeEvent<
+          HTMLTextAreaElement
+        >
+      | React.ChangeEvent<
+          HTMLSelectElement
+        >
   ) => {
-    const {
-      name,
-      value,
-    } = e.target;
+    const { name, value } =
+      event.target;
 
     setForm((previous) => ({
       ...previous,
@@ -281,108 +208,282 @@ export default function AdminTeam() {
     }));
   };
 
-  /* ========================================
-     PHOTO
-  ======================================== */
+  // ======================================
+  // IMAGE SELECT
+  // ======================================
 
-  const handlePhotoChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+  const handleImageChange = (
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file = e.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
-    if (!file) return;
-
-    const preview =
-      URL.createObjectURL(file);
-
-    setForm((previous) => ({
-      ...previous,
-      photo: preview,
-    }));
-  };
-
-  /* ========================================
-     ADD / UPDATE
-  ======================================== */
-
-  const handleSubmit = (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
+    if (!file) {
+      return;
+    }
 
     if (
-      !form.name.trim() ||
-      !form.designation.trim()
+      !ACCEPTED_IMAGE_TYPES.includes(
+        file.type
+      )
     ) {
-      alert(
-        "Please enter the team member name and designation."
+      toast.error(
+        "Please upload a JPG, PNG or WebP image."
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast.error(
+        "Image must be smaller than 5 MB."
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    setImageFile(file);
+
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const result =
+        typeof reader.result === "string"
+          ? reader.result
+          : "";
+
+      setImagePreview(result);
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  // ======================================
+  // UPLOAD IMAGE
+  // ======================================
+
+  const uploadImage = async (
+    file: File
+  ): Promise<string> => {
+    const formData = new FormData();
+
+    formData.append("image", file);
+
+    const response = await fetch(
+      `${API_URL}/api/upload`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "Image upload failed."
+      );
+    }
+
+    const data = await response.json();
+
+    // Supports common backend responses:
+    // { url: "..." }
+    // { imageUrl: "..." }
+    // { path: "..." }
+
+    const uploadedImage =
+      data.url ||
+      data.imageUrl ||
+      data.path;
+
+    if (!uploadedImage) {
+      throw new Error(
+        "Backend did not return an image URL."
+      );
+    }
+
+    return uploadedImage;
+  };
+
+  // ======================================
+  // RESET FORM
+  // ======================================
+
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+
+    setEditingMember(null);
+
+    setImageFile(null);
+
+    setImagePreview("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // ======================================
+  // SUBMIT
+  // ======================================
+
+  const handleSubmit = async (
+    event: React.FormEvent
+  ) => {
+    event.preventDefault();
+
+    const name = form.name.trim();
+
+    const designation =
+      form.designation.trim();
+
+    if (!name) {
+      toast.error(
+        "Please enter the team member's name."
       );
 
       return;
     }
 
-    if (editingId) {
-      setMembers((previous) =>
-        previous.map((member) =>
-          member.id === editingId
-            ? {
-                ...member,
-                ...form,
-              }
-            : member
-        )
+    if (!designation) {
+      toast.error(
+        "Please enter a designation or role."
       );
 
-      setEditingId(null);
-    } else {
-      const newMember: TeamMember = {
-        id: crypto.randomUUID(),
-        ...form,
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      let image = form.image;
+
+      // Upload newly selected image
+      if (imageFile) {
+        image =
+          await uploadImage(imageFile);
+      }
+
+      // ================================
+      // EDIT
+      // ================================
+
+      if (editingMember) {
+        const updated =
+          await updateTeamMember(
+            editingMember._id,
+            {
+              name,
+              designation,
+              bio: form.bio.trim(),
+              image,
+              status: form.status,
+            }
+          );
+
+        setMembers((previous) =>
+          previous.map((member) =>
+            member._id === updated._id
+              ? updated
+              : member
+          )
+        );
+
+        toast.success(
+          "Team member updated successfully."
+        );
+
+        resetForm();
+
+        return;
+      }
+
+      // ================================
+      // CREATE
+      // ================================
+
+      const payload: TeamMemberPayload = {
+        name,
+        designation,
+        bio: form.bio.trim(),
+        image,
+        status: form.status,
+
+        // New member goes at the end
         order: members.length + 1,
       };
 
-      setMembers((previous) => [
-        ...previous,
-        newMember,
-      ]);
-
-      /*
-       * Move to the page containing
-       * the newly-added member.
-       */
-      const newTotal =
-        members.length + 1;
-
-      const newPage =
-        Math.ceil(
-          newTotal / pageSize
+      const created =
+        await createTeamMember(
+          payload
         );
 
-      setCurrentPage(
-        Math.max(1, newPage)
-      );
-    }
+      setMembers((previous) => [
+        ...previous,
+        created,
+      ]);
 
-    setForm(emptyForm);
+      toast.success(
+        "Team member added successfully."
+      );
+
+      resetForm();
+
+      // Go to page containing new member
+      const newCount =
+        members.length + 1;
+
+      setPage(
+        Math.ceil(
+          newCount / pageSize
+        )
+      );
+    } catch (error) {
+      console.error(
+        "SAVE TEAM ERROR:",
+        error
+      );
+
+      toast.error(
+        editingMember
+          ? "Unable to update team member."
+          : "Unable to add team member."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  /* ========================================
-     EDIT
-  ======================================== */
+  // ======================================
+  // EDIT
+  // ======================================
 
   const handleEdit = (
     member: TeamMember
   ) => {
-    setEditingId(member.id);
+    setEditingMember(member);
 
     setForm({
       name: member.name,
       designation:
         member.designation,
-      bio: member.bio,
-      photo: member.photo,
+      bio: member.bio || "",
+      image: member.image || "",
       status: member.status,
     });
+
+    setImageFile(null);
+
+    setImagePreview(
+      member.image || ""
+    );
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
 
     window.scrollTo({
       top: 0,
@@ -390,291 +491,471 @@ export default function AdminTeam() {
     });
   };
 
-  /* ========================================
-     CANCEL EDIT
-  ======================================== */
+  // ======================================
+  // DELETE
+  // ======================================
 
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setForm(emptyForm);
-  };
-
-  /* ========================================
-     HIDE / SHOW
-  ======================================== */
-
-  const handleToggleStatus = (
-    id: string
-  ) => {
-    setMembers((previous) =>
-      previous.map((member) =>
-        member.id === id
-          ? {
-              ...member,
-              status:
-                member.status ===
-                "Active"
-                  ? "Hidden"
-                  : "Active",
-            }
-          : member
-      )
-    );
-  };
-
-  /* ========================================
-     DELETE
-  ======================================== */
-
-  const handleDelete = (
-    id: string
+  const handleDelete = async (
+    member: TeamMember
   ) => {
     const confirmed =
       window.confirm(
-        "Are you sure you want to delete this team member?"
+        `Delete ${member.name}?`
       );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
-    setMembers((previous) => {
-      const updated =
-        previous
-          .filter(
-            (member) =>
-              member.id !== id
-          )
-          .map(
-            (member, index) => ({
-              ...member,
-              order: index + 1,
-            })
+    try {
+      setDeletingId(member._id);
+
+      await deleteTeamMember(
+        member._id
+      );
+
+      const remaining =
+        members.filter(
+          (item) =>
+            item._id !== member._id
+        );
+
+      // Reassign local order
+      const reordered =
+        remaining.map(
+          (item, index) => ({
+            ...item,
+            order: index + 1,
+          })
+        );
+
+      setMembers(reordered);
+
+      // Save normalized order
+      if (reordered.length > 0) {
+        try {
+          const updated =
+            await reorderTeamMembers(
+              reordered
+            );
+
+          setMembers(updated);
+        } catch (reorderError) {
+          console.error(
+            "REORDER AFTER DELETE ERROR:",
+            reorderError
           );
+        }
+      }
 
-      return updated;
-    });
+      if (
+        editingMember?._id ===
+        member._id
+      ) {
+        resetForm();
+      }
 
-    /*
-     * Prevent empty page after delete.
-     */
-    const remaining =
-      members.length - 1;
+      toast.success(
+        "Team member deleted."
+      );
+    } catch (error) {
+      console.error(
+        "DELETE TEAM ERROR:",
+        error
+      );
 
-    const newTotalPages =
-      Math.max(
-        1,
-        Math.ceil(
-          remaining / pageSize
+      toast.error(
+        "Unable to delete team member."
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // ======================================
+  // ACTIVE / HIDDEN
+  // ======================================
+
+  const handleToggleStatus = async (
+    member: TeamMember
+  ) => {
+    const newStatus: TeamStatus =
+      member.status === "Active"
+        ? "Hidden"
+        : "Active";
+
+    try {
+      const updated =
+        await updateTeamMember(
+          member._id,
+          {
+            status: newStatus,
+          }
+        );
+
+      setMembers((previous) =>
+        previous.map((item) =>
+          item._id === member._id
+            ? updated
+            : item
         )
       );
 
-    if (
-      currentPage >
-      newTotalPages
-    ) {
-      setCurrentPage(
-        newTotalPages
+      toast.success(
+        newStatus === "Active"
+          ? `${member.name} is now visible.`
+          : `${member.name} is now hidden.`
+      );
+    } catch (error) {
+      console.error(
+        "UPDATE STATUS ERROR:",
+        error
+      );
+
+      toast.error(
+        "Unable to update team member status."
       );
     }
   };
 
-  /* ========================================
-     DRAG END
-  ======================================== */
+  // ======================================
+  // DRAG START
+  // ======================================
 
-  const handleDragEnd = (
-    event: DragEndEvent
+  const handleDragStart = (
+    member: TeamMember
   ) => {
-    const {
-      active,
-      over,
-    } = event;
+    setDraggedId(member._id);
+  };
+
+  // ======================================
+  // DRAG OVER
+  // ======================================
+
+  const handleDragOver = (
+    event: React.DragEvent,
+    member: TeamMember
+  ) => {
+    event.preventDefault();
 
     if (
-      !over ||
-      active.id === over.id
+      draggedId &&
+      draggedId !== member._id
     ) {
+      setDragOverId(member._id);
+    }
+  };
+
+  // ======================================
+  // DRAG END
+  // ======================================
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  // ======================================
+  // DROP
+  // ======================================
+
+  const handleDrop = async (
+    event: React.DragEvent,
+    targetMember: TeamMember
+  ) => {
+    event.preventDefault();
+
+    if (
+      !draggedId ||
+      draggedId === targetMember._id
+    ) {
+      handleDragEnd();
       return;
     }
 
-    setMembers((previous) => {
-      /*
-       * Find the GLOBAL positions.
-       * This keeps the order correct
-       * even when pagination is active.
-       */
-      const oldIndex =
-        previous.findIndex(
-          (member) =>
-            member.id === active.id
-        );
+    const oldMembers = [
+      ...members,
+    ];
 
-      const newIndex =
-        previous.findIndex(
-          (member) =>
-            member.id === over.id
-        );
+    const draggedIndex =
+      members.findIndex(
+        (member) =>
+          member._id === draggedId
+      );
 
-      if (
-        oldIndex === -1 ||
-        newIndex === -1
-      ) {
-        return previous;
-      }
+    const targetIndex =
+      members.findIndex(
+        (member) =>
+          member._id ===
+          targetMember._id
+      );
 
-      const reordered =
-        arrayMove(
-          previous,
-          oldIndex,
-          newIndex
-        );
+    if (
+      draggedIndex === -1 ||
+      targetIndex === -1
+    ) {
+      handleDragEnd();
+      return;
+    }
 
-      return reordered.map(
+    const reordered = [
+      ...members,
+    ];
+
+    const [draggedMember] =
+      reordered.splice(
+        draggedIndex,
+        1
+      );
+
+    reordered.splice(
+      targetIndex,
+      0,
+      draggedMember
+    );
+
+    const normalized =
+      reordered.map(
         (member, index) => ({
           ...member,
           order: index + 1,
         })
       );
-    });
+
+    // Optimistic update
+    setMembers(normalized);
+
+    handleDragEnd();
+
+    try {
+      setReordering(true);
+
+      const updated =
+        await reorderTeamMembers(
+          normalized
+        );
+
+      setMembers(updated);
+
+      toast.success(
+        "Team order updated."
+      );
+    } catch (error) {
+      console.error(
+        "REORDER TEAM ERROR:",
+        error
+      );
+
+      // Restore old state
+      setMembers(oldMembers);
+
+      toast.error(
+        "Unable to save team order."
+      );
+    } finally {
+      setReordering(false);
+    }
   };
 
-  /* ========================================
-     PAGE SIZE
-  ======================================== */
+  // ======================================
+  // IMAGE URL HELPER
+  // ======================================
 
-  const handlePageSizeChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
+  const getImageUrl = (
+    image?: string
   ) => {
-    setPageSize(
-      Number(e.target.value)
-    );
+    if (!image) {
+      return "";
+    }
 
-    setCurrentPage(1);
+    if (
+      image.startsWith("http://") ||
+      image.startsWith("https://") ||
+      image.startsWith("data:")
+    ) {
+      return image;
+    }
+
+    if (image.startsWith("/")) {
+      return `${API_URL}${image}`;
+    }
+
+    return `${API_URL}/${image}`;
   };
 
-  /* ========================================
-     RENDER
-  ======================================== */
+  // ======================================
+  // DISPLAY PREVIEW
+  // ======================================
+
+  const displayPreview =
+    imagePreview ||
+    getImageUrl(form.image);
+
+  // ======================================
+  // RENDER
+  // ======================================
 
   return (
-    <div className="min-h-screen bg-[#FFF5F8] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#FFF5F8] px-4 py-8 md:px-8 lg:px-12">
+
+      {/* =================================
+          PAGE HEADER
+      ================================= */}
+
       <div className="mx-auto max-w-7xl">
-
-        {/* HEADER */}
-
         <div className="mb-8">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.35em] text-[#E75480]">
-            Management
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#E75480]">
+            Website Management
           </p>
 
-          <h1 className="font-serif text-4xl text-[#E75480] sm:text-5xl">
-            Our Team
+          <h1 className="font-serif text-4xl text-[#3A2A2F] md:text-5xl">
+            Team
           </h1>
 
-          <p className="mt-3 text-[#8A6F78]">
-            Add, edit, organize and manage
-            the team members displayed on
-            the Nirjara Beauty website.
+          <p className="mt-3 text-sm text-[#8A6F78]">
+            Add, edit, organize and
+            manage the team members
+            displayed on the Nirjara
+            Beauty website.
           </p>
         </div>
 
         {/* =================================
-            FORM
+            ADD / EDIT FORM
         ================================= */}
 
         <form
           onSubmit={handleSubmit}
-          className="mb-8 rounded-3xl bg-white p-6 shadow-sm sm:p-8"
+          className="mb-8 rounded-3xl bg-white p-6 shadow-sm md:p-8"
         >
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h2 className="font-serif text-2xl text-[#3A2A2F]">
-                {editingId
-                  ? "Edit Team Member"
-                  : "Add Team Member"}
-              </h2>
+          <div className="mb-6">
+            <h2 className="font-serif text-3xl text-[#3A2A2F]">
+              {editingMember
+                ? "Edit Team Member"
+                : "Add Team Member"}
+            </h2>
 
-              <p className="mt-1 text-sm text-[#8A6F78]">
-                Enter the member's
-                professional information.
-              </p>
-            </div>
-
-            {editingId && (
-              <button
-                type="button"
-                onClick={
-                  handleCancelEdit
-                }
-                className="rounded-full border border-[#E75480] px-4 py-2 text-sm text-[#E75480]"
-              >
-                Cancel
-              </button>
-            )}
+            <p className="mt-2 text-sm text-[#8A6F78]">
+              {editingMember
+                ? "Update the team member information shown on the website."
+                : "Add the staff information that will appear on the Nirjara Beauty About Us page."}
+            </p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[200px_1fr]">
+          <div className="grid gap-7 lg:grid-cols-[200px_1fr]">
 
             {/* PHOTO */}
 
-            <label className="flex min-h-[210px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-3xl border border-dashed border-[#E75480]/40 bg-[#FFF5F8]">
-              {form.photo ? (
-                <img
-                  src={form.photo}
-                  alt="Team preview"
-                  className="h-full min-h-[210px] w-full object-cover"
-                />
-              ) : (
-                <>
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FCE7EF] text-2xl text-[#E75480]">
-                    +
-                  </div>
-
-                  <span className="text-sm font-medium text-[#E75480]">
-                    Upload Photo
-                  </span>
-
-                  <span className="mt-2 text-xs text-[#8A6F78]">
-                    JPG, PNG or WebP
-                  </span>
-                </>
-              )}
+            <div>
+              <label className="mb-3 block text-sm font-medium text-[#3A2A2F]">
+                Profile Photo
+              </label>
 
               <input
+                ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept=".jpg,.jpeg,.png,.webp"
                 onChange={
-                  handlePhotoChange
+                  handleImageChange
                 }
                 className="hidden"
               />
-            </label>
 
-            {/* DETAILS */}
+              <button
+                type="button"
+                onClick={() =>
+                  fileInputRef.current?.click()
+                }
+                className="relative flex aspect-[4/5] w-full max-w-[200px] overflow-hidden rounded-3xl border-2 border-dashed border-[#E75480]/30 bg-[#FFF5F8] transition hover:border-[#E75480]"
+              >
+                {displayPreview ? (
+                  <img
+                    src={displayPreview}
+                    alt="Team preview"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center p-5 text-center">
+                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#FCE7EF] text-2xl text-[#E75480]">
+                      +
+                    </div>
+
+                    <span className="text-sm font-medium text-[#E75480]">
+                      Upload Photo
+                    </span>
+
+                    <span className="mt-2 text-xs text-[#8A6F78]">
+                      JPG, PNG or WebP
+                    </span>
+
+                    <span className="mt-1 text-xs text-[#8A6F78]">
+                      Maximum 5 MB
+                    </span>
+                  </div>
+                )}
+              </button>
+
+              {displayPreview && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageFile(null);
+                    setImagePreview("");
+                    setForm(
+                      (previous) => ({
+                        ...previous,
+                        image: "",
+                      })
+                    );
+
+                    if (
+                      fileInputRef.current
+                    ) {
+                      fileInputRef.current.value =
+                        "";
+                    }
+                  }}
+                  className="mt-3 text-xs font-medium text-red-500 hover:underline"
+                >
+                  Remove photo
+                </button>
+              )}
+            </div>
+
+            {/* FORM FIELDS */}
 
             <div className="space-y-5">
+
               <div className="grid gap-5 md:grid-cols-2">
+
+                {/* NAME */}
+
                 <div>
-                  <label className="mb-2 block text-sm text-[#3A2A2F]">
-                    Full Name
+                  <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+                    Full Name *
                   </label>
 
                   <input
+                    type="text"
                     name="name"
                     value={form.name}
                     onChange={
                       handleChange
                     }
-                    placeholder="Full name"
-                    className="w-full rounded-2xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-4 outline-none focus:border-[#E75480]"
+                    placeholder="Enter full name"
+                    className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
                   />
                 </div>
 
+                {/* DESIGNATION */}
+
                 <div>
-                  <label className="mb-2 block text-sm text-[#3A2A2F]">
-                    Designation / Role
+                  <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+                    Designation / Role *
                   </label>
 
                   <input
+                    type="text"
                     name="designation"
                     value={
                       form.designation
@@ -682,41 +963,41 @@ export default function AdminTeam() {
                     onChange={
                       handleChange
                     }
-                    placeholder="Founder, Makeup Artist..."
-                    className="w-full rounded-2xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-4 outline-none focus:border-[#E75480]"
+                    placeholder="e.g. Senior Beauty Professional"
+                    className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
                   />
                 </div>
               </div>
 
+              {/* BIO */}
+
               <div>
-                <label className="mb-2 block text-sm text-[#3A2A2F]">
+                <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
                   Short Bio
                 </label>
 
                 <textarea
                   name="bio"
                   value={form.bio}
-                  onChange={
-                    handleChange
-                  }
-                  rows={4}
+                  onChange={handleChange}
+                  rows={5}
                   placeholder="Write a short professional introduction..."
-                  className="w-full resize-none rounded-2xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-4 outline-none focus:border-[#E75480]"
+                  className="w-full resize-none rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
                 />
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm text-[#3A2A2F]">
+              {/* STATUS */}
+
+              <div className="max-w-sm">
+                <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
                   Status
                 </label>
 
                 <select
                   name="status"
                   value={form.status}
-                  onChange={
-                    handleChange
-                  }
-                  className="w-full rounded-2xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-4 outline-none"
+                  onChange={handleChange}
+                  className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none focus:border-[#E75480]"
                 >
                   <option value="Active">
                     Active
@@ -728,51 +1009,80 @@ export default function AdminTeam() {
                 </select>
               </div>
 
-              <button
-                type="submit"
-                className="rounded-full bg-[#E75480] px-8 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:opacity-90"
-              >
-                {editingId
-                  ? "Update Team Member"
-                  : "Add Team Member"}
-              </button>
+              {/* BUTTONS */}
+
+              <div className="flex flex-wrap gap-3 pt-1">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-full bg-[#E75480] px-7 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving
+                    ? "Saving..."
+                    : editingMember
+                      ? "Update Team Member"
+                      : "Add Team Member"}
+                </button>
+
+                {editingMember && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="rounded-full border border-[#E75480] px-7 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#E75480]"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </form>
 
         {/* =================================
-            TEAM TABLE
+            TEAM LIST
         ================================= */}
 
         <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
 
-          {/* TABLE HEADER */}
+          {/* LIST HEADER */}
 
-          <div className="flex flex-col gap-4 border-b border-[#E75480]/10 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 border-b border-[#E75480]/10 p-6 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="font-serif text-2xl text-[#3A2A2F]">
+              <h2 className="font-serif text-3xl text-[#3A2A2F]">
                 Team Members
               </h2>
 
               <p className="mt-1 text-sm text-[#8A6F78]">
-                {members.length} team{" "}
+                {members.length}{" "}
                 {members.length === 1
-                  ? "member"
-                  : "members"}
+                  ? "team member"
+                  : "team members"}
               </p>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-sm text-[#8A6F78]">
+              {reordering && (
+                <span className="text-xs text-[#E75480]">
+                  Saving order...
+                </span>
+              )}
+
+              <span className="text-xs text-[#8A6F78]">
                 Show
               </span>
 
               <select
                 value={pageSize}
-                onChange={
-                  handlePageSizeChange
-                }
-                className="rounded-xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-2 text-sm text-[#3A2A2F] outline-none"
+                onChange={(event) => {
+                  setPageSize(
+                    Number(
+                      event.target.value
+                    )
+                  );
+
+                  setPage(1);
+                }}
+                className="rounded-xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-2 text-sm outline-none"
               >
                 <option value={5}>
                   5
@@ -782,6 +1092,10 @@ export default function AdminTeam() {
                   10
                 </option>
 
+                <option value={15}>
+                  15
+                </option>
+
                 <option value={20}>
                   20
                 </option>
@@ -789,191 +1103,448 @@ export default function AdminTeam() {
             </div>
           </div>
 
-          {/* TABLE */}
+          {/* =================================
+              DESKTOP TABLE
+          ================================= */}
 
-          <div className="overflow-x-auto">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={
-                closestCenter
-              }
-              onDragEnd={
-                handleDragEnd
-              }
-            >
-              <table className="w-full min-w-[950px] border-collapse">
-                <thead className="bg-[#FCE7EF] text-left text-sm text-[#E75480]">
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[900px] border-collapse">
+
+              <thead className="bg-[#FCE7EF] text-left text-xs font-semibold text-[#E75480]">
+                <tr>
+                  <th className="px-5 py-4">
+                    Move
+                  </th>
+
+                  <th className="px-5 py-4">
+                    Photo
+                  </th>
+
+                  <th className="px-5 py-4">
+                    Name
+                  </th>
+
+                  <th className="px-5 py-4">
+                    Designation
+                  </th>
+
+                  <th className="px-5 py-4">
+                    Order
+                  </th>
+
+                  <th className="px-5 py-4">
+                    Status
+                  </th>
+
+                  <th className="px-5 py-4">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {loading ? (
                   <tr>
-                    <th className="w-[60px] px-4 py-4">
-                      Move
-                    </th>
-
-                    <th className="px-4 py-4">
-                      Photo
-                    </th>
-
-                    <th className="px-4 py-4">
-                      Name
-                    </th>
-
-                    <th className="px-4 py-4">
-                      Designation
-                    </th>
-
-                    <th className="px-4 py-4">
-                      Order
-                    </th>
-
-                    <th className="px-4 py-4">
-                      Status
-                    </th>
-
-                    <th className="px-4 py-4">
-                      Actions
-                    </th>
+                    <td
+                      colSpan={7}
+                      className="p-12 text-center text-[#8A6F78]"
+                    >
+                      Loading team members...
+                    </td>
                   </tr>
-                </thead>
+                ) : paginatedMembers.length ===
+                  0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="p-12 text-center"
+                    >
+                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF5F8] text-xl text-[#E75480]">
+                        ♡
+                      </div>
 
-                <SortableContext
-                  items={paginatedMembers.map(
-                    (member) =>
-                      member.id
-                  )}
-                  strategy={
-                    verticalListSortingStrategy
-                  }
-                >
-                  <tbody>
-                    {paginatedMembers.map(
-                      (member) => (
-                        <SortableTeamRow
-                          key={
-                            member.id
-                          }
-                          member={
+                      <p className="font-medium text-[#3A2A2F]">
+                        No team members yet
+                      </p>
+
+                      <p className="mt-2 text-sm text-[#8A6F78]">
+                        Add your first team
+                        member using the form
+                        above.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedMembers.map(
+                    (member) => (
+                      <tr
+                        key={member._id}
+                        draggable
+                        onDragStart={() =>
+                          handleDragStart(
                             member
-                          }
-                          onEdit={
-                            handleEdit
-                          }
-                          onToggleStatus={
-                            handleToggleStatus
-                          }
-                          onDelete={
-                            handleDelete
-                          }
-                        />
-                      )
-                    )}
+                          )
+                        }
+                        onDragOver={(
+                          event
+                        ) =>
+                          handleDragOver(
+                            event,
+                            member
+                          )
+                        }
+                        onDrop={(event) =>
+                          handleDrop(
+                            event,
+                            member
+                          )
+                        }
+                        onDragEnd={
+                          handleDragEnd
+                        }
+                        className={`border-t border-[#E75480]/10 transition ${
+                          dragOverId ===
+                          member._id
+                            ? "bg-[#FFF0F5]"
+                            : "bg-white"
+                        } ${
+                          draggedId ===
+                          member._id
+                            ? "opacity-50"
+                            : ""
+                        }`}
+                      >
+                        {/* MOVE */}
 
-                    {paginatedMembers.length ===
-                      0 && (
-                      <tr>
-                        <td
-                          colSpan={7}
-                          className="p-12 text-center text-[#8A6F78]"
-                        >
-                          No team members
-                          available.
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            title="Drag to reorder"
+                            className="cursor-grab rounded-lg px-2 py-2 text-xl text-[#8A6F78] active:cursor-grabbing"
+                          >
+                            ☰
+                          </button>
+                        </td>
+
+                        {/* PHOTO */}
+
+                        <td className="px-5 py-4">
+                          {member.image ? (
+                            <img
+                              src={getImageUrl(
+                                member.image
+                              )}
+                              alt={
+                                member.name
+                              }
+                              className="h-14 w-14 rounded-2xl object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF5F8] text-[#E75480]">
+                              ♡
+                            </div>
+                          )}
+                        </td>
+
+                        {/* NAME */}
+
+                        <td className="px-5 py-4">
+                          <p className="font-medium text-[#3A2A2F]">
+                            {member.name}
+                          </p>
+
+                          {member.bio && (
+                            <p className="mt-1 max-w-[220px] truncate text-xs text-[#8A6F78]">
+                              {member.bio}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* DESIGNATION */}
+
+                        <td className="px-5 py-4 text-sm text-[#8A6F78]">
+                          {
+                            member.designation
+                          }
+                        </td>
+
+                        {/* ORDER */}
+
+                        <td className="px-5 py-4 text-sm text-[#8A6F78]">
+                          {member.order}
+                        </td>
+
+                        {/* STATUS */}
+
+                        <td className="px-5 py-4">
+                          <span
+                            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                              member.status ===
+                              "Active"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {member.status}
+                          </span>
+                        </td>
+
+                        {/* ACTIONS */}
+
+                        <td className="px-5 py-4">
+                          <div className="flex flex-wrap gap-2">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleEdit(
+                                  member
+                                )
+                              }
+                              className="rounded-full border border-[#E75480] px-4 py-2 text-xs text-[#E75480] transition hover:bg-[#FFF5F8]"
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleToggleStatus(
+                                  member
+                                )
+                              }
+                              className="rounded-full bg-[#FFF5F8] px-4 py-2 text-xs text-[#E75480]"
+                            >
+                              {member.status ===
+                              "Active"
+                                ? "Hide"
+                                : "Show"}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={
+                                deletingId ===
+                                member._id
+                              }
+                              onClick={() =>
+                                handleDelete(
+                                  member
+                                )
+                              }
+                              className="rounded-full bg-red-50 px-4 py-2 text-xs text-red-600 disabled:opacity-50"
+                            >
+                              {deletingId ===
+                              member._id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
+                    )
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* =================================
+              MOBILE CARDS
+          ================================= */}
+
+          <div className="space-y-4 p-4 md:hidden">
+            {loading ? (
+              <div className="py-10 text-center text-sm text-[#8A6F78]">
+                Loading team members...
+              </div>
+            ) : paginatedMembers.length ===
+              0 ? (
+              <div className="py-10 text-center">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF5F8] text-[#E75480]">
+                  ♡
+                </div>
+
+                <p className="font-medium text-[#3A2A2F]">
+                  No team members yet
+                </p>
+              </div>
+            ) : (
+              paginatedMembers.map(
+                (member) => (
+                  <div
+                    key={member._id}
+                    className="rounded-2xl border border-[#E75480]/10 p-4"
+                  >
+                    <div className="flex gap-4">
+
+                      {member.image ? (
+                        <img
+                          src={getImageUrl(
+                            member.image
+                          )}
+                          alt={
+                            member.name
+                          }
+                          className="h-20 w-20 flex-shrink-0 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF5F8] text-[#E75480]">
+                          ♡
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-[#3A2A2F]">
+                          {member.name}
+                        </p>
+
+                        <p className="mt-1 text-sm text-[#8A6F78]">
+                          {
+                            member.designation
+                          }
+                        </p>
+
+                        <div className="mt-2 flex items-center gap-2">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs ${
+                              member.status ===
+                              "Active"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {
+                              member.status
+                            }
+                          </span>
+
+                          <span className="text-xs text-[#8A6F78]">
+                            Order{" "}
+                            {member.order}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {member.bio && (
+                      <p className="mt-4 text-sm leading-6 text-[#8A6F78]">
+                        {member.bio}
+                      </p>
                     )}
-                  </tbody>
-                </SortableContext>
-              </table>
-            </DndContext>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEdit(
+                            member
+                          )
+                        }
+                        className="rounded-full border border-[#E75480] px-4 py-2 text-xs text-[#E75480]"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleToggleStatus(
+                            member
+                          )
+                        }
+                        className="rounded-full bg-[#FFF5F8] px-4 py-2 text-xs text-[#E75480]"
+                      >
+                        {member.status ===
+                        "Active"
+                          ? "Hide"
+                          : "Show"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDelete(
+                            member
+                          )
+                        }
+                        disabled={
+                          deletingId ===
+                          member._id
+                        }
+                        className="rounded-full bg-red-50 px-4 py-2 text-xs text-red-600 disabled:opacity-50"
+                      >
+                        {deletingId ===
+                        member._id
+                          ? "Deleting..."
+                          : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                )
+              )
+            )}
           </div>
 
           {/* =================================
               PAGINATION
           ================================= */}
 
-          {members.length > 0 && (
-            <div className="flex flex-col gap-4 border-t border-[#E75480]/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          {!loading &&
+            members.length > 0 && (
+              <div className="flex flex-col gap-4 border-t border-[#E75480]/10 p-5 sm:flex-row sm:items-center sm:justify-between">
 
-              {/* SHOWING */}
+                <p className="text-sm text-[#8A6F78]">
+                  Showing{" "}
+                  {(page - 1) *
+                    pageSize +
+                    1}
+                  {" - "}
+                  {Math.min(
+                    page * pageSize,
+                    members.length
+                  )}{" "}
+                  of {members.length}
+                </p>
 
-              <p className="text-sm text-[#8A6F78]">
-                Showing{" "}
-                {startIndex + 1}–
-                {Math.min(
-                  endIndex,
-                  members.length
-                )}{" "}
-                of {members.length} members
-              </p>
-
-              {/* CONTROLS */}
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  disabled={
-                    currentPage === 1
-                  }
-                  onClick={() =>
-                    setCurrentPage(
-                      (page) =>
-                        Math.max(
-                          1,
-                          page - 1
-                        )
-                    )
-                  }
-                  className="rounded-full border border-[#E75480]/30 px-4 py-2 text-sm text-[#E75480] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  ← Previous
-                </button>
-
-                {Array.from(
-                  {
-                    length:
-                      totalPages,
-                  },
-                  (_, index) =>
-                    index + 1
-                ).map((page) => (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    key={page}
+                    disabled={page === 1}
                     onClick={() =>
-                      setCurrentPage(
-                        page
+                      setPage(
+                        (previous) =>
+                          previous - 1
                       )
                     }
-                    className={`h-9 w-9 rounded-full text-sm transition ${
-                      currentPage ===
-                      page
-                        ? "bg-[#E75480] text-white"
-                        : "bg-[#FFF5F8] text-[#E75480] hover:bg-[#FCE7EF]"
-                    }`}
+                    className="rounded-full border border-[#E75480]/30 px-4 py-2 text-xs text-[#E75480] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {page}
+                    Previous
                   </button>
-                ))}
 
-                <button
-                  type="button"
-                  disabled={
-                    currentPage ===
-                    totalPages
-                  }
-                  onClick={() =>
-                    setCurrentPage(
-                      (page) =>
-                        Math.min(
-                          totalPages,
-                          page + 1
-                        )
-                    )
-                  }
-                  className="rounded-full border border-[#E75480]/30 px-4 py-2 text-sm text-[#E75480] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  Next →
-                </button>
+                  <span className="px-3 text-sm text-[#8A6F78]">
+                    Page {page} of{" "}
+                    {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={
+                      page === totalPages
+                    }
+                    onClick={() =>
+                      setPage(
+                        (previous) =>
+                          previous + 1
+                      )
+                    }
+                    className="rounded-full border border-[#E75480]/30 px-4 py-2 text-xs text-[#E75480] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
       </div>
     </div>
