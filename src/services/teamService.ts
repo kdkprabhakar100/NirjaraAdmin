@@ -109,20 +109,21 @@ export const getPublicTeamMembers =
 // CREATE TEAM MEMBER
 //
 // POST /api/teams
+//
+// Responds with the saved document
+// itself, not a { member } wrapper.
 // ========================================
 
 export const createTeamMember = async (
   data: TeamMemberPayload
 ): Promise<TeamMember> => {
-  const response = await api.post<{
-    message: string;
-    member: TeamMember;
-  }>(
-    TEAM_API,
-    data
-  );
+  const response =
+    await api.post<TeamMember>(
+      TEAM_API,
+      data
+    );
 
-  return response.data.member;
+  return response.data;
 };
 
 // ========================================
@@ -135,21 +136,22 @@ export const createTeamMember = async (
 // { status: "Hidden" }
 //
 // without requiring name/designation.
+//
+// Responds with the updated document
+// itself, not a { member } wrapper.
 // ========================================
 
 export const updateTeamMember = async (
   id: string,
   data: UpdateTeamMemberPayload
 ): Promise<TeamMember> => {
-  const response = await api.put<{
-    message: string;
-    member: TeamMember;
-  }>(
-    `${TEAM_API}/${id}`,
-    data
-  );
+  const response =
+    await api.put<TeamMember>(
+      `${TEAM_API}/${id}`,
+      data
+    );
 
-  return response.data.member;
+  return response.data;
 };
 
 // ========================================
