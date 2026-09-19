@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import api, {
+  getApiErrorMessage,
+} from "../services/api";
 
 type Product = {
   _id: string;
@@ -29,13 +32,11 @@ export default function AdminProducts() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/products`
+      const res = await api.get<Product[]>(
+        "/api/products"
       );
 
-      const data = await res.json();
-
-      setProducts(data);
+      setProducts(res.data);
     } catch (error) {
       console.log(error);
     } finally {
@@ -53,31 +54,16 @@ export default function AdminProducts() {
     e.preventDefault();
 
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/products`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            name: form.name,
-            description: form.description,
-            price: Number(form.price),
-            category: form.category,
-            stock: Number(form.stock),
-            brand: form.brand,
-            images: [form.image],
-            featured: false,
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error("Failed");
-      }
+      await api.post("/api/products", {
+        name: form.name,
+        description: form.description,
+        price: Number(form.price),
+        category: form.category,
+        stock: Number(form.stock),
+        brand: form.brand,
+        images: [form.image],
+        featured: false,
+      });
 
       alert("Product added successfully");
 
@@ -95,7 +81,7 @@ export default function AdminProducts() {
     } catch (error) {
       console.log(error);
 
-      alert("Something went wrong");
+      alert(getApiErrorMessage(error));
     }
   };
 
@@ -109,11 +95,8 @@ export default function AdminProducts() {
     if (!confirmDelete) return;
 
     try {
-      await fetch(
-        `${import.meta.env.VITE_API_URL}/api/products/${id}`,
-        {
-          method: "DELETE",
-        }
+      await api.delete(
+        `/api/products/${id}`
       );
 
       fetchProducts();

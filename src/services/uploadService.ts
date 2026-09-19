@@ -1,6 +1,6 @@
-import axios from "axios";
-
-import api from "./api";
+import api, {
+  getApiErrorMessage,
+} from "./api";
 
 // ========================================
 // TYPES
@@ -12,37 +12,6 @@ import api from "./api";
 
 export type UploadResponse = {
   imageUrl: string;
-};
-
-// ========================================
-// ERROR MESSAGE
-//
-// The API always fails with { message }.
-// ========================================
-
-const resolveUploadError = (
-  error: unknown
-): string => {
-  if (
-    axios.isAxiosError<{
-      message?: string;
-    }>(error)
-  ) {
-    if (error.response?.status === 401) {
-      return "Your session has expired. Please log in again.";
-    }
-
-    return (
-      error.response?.data?.message ||
-      "Image upload failed."
-    );
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Image upload failed.";
 };
 
 // ========================================
@@ -94,7 +63,10 @@ export const uploadImage = async (
     return response.data.imageUrl;
   } catch (error) {
     throw new Error(
-      resolveUploadError(error)
+      getApiErrorMessage(
+        error,
+        "Image upload failed."
+      )
     );
   }
 };
