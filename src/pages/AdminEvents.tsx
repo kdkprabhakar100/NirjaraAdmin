@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { motion } from "framer-motion";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 
-import getCroppedImg from "../utils/cropImage";  
+import getCroppedImg from "../utils/cropImage";
+import { uploadImage as uploadImageToServer } from "../services/uploadService";
 
 interface EventType {
   _id: string;
@@ -61,8 +62,8 @@ const AdminEvents = () => {
 
   const fetchEvents = async () => {
     try {
-      const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/events`
+      const res = await api.get(
+        `/api/events/admin/all`
       );
 
       setEvents(res.data);
@@ -132,29 +133,18 @@ const onCropComplete = (
 
       if (!croppedBlob) return;
 
-      const data = new FormData();
-
-      data.append("image", croppedBlob);
-
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/upload`,
-        data,
-        {
-          headers: {
-            "Content-Type":
-              "multipart/form-data",
-          },
-        }
-      );
+      const imageUrl =
+        await uploadImageToServer(
+          croppedBlob,
+          "event.jpg"
+        );
 
       setFormData({
         ...formData,
-        image: res.data.imageUrl,
+        image: imageUrl,
       });
 
-      setCroppedImage(
-        res.data.imageUrl
-      );
+      setCroppedImage(imageUrl);
 
       setImageSrc("");
     } catch (error) {
@@ -172,8 +162,8 @@ const onCropComplete = (
     e.preventDefault();
 
     try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/events`,
+      await api.post(
+        `/api/events`,
         formData
       );
 
@@ -235,8 +225,8 @@ const onCropComplete = (
     e.preventDefault();
 
     try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/events/${editingId}`,
+      await api.put(
+        `/api/events/${editingId}`,
         formData
       );
 
@@ -269,8 +259,8 @@ const onCropComplete = (
     id: string
   ) => {
     try {
-      await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/events/${id}`
+      await api.delete(
+        `/api/events/${id}`
       );
 
       fetchEvents();
@@ -287,8 +277,8 @@ const onCropComplete = (
     id: string
   ) => {
     try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/events/${id}/featured`
+      await api.put(
+        `/api/events/${id}/featured`
       );
 
       fetchEvents();
@@ -305,8 +295,8 @@ const onCropComplete = (
     id: string
   ) => {
     try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/events/${id}/active`
+      await api.put(
+        `/api/events/${id}/active`
       );
 
       fetchEvents();

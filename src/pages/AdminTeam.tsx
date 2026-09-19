@@ -16,6 +16,8 @@ import {
   type TeamStatus,
 } from "../services/teamService";
 
+import { uploadImage } from "../services/uploadService";
+
 import { toast } from "react-toastify";
 
 // ========================================
@@ -260,52 +262,6 @@ export default function AdminTeam() {
     };
 
     reader.readAsDataURL(file);
-  };
-
-  // ======================================
-  // UPLOAD IMAGE
-  // ======================================
-
-  const uploadImage = async (
-    file: File
-  ): Promise<string> => {
-    const formData = new FormData();
-
-    formData.append("image", file);
-
-    const response = await fetch(
-      `${API_URL}/api/upload`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        "Image upload failed."
-      );
-    }
-
-    const data = await response.json();
-
-    // Supports common backend responses:
-    // { url: "..." }
-    // { imageUrl: "..." }
-    // { path: "..." }
-
-    const uploadedImage =
-      data.url ||
-      data.imageUrl ||
-      data.path;
-
-    if (!uploadedImage) {
-      throw new Error(
-        "Backend did not return an image URL."
-      );
-    }
-
-    return uploadedImage;
   };
 
   // ======================================

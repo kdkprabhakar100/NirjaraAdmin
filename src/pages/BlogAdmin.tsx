@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import TiptapEditor from "../components/TiptapEditor";
+import { uploadImage } from "../services/uploadService";
 
 type Blog = {
   _id?: string;
@@ -63,24 +64,7 @@ export default function BlogAdmin() {
     try {
       setIsUploading(true);
 
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Image upload failed");
-      }
-
-      return data.imageUrl as string;
+      return await uploadImage(file);
     } catch (error) {
       console.error("Upload error:", error);
       alert(

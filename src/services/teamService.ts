@@ -1,14 +1,14 @@
-import axios from "axios";
+import api from "./api";
 
 // ========================================
 // API CONFIGURATION
+//
+// Paths are relative: the shared `api`
+// instance owns the base URL and attaches
+// the admin bearer token.
 // ========================================
 
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000";
-
-const TEAM_API = `${API_URL}/api/teams`;
+const TEAM_API = "/api/teams";
 
 // ========================================
 // TYPES
@@ -79,7 +79,7 @@ export type UpdateTeamMemberPayload =
 export const getTeamMembers =
   async (): Promise<TeamMember[]> => {
     const response =
-      await axios.get<TeamMember[]>(
+      await api.get<TeamMember[]>(
         TEAM_API
       );
 
@@ -98,7 +98,7 @@ export const getTeamMembers =
 export const getPublicTeamMembers =
   async (): Promise<TeamMember[]> => {
     const response =
-      await axios.get<TeamMember[]>(
+      await api.get<TeamMember[]>(
         `${TEAM_API}/public`
       );
 
@@ -114,7 +114,7 @@ export const getPublicTeamMembers =
 export const createTeamMember = async (
   data: TeamMemberPayload
 ): Promise<TeamMember> => {
-  const response = await axios.post<{
+  const response = await api.post<{
     message: string;
     member: TeamMember;
   }>(
@@ -141,7 +141,7 @@ export const updateTeamMember = async (
   id: string,
   data: UpdateTeamMemberPayload
 ): Promise<TeamMember> => {
-  const response = await axios.put<{
+  const response = await api.put<{
     message: string;
     member: TeamMember;
   }>(
@@ -161,7 +161,7 @@ export const updateTeamMember = async (
 export const deleteTeamMember = async (
   id: string
 ): Promise<void> => {
-  await axios.delete(
+  await api.delete(
     `${TEAM_API}/${id}`
   );
 };
@@ -175,7 +175,7 @@ export const deleteTeamMember = async (
 export const reorderTeamMembers = async (
   members: TeamMember[]
 ): Promise<TeamMember[]> => {
-  const response = await axios.put<{
+  const response = await api.put<{
     message: string;
     members: TeamMember[];
   }>(

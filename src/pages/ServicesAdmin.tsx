@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { uploadImage } from "../services/uploadService";
 
 type Service = {
   _id?: string;
@@ -50,28 +51,15 @@ export default function ServicesAdmin() {
   };
 
   const handleImageUpload = async (file: File) => {
-    const formData = new FormData();
-    formData.append("image", file);
-
     try {
       setUploading(true);
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, {
-        method: "POST",
-        body: formData,
-      });
+      const imageUrl = await uploadImage(file);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Image upload failed");
-        return;
-      }
-
-      setForm((prev) => ({ ...prev, image: data.imageUrl }));
+      setForm((prev) => ({ ...prev, image: imageUrl }));
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Upload failed");
+      alert(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setUploading(false);
     }

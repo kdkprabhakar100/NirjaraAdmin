@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import api from "../services/api";
+import { uploadImage as uploadImageToServer } from "../services/uploadService";
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
@@ -88,37 +89,27 @@ export default function AdminPopup() {
 
     if (!file) return;
 
-    const formData = new FormData();
-
-    formData.append("image", file);
-
     try {
       setUploading(true);
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/upload`,
-        {
-          method: "POST",
-
-          headers: getAuthHeaders(),
-
-          body: formData,
-        }
-      );
-
-      const data = await res.json();
+      const imageUrl =
+        await uploadImageToServer(file);
 
       setForm((prev) => ({
         ...prev,
 
-        image: data.imageUrl,
+        image: imageUrl,
       }));
 
       toast.success("Image uploaded 💖");
     } catch (error) {
       console.log(error);
 
-      toast.error("Upload failed");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Upload failed"
+      );
     } finally {
       setUploading(false);
     }

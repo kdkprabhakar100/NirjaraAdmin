@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 
 type Career = {
   _id: string;
@@ -27,8 +27,8 @@ export default function AdminCareers() {
 
   const fetchCareers = async () => {
     try {
-      const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/careers/admin/all`
+      const res = await api.get(
+        `/api/careers/admin/all`
       );
       setCareers(res.data);
     } catch (error) {
@@ -66,13 +66,13 @@ export default function AdminCareers() {
 
     try {
       if (editingId) {
-        await axios.put(
-          `${import.meta.env.VITE_API_URL}/api/careers/${editingId}`,
+        await api.put(
+          `/api/careers/${editingId}`,
           formData
         );
       } else {
-        await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/careers`,
+        await api.post(
+          `/api/careers`,
           formData
         );
       }
@@ -104,8 +104,8 @@ export default function AdminCareers() {
 
   const deleteCareer = async (id: string) => {
     try {
-      await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/careers/${id}`
+      await api.delete(
+        `/api/careers/${id}`
       );
 
       fetchCareers();
@@ -116,8 +116,8 @@ export default function AdminCareers() {
 
   const toggleActive = async (id: string) => {
     try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/careers/${id}/active`
+      await api.put(
+        `/api/careers/${id}/active`
       );
 
       fetchCareers();

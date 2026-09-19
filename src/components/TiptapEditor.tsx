@@ -9,6 +9,7 @@ import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
+import { uploadImage } from "../services/uploadService";
 
 type TiptapEditorProps = {
   value: string;
@@ -102,32 +103,13 @@ export default function TiptapEditor({
     try {
       setIsUploadingImage(true);
 
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Image upload failed");
-      }
-
-      if (!data.imageUrl) {
-        throw new Error("The server did not return an image URL");
-      }
+      const imageUrl = await uploadImage(file);
 
       editor
         ?.chain()
         .focus()
         .setImage({
-          src: data.imageUrl,
+          src: imageUrl,
           alt: file.name,
           title: file.name,
         })
