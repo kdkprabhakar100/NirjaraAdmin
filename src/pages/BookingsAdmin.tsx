@@ -1,30 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 
-type Booking = {
-  _id: string;
-  name: string;
-  phone: string;
-  email: string;
-  type: "service" | "course";
-  service?: string;
-  course?: string;
-  branch: string;
-  date: string;
-  time: string;
-  status: "Pending" | "Confirmed" | "Cancelled";
-};
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
 
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-});
+import DialogBox from "../components/DialogBox";
+
+import { getApiErrorMessage } from "../services/base/api";
+
+import {
+  deleteBooking as deleteBookingRequest,
+  getBookings,
+  updateBookingStatus,
+} from "../services/booking/bookingService";
+
+import type { Booking } from "../services/booking/booking.types";
 
 export default function BookingsAdmin() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // The booking awaiting delete confirmation.
+  // Null means the dialog is closed.
+  const [bookingToDelete, setBookingToDelete] =
+    useState<Booking | null>(null);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -36,29 +38,9 @@ export default function BookingsAdmin() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/bookings?t=${Date.now()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-          },
-          cache: "no-store",
-        }
-      );
+      const data = await getBookings();
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data?.message || "Failed to load bookings"
-        );
-      }
-
-      setBookings(
-        Array.isArray(data)
-          ? data
-          : []
-      );
+      setBookings(data);
     } catch (error) {
       console.error(
         "Fetch bookings error:",
@@ -66,9 +48,10 @@ export default function BookingsAdmin() {
       );
 
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to load bookings"
+        getApiErrorMessage(
+          error,
+          "Failed to load bookings"
+        )
       );
 
       setBookings([]);
@@ -124,27 +107,10 @@ export default function BookingsAdmin() {
       setProcessingId(id);
       setOpenMenuId(null);
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/bookings/${id}`,
-        {
-          method: "PUT",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            status,
-          }),
-        }
+      await updateBookingStatus(
+        id,
+        status
       );
-
-      const data = await res
-        .json()
-        .catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(
-          data?.message ||
-            "Failed to update booking"
-        );
-      }
 
       // Update UI immediately
       setBookings((previous) =>
@@ -177,9 +143,10 @@ export default function BookingsAdmin() {
       );
 
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to update booking"
+        getApiErrorMessage(
+          error,
+          "Unable to update booking"
+        )
       );
     } finally {
       setProcessingId(null);
@@ -188,47 +155,29 @@ export default function BookingsAdmin() {
 
   // ============================
   // DELETE BOOKING
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
   // ============================
 
-  const deleteBooking = async (
-    id: string
+  const requestDelete = (
+    booking: Booking
   ) => {
     setOpenMenuId(null);
+    setBookingToDelete(booking);
+  };
 
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to delete this booking?"
-      );
-
-    if (!confirmed) {
+  const confirmDelete = async () => {
+    if (!bookingToDelete) {
       return;
     }
+
+    const id = bookingToDelete._id;
 
     try {
       setProcessingId(id);
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/bookings/${id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem(
-              "adminToken"
-            )}`,
-          },
-        }
-      );
-
-      const data = await res
-        .json()
-        .catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(
-          data?.message ||
-            "Failed to delete booking"
-        );
-      }
+      await deleteBookingRequest(id);
 
       // Remove from UI immediately
       setBookings((previous) =>
@@ -241,6 +190,8 @@ export default function BookingsAdmin() {
       toast.success(
         "Booking deleted successfully!"
       );
+
+      setBookingToDelete(null);
     } catch (error) {
       console.error(
         "Delete booking error:",
@@ -248,10 +199,15 @@ export default function BookingsAdmin() {
       );
 
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to delete booking"
+        getApiErrorMessage(
+          error,
+          "Unable to delete booking"
+        )
       );
+
+      // Dialog stays open so the admin can
+      // retry without hunting for the row
+      // again.
     } finally {
       setProcessingId(null);
     }
@@ -275,15 +231,31 @@ export default function BookingsAdmin() {
     return "bg-[#FCE7EF] text-[#E75480]";
   };
 
+  const statusBadge = (
+    booking: Booking
+  ) => (
+    <span
+      className={`inline-block rounded-full px-4 py-1 text-xs ${statusClass(
+        booking.status
+      )}`}
+    >
+      {booking.status}
+    </span>
+  );
+
   // ============================
   // ACTION MENU
+  //
+  // A render function rather than a nested
+  // component: a component declared inside
+  // the page would be a new type on every
+  // render, so React would remount the
+  // open menu and close it.
   // ============================
 
-  const ActionMenu = ({
-    booking,
-  }: {
-    booking: Booking;
-  }) => {
+  const renderActions = (
+    booking: Booking
+  ) => {
     const isOpen =
       openMenuId === booking._id;
 
@@ -369,9 +341,7 @@ export default function BookingsAdmin() {
             <button
               type="button"
               onClick={() =>
-                deleteBooking(
-                  booking._id
-                )
+                requestDelete(booking)
               }
               className="block w-full px-4 py-3 text-left text-xs text-[#E75480] transition hover:bg-[#FFF5F8]"
             >
@@ -382,6 +352,84 @@ export default function BookingsAdmin() {
       </div>
     );
   };
+
+  // ============================
+  // COLUMNS
+  //
+  // Drives both the desktop table and the
+  // mobile cards. Columns marked
+  // hideOnMobile already appear in the card
+  // header or footer, so the label/value
+  // list would only repeat them.
+  // ============================
+
+  const columns: TableColumn<Booking>[] = [
+    {
+      key: "name",
+      header: "Customer",
+      hideOnMobile: true,
+      cellClassName:
+        "font-medium text-[#3A2A2F]",
+      render: (booking) => booking.name,
+    },
+    {
+      key: "phone",
+      header: "Phone",
+      cellClassName: "whitespace-nowrap",
+      render: (booking) => booking.phone,
+    },
+    {
+      key: "email",
+      header: "Email",
+      cellClassName: "break-all",
+      render: (booking) => booking.email,
+    },
+    {
+      key: "type",
+      header: "Type",
+      hideOnMobile: true,
+      cellClassName: "capitalize",
+      render: (booking) => booking.type,
+    },
+    {
+      key: "selected",
+      header: "Selected",
+      mobileLabel: "Selected",
+      render: (booking) =>
+        booking.type === "course"
+          ? booking.course
+          : booking.service,
+    },
+    {
+      key: "branch",
+      header: "Branch",
+      render: (booking) => booking.branch,
+    },
+    {
+      key: "date",
+      header: "Date",
+      cellClassName: "whitespace-nowrap",
+      render: (booking) => booking.date,
+    },
+    {
+      key: "time",
+      header: "Time",
+      cellClassName: "whitespace-nowrap",
+      render: (booking) => booking.time,
+    },
+    {
+      key: "status",
+      header: "Status",
+      hideOnMobile: true,
+      render: statusBadge,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      hideOnMobile: true,
+      render: renderActions,
+    },
+  ];
 
   // ============================
   // UI
@@ -403,272 +451,61 @@ export default function BookingsAdmin() {
         </p>
       </div>
 
-      {loading ? (
-        <div className="mt-10 rounded-3xl bg-white p-10 text-center text-[#8A6F78] shadow-sm">
-          Loading bookings...
-        </div>
-      ) : (
-        <>
-          {/* MOBILE */}
-          <div className="mt-10 grid gap-4 md:hidden">
-            {bookings.map(
-              (booking) => (
-                <div
-                  key={
-                    booking._id
-                  }
-                  className="rounded-3xl bg-white p-5 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold text-[#3A2A2F]">
-                        {
-                          booking.name
-                        }
-                      </h3>
+      <CustomTable
+        className="mt-10"
+        columns={columns}
+        rows={bookings}
+        rowKey={(booking) =>
+          booking._id
+        }
+        loading={loading}
+        loadingMessage="Loading bookings..."
+        emptyTitle="No bookings available"
+        emptyMessage="New bookings from customers will show up here."
+        minWidth="1100px"
+        mobileTitle={(booking) =>
+          booking.name
+        }
+        mobileSubtitle={(booking) =>
+          booking.type
+        }
+        mobileBadge={statusBadge}
+        mobileFooter={renderActions}
+      />
 
-                      <p className="mt-1 text-xs capitalize text-[#8A6F78]">
-                        {
-                          booking.type
-                        }
-                      </p>
-                    </div>
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
 
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs ${statusClass(
-                        booking.status
-                      )}`}
-                    >
-                      {
-                        booking.status
-                      }
-                    </span>
-                  </div>
-
-                  <div className="mt-5 space-y-2 text-sm text-[#8A6F78]">
-                    <p>
-                      <strong>
-                        Phone:
-                      </strong>{" "}
-                      {
-                        booking.phone
-                      }
-                    </p>
-
-                    <p className="break-all">
-                      <strong>
-                        Email:
-                      </strong>{" "}
-                      {
-                        booking.email
-                      }
-                    </p>
-
-                    <p>
-                      <strong>
-                        Selected:
-                      </strong>{" "}
-                      {booking.type ===
-                      "course"
-                        ? booking.course
-                        : booking.service}
-                    </p>
-
-                    <p>
-                      <strong>
-                        Branch:
-                      </strong>{" "}
-                      {
-                        booking.branch
-                      }
-                    </p>
-
-                    <p>
-                      <strong>
-                        Date:
-                      </strong>{" "}
-                      {
-                        booking.date
-                      }
-                    </p>
-
-                    <p>
-                      <strong>
-                        Time:
-                      </strong>{" "}
-                      {
-                        booking.time
-                      }
-                    </p>
-                  </div>
-
-                  <div className="mt-5">
-                    <ActionMenu
-                      booking={
-                        booking
-                      }
-                    />
-                  </div>
-                </div>
-              )
-            )}
-
-            {bookings.length ===
-              0 && (
-              <div className="rounded-3xl bg-white p-8 text-center text-[#8A6F78]">
-                No bookings available.
-              </div>
-            )}
-          </div>
-
-          {/* DESKTOP */}
-          <div className="mt-10 hidden overflow-visible rounded-3xl bg-white shadow-sm md:block">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] border-collapse">
-                <thead className="bg-[#FCE7EF] text-left text-sm text-[#E75480]">
-                  <tr>
-                    <th className="p-5">
-                      Customer
-                    </th>
-
-                    <th className="p-5">
-                      Phone
-                    </th>
-
-                    <th className="p-5">
-                      Email
-                    </th>
-
-                    <th className="p-5">
-                      Type
-                    </th>
-
-                    <th className="p-5">
-                      Selected
-                    </th>
-
-                    <th className="p-5">
-                      Branch
-                    </th>
-
-                    <th className="p-5">
-                      Date
-                    </th>
-
-                    <th className="p-5">
-                      Time
-                    </th>
-
-                    <th className="p-5">
-                      Status
-                    </th>
-
-                    <th className="p-5">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {bookings.map(
-                    (booking) => (
-                      <tr
-                        key={
-                          booking._id
-                        }
-                        className="border-t border-[#E75480]/10 hover:bg-[#FFF9FB]"
-                      >
-                        <td className="p-5 text-sm font-medium text-[#3A2A2F]">
-                          {
-                            booking.name
-                          }
-                        </td>
-
-                        <td className="p-5 text-sm text-[#8A6F78]">
-                          {
-                            booking.phone
-                          }
-                        </td>
-
-                        <td className="p-5 text-sm text-[#8A6F78]">
-                          {
-                            booking.email
-                          }
-                        </td>
-
-                        <td className="p-5 text-sm capitalize text-[#8A6F78]">
-                          {
-                            booking.type
-                          }
-                        </td>
-
-                        <td className="p-5 text-sm text-[#8A6F78]">
-                          {booking.type ===
-                          "course"
-                            ? booking.course
-                            : booking.service}
-                        </td>
-
-                        <td className="p-5 text-sm text-[#8A6F78]">
-                          {
-                            booking.branch
-                          }
-                        </td>
-
-                        <td className="p-5 text-sm text-[#8A6F78]">
-                          {
-                            booking.date
-                          }
-                        </td>
-
-                        <td className="p-5 text-sm text-[#8A6F78]">
-                          {
-                            booking.time
-                          }
-                        </td>
-
-                        <td className="p-5">
-                          <span
-                            className={`rounded-full px-4 py-1 text-xs ${statusClass(
-                              booking.status
-                            )}`}
-                          >
-                            {
-                              booking.status
-                            }
-                          </span>
-                        </td>
-
-                        <td className="p-5">
-                          <ActionMenu
-                            booking={
-                              booking
-                            }
-                          />
-                        </td>
-                      </tr>
-                    )
-                  )}
-
-                  {bookings.length ===
-                    0 && (
-                    <tr>
-                      <td
-                        colSpan={
-                          10
-                        }
-                        className="p-10 text-center text-[#8A6F78]"
-                      >
-                        No bookings available.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
+      <DialogBox
+        open={Boolean(bookingToDelete)}
+        onClose={() =>
+          setBookingToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete booking?"
+        description={
+          bookingToDelete
+            ? `This will permanently remove ${bookingToDelete.name}'s booking. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={Boolean(
+          bookingToDelete &&
+            processingId ===
+              bookingToDelete._id
+        )}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          Cancelling the booking instead
+          keeps the record and lets the
+          customer be notified.
+        </p>
+      </DialogBox>
     </div>
   );
 }

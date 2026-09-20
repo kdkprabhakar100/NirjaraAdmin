@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api, {
   getApiErrorMessage,
-} from "../services/api";
+} from "../services/base/api";
 
 type Product = {
   _id: string;

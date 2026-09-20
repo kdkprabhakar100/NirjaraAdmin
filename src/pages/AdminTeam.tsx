@@ -11,12 +11,15 @@ import {
   getTeamMembers,
   reorderTeamMembers,
   updateTeamMember,
-  type TeamMember,
-  type TeamMemberPayload,
-  type TeamStatus,
-} from "../services/teamService";
+} from "../services/team/teamService";
 
-import { uploadImage } from "../services/uploadService";
+import type {
+  TeamMember,
+  TeamMemberPayload,
+  TeamStatus,
+} from "../services/team/team.types";
+
+import { uploadImage } from "../services/upload/uploadService";
 
 import { toast } from "react-toastify";
 

@@ -1,19 +1,43 @@
 import { useEffect, useState } from "react";
-import { uploadImage } from "../services/uploadService";
+import { toast } from "react-toastify";
 
-type Service = {
-  _id?: string;
-  icon: string;
-  title: string;
-  description: string;
-  price: string;
-  category: string;
-  image?: string;
-};
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
 
-const categories = ["Hair", "Skin", "Bridal", "Nails", "Spa", "Academy", "Other"];
+import DialogBox from "../components/DialogBox";
 
-const emptyForm: Service = {
+import { getApiErrorMessage } from "../services/base/api";
+
+import { uploadImage } from "../services/upload/uploadService";
+
+import {
+  createService,
+  deleteService,
+  getServices,
+  updateService,
+} from "../services/service/serviceService";
+
+import type {
+  Service,
+  ServicePayload,
+} from "../services/service/service.types";
+
+// ========================================
+// FORM DEFAULTS
+// ========================================
+
+const categories = [
+  "Hair",
+  "Skin",
+  "Bridal",
+  "Nails",
+  "Spa",
+  "Academy",
+  "Other",
+];
+
+const emptyForm: ServicePayload = {
   icon: "✦",
   title: "",
   description: "",
@@ -22,207 +46,609 @@ const emptyForm: Service = {
   image: "",
 };
 
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-});
+// ========================================
+// SHARED INPUT STYLE
+// ========================================
+
+const inputClass =
+  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function ServicesAdmin() {
-  const [services, setServices] = useState<Service[]>([]);
-  const [form, setForm] = useState<Service>(emptyForm);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [customCategory, setCustomCategory] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [services, setServices] =
+    useState<Service[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  // ---- Add / edit dialog ----
+
+  const [formOpen, setFormOpen] =
+    useState(false);
+
+  const [form, setForm] =
+    useState<ServicePayload>(emptyForm);
+
+  const [editingId, setEditingId] =
+    useState<string | null>(null);
+
+  const [customCategory, setCustomCategory] =
+    useState("");
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  // ---- Delete dialog ----
+
+  const [serviceToDelete, setServiceToDelete] =
+    useState<Service | null>(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  // ============================
+  // FETCH SERVICES
+  // ============================
 
   const fetchServices = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/services`);
-    const data = await res.json();
-    setServices(data);
+    try {
+      setLoading(true);
+
+      const data = await getServices();
+
+      setServices(data);
+    } catch (error) {
+      console.error(
+        "Fetch services error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Failed to load services"
+        )
+      );
+
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchServices();
   }, []);
 
-  const resetForm = () => {
+  // ============================
+  // OPEN THE FORM
+  //
+  // Add and edit share one dialog; the
+  // only difference is whether the form
+  // starts empty or filled.
+  // ============================
+
+  const openAddForm = () => {
     setForm(emptyForm);
-    setEditingId(null);
     setCustomCategory("");
+    setEditingId(null);
+    setFormOpen(true);
   };
 
-  const handleImageUpload = async (file: File) => {
+  const openEditForm = (
+    service: Service
+  ) => {
+    const isKnownCategory =
+      categories.includes(
+        service.category
+      );
+
+    setForm({
+      icon: service.icon || "✦",
+      title: service.title || "",
+      description:
+        service.description || "",
+      price: service.price || "",
+      category: isKnownCategory
+        ? service.category
+        : "Other",
+      image: service.image || "",
+    });
+
+    // A category the dropdown does not
+    // know about becomes "Other" plus the
+    // original text.
+    setCustomCategory(
+      isKnownCategory
+        ? ""
+        : service.category || ""
+    );
+
+    setEditingId(service._id || null);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setForm(emptyForm);
+    setCustomCategory("");
+    setEditingId(null);
+  };
+
+  // ============================
+  // IMAGE UPLOAD
+  //
+  // Uploads as soon as a file is picked,
+  // so the form holds a URL and saving is
+  // a plain JSON request.
+  // ============================
+
+  const handleImageUpload = async (
+    file: File
+  ) => {
     try {
       setUploading(true);
 
-      const imageUrl = await uploadImage(file);
+      const imageUrl = await uploadImage(
+        file
+      );
 
-      setForm((prev) => ({ ...prev, image: imageUrl }));
+      setForm((previous) => ({
+        ...previous,
+        image: imageUrl,
+      }));
+
+      toast.success(
+        "Image uploaded successfully!"
+      );
     } catch (error) {
-      console.error("Upload error:", error);
-      alert(error instanceof Error ? error.message : "Upload failed");
+      console.error(
+        "Upload error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Image upload failed"
+        )
+      );
     } finally {
       setUploading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ============================
+  // SAVE
+  //
+  // Title, price and description are
+  // marked required, so the browser blocks
+  // the submit before this runs. Only the
+  // rules HTML cannot express are checked
+  // here.
+  // ============================
 
-    const finalService = {
+  const handleSubmit = async () => {
+    const category =
+      form.category === "Other"
+        ? customCategory.trim()
+        : form.category;
+
+    if (!category) {
+      toast.error(
+        "Please enter a category."
+      );
+
+      return;
+    }
+
+    if (!form.image) {
+      toast.error(
+        "Please upload an image."
+      );
+
+      return;
+    }
+
+    const payload: ServicePayload = {
       ...form,
-      category: form.category === "Other" ? customCategory : form.category,
+      category,
     };
 
-    if (
-      !finalService.title ||
-      !finalService.price ||
-      !finalService.category ||
-      !finalService.description
-    ) {
-      alert("Please fill title, price, category, and description.");
-      return;
-    }
+    try {
+      setSaving(true);
 
-    if (!finalService.image) {
-      alert("Please upload an image.");
-      return;
-    }
+      if (editingId) {
+        await updateService(
+          editingId,
+          payload
+        );
 
-    const res = await fetch(
-      editingId
-        ? `${import.meta.env.VITE_API_URL}/api/services/${editingId}`
-        : `${import.meta.env.VITE_API_URL}/api/services`,
-      {
-        method: editingId ? "PUT" : "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(finalService),
+        toast.success(
+          "Service updated successfully!"
+        );
+      } else {
+        await createService(payload);
+
+        toast.success(
+          "Service added successfully!"
+        );
       }
+
+      await fetchServices();
+
+      closeForm();
+    } catch (error) {
+      console.error(
+        "Save service error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Service save failed"
+        )
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ============================
+  // DELETE
+  // ============================
+
+  const confirmDelete = async () => {
+    const id = serviceToDelete?._id;
+
+    if (!id) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      await deleteService(id);
+
+      setServices((previous) =>
+        previous.filter(
+          (service) =>
+            service._id !== id
+        )
+      );
+
+      toast.success(
+        "Service deleted successfully!"
+      );
+
+      setServiceToDelete(null);
+    } catch (error) {
+      console.error(
+        "Delete service error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to delete service"
+        )
+      );
+
+      // Dialog stays open so the admin can
+      // retry.
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ============================
+  // ROW PIECES
+  // ============================
+
+  const thumbnail = (
+    service: Service
+  ) =>
+    service.image ? (
+      <img
+        src={service.image}
+        alt={service.title}
+        className="h-14 w-14 rounded-xl object-cover"
+      />
+    ) : (
+      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+        {service.icon || "✦"}
+      </div>
     );
 
-    const data = await res.json();
+  const renderActions = (
+    service: Service
+  ) => (
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={() =>
+          openEditForm(service)
+        }
+        className="rounded-full border border-[#E75480] px-5 py-2 text-xs text-[#E75480] transition hover:bg-[#FFF5F8]"
+      >
+        Edit
+      </button>
 
-    if (!res.ok) {
-      alert(data.message || "Service save failed");
-      return;
-    }
+      <button
+        type="button"
+        onClick={() =>
+          setServiceToDelete(service)
+        }
+        className="rounded-full bg-[#FCE7EF] px-5 py-2 text-xs text-[#E75480] transition hover:bg-[#FBD5E3]"
+      >
+        Delete
+      </button>
+    </div>
+  );
 
-    await fetchServices();
-    resetForm();
-  };
+  // ============================
+  // COLUMNS
+  // ============================
 
-  const handleEdit = (service: Service) => {
-    setForm({
-      icon: service.icon || "✦",
-      title: service.title || "",
-      description: service.description || "",
-      price: service.price || "",
-      category: categories.includes(service.category) ? service.category : "Other",
-      image: service.image || "",
-    });
+  const columns: TableColumn<Service>[] = [
+    {
+      key: "image",
+      header: "Image",
+      width: "90px",
+      hideOnMobile: true,
+      render: thumbnail,
+    },
+    {
+      key: "title",
+      header: "Title",
+      hideOnMobile: true,
+      cellClassName:
+        "font-medium text-[#3A2A2F]",
+      render: (service) =>
+        service.title,
+    },
+    {
+      key: "category",
+      header: "Category",
+      hideOnMobile: true,
+      render: (service) => (
+        <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+          {service.category}
+        </span>
+      ),
+    },
+    {
+      key: "price",
+      header: "Price",
+      cellClassName:
+        "whitespace-nowrap font-medium text-[#E75480]",
+      render: (service) =>
+        service.price,
+    },
+    {
+      key: "description",
+      header: "Description",
+      cellClassName: "max-w-sm",
+      render: (service) => (
+        <p className="line-clamp-2 leading-6">
+          {service.description}
+        </p>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      hideOnMobile: true,
+      render: renderActions,
+    },
+  ];
 
-    if (!categories.includes(service.category)) {
-      setCustomCategory(service.category || "");
-    }
-
-    setEditingId(service._id || null);
-    window.scrollTo(0, 0);
-  };
-
-  const handleDelete = async (id?: string) => {
-    if (!id) return;
-    if (!confirm("Delete this service?")) return;
-
-    await fetch(`${import.meta.env.VITE_API_URL}/api/services/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-      },
-    });
-
-    await fetchServices();
-  };
+  // ============================
+  // UI
+  // ============================
 
   return (
     <div>
-      <h1 className="font-serif text-4xl text-[#E75480] md:text-5xl">
-        Services
-      </h1>
+      {/* HEADER */}
 
-      <p className="mt-2 text-sm text-[#8A6F78] md:text-base">
-        Create, edit, delete, and manage website services.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+            Management
+          </p>
 
-      <form
+          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+            Services
+          </h1>
+
+          <p className="mt-2 text-[#8A6F78]">
+            Create, edit, delete, and manage website services.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+        >
+          Add Service
+        </button>
+      </div>
+
+      {/* TABLE */}
+
+      <CustomTable
+        className="mt-10"
+        columns={columns}
+        rows={services}
+        rowKey={(service, index) =>
+          service._id ?? String(index)
+        }
+        loading={loading}
+        loadingMessage="Loading services..."
+        emptyIcon="✦"
+        emptyTitle="No services yet"
+        emptyMessage="Add your first service using the button above."
+        minWidth="1000px"
+        mobileTitle={(service) => (
+          <span className="flex items-center gap-3">
+            {thumbnail(service)}
+
+            <span>{service.title}</span>
+          </span>
+        )}
+        mobileSubtitle={(service) =>
+          service.category
+        }
+        mobileFooter={renderActions}
+      />
+
+      {/* ============================ */}
+      {/* ADD / EDIT                   */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={formOpen}
+        onClose={closeForm}
+        eyebrow="Management"
+        title={
+          editingId
+            ? "Edit Service"
+            : "Add New Service"
+        }
+        size="lg"
         onSubmit={handleSubmit}
-        className="mt-8 rounded-3xl bg-white p-4 shadow-sm md:p-6"
+        submitting={saving}
+        submittingLabel={
+          editingId
+            ? "Updating..."
+            : "Adding..."
+        }
+        confirmLabel={
+          editingId
+            ? "Update Service"
+            : "Add Service"
+        }
+        confirmDisabled={uploading}
+        // A half filled form should not
+        // vanish on a stray click.
+        closeOnBackdrop={false}
       >
-        <h2 className="font-serif text-2xl text-[#3A2A2F] md:text-3xl">
-          {editingId ? "Edit Service" : "Add New Service"}
-        </h2>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <input
+            required
             placeholder="Service Title"
             value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none md:text-base"
+            onChange={(event) =>
+              setForm({
+                ...form,
+                title:
+                  event.target.value,
+              })
+            }
+            className={inputClass}
           />
 
           <input
+            required
             placeholder="Price e.g. From Rs. 800"
             value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none md:text-base"
+            onChange={(event) =>
+              setForm({
+                ...form,
+                price:
+                  event.target.value,
+              })
+            }
+            className={inputClass}
           />
 
           <select
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none md:text-base"
+            onChange={(event) =>
+              setForm({
+                ...form,
+                category:
+                  event.target.value,
+              })
+            }
+            className={inputClass}
           >
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
+            {categories.map(
+              (category) => (
+                <option
+                  key={category}
+                  value={category}
+                >
+                  {category}
+                </option>
+              )
+            )}
           </select>
 
           <input
             type="file"
             accept="image/png, image/jpeg, image/jpg, image/webp"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
+            onChange={(event) => {
+              const file =
+                event.target.files?.[0];
+
+              if (!file) {
+                return;
+              }
+
               handleImageUpload(file);
             }}
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none"
+            className={inputClass}
           />
 
-          {form.category === "Other" && (
+          {form.category ===
+            "Other" && (
             <input
+              required
               placeholder="Enter custom category"
               value={customCategory}
-              onChange={(e) => setCustomCategory(e.target.value)}
-              className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none md:col-span-2 md:text-base"
+              onChange={(event) =>
+                setCustomCategory(
+                  event.target.value
+                )
+              }
+              className={`${inputClass} md:col-span-2`}
             />
           )}
 
           <textarea
+            required
             placeholder="Service Description"
             value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                description:
+                  event.target.value,
+              })
+            }
             rows={4}
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none md:col-span-2 md:text-base"
+            className={`${inputClass} md:col-span-2`}
           />
         </div>
 
         {uploading && (
-          <p className="mt-4 text-sm text-[#8A6F78]">Uploading image...</p>
+          <p className="mt-4 text-sm text-[#8A6F78]">
+            Uploading image...
+          </p>
         )}
 
         {form.image && (
           <div className="mt-5">
-            <p className="mb-2 text-sm text-[#8A6F78]">Image Preview</p>
+            <p className="mb-2 text-sm text-[#8A6F78]">
+              Image Preview
+            </p>
+
             <img
               src={form.image}
               alt="Preview"
@@ -230,87 +656,36 @@ export default function ServicesAdmin() {
             />
           </div>
         )}
+      </DialogBox>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button
-            disabled={uploading}
-            className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white disabled:opacity-60"
-          >
-            {uploading
-              ? "Uploading..."
-              : editingId
-              ? "Update Service"
-              : "Add Service"}
-          </button>
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
 
-          {editingId && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480]"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
-
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {services.map((service) => (
-          <div
-            key={service._id}
-            className="overflow-hidden rounded-3xl bg-white shadow-sm"
-          >
-            {service.image && (
-              <img
-                src={service.image}
-                alt={service.title}
-                className="h-44 w-full object-cover"
-              />
-            )}
-
-            <div className="p-5 md:p-6">
-              <p className="break-words text-xs uppercase tracking-[2px] text-[#E75480]">
-                {service.category}
-              </p>
-
-              <h3 className="mt-2 break-words font-serif text-xl text-[#3A2A2F] md:text-2xl">
-                {service.title}
-              </h3>
-
-              <p className="mt-2 break-words text-sm leading-6 text-[#8A6F78]">
-                {service.description}
-              </p>
-
-              <p className="mt-3 font-medium text-[#E75480]">
-                {service.price}
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  onClick={() => handleEdit(service)}
-                  className="rounded-full border border-[#E75480] px-5 py-2 text-xs text-[#E75480]"
-                >
-                  Edit
-                </button>
-
-                <button
-                  onClick={() => handleDelete(service._id)}
-                  className="rounded-full bg-[#FCE7EF] px-5 py-2 text-xs text-[#E75480]"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {services.length === 0 && (
-          <div className="rounded-3xl bg-white p-8 text-center text-[#8A6F78] shadow-sm sm:col-span-2 lg:col-span-3">
-            No services available.
-          </div>
-        )}
-      </div>
+      <DialogBox
+        open={Boolean(serviceToDelete)}
+        onClose={() =>
+          setServiceToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete service?"
+        description={
+          serviceToDelete
+            ? `"${serviceToDelete.title}" will be removed from the website. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          Customers will no longer see this
+          service on the booking form.
+        </p>
+      </DialogBox>
     </div>
   );
 }

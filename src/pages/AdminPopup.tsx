@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import api from "../services/api";
-import { uploadImage as uploadImageToServer } from "../services/uploadService";
+import api from "../services/base/api";
+import { uploadImage as uploadImageToServer } from "../services/upload/uploadService";
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("adminToken")}`,

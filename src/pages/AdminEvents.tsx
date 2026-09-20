@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import api from "../services/api";
+import api from "../services/base/api";
 import { motion } from "framer-motion";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 
 import getCroppedImg from "../utils/cropImage";
-import { uploadImage as uploadImageToServer } from "../services/uploadService";
+import { uploadImage as uploadImageToServer } from "../services/upload/uploadService";
 
 interface EventType {
   _id: string;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import TiptapEditor from "../components/TiptapEditor";
-import { uploadImage } from "../services/uploadService";
+import { uploadImage } from "../services/upload/uploadService";
 
 type Blog = {
   _id?: string;

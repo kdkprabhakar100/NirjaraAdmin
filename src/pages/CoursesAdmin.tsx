@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { uploadImage } from "../services/uploadService";
+import { uploadImage } from "../services/upload/uploadService";
 
 type Course = {
   _id?: string;

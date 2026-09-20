@@ -9,7 +9,7 @@ import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
-import { uploadImage } from "../services/uploadService";
+import { uploadImage } from "../services/upload/uploadService";
 
 type TiptapEditorProps = {
   value: string;

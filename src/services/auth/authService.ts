@@ -1,9 +1,6 @@
-import api from "./api";
+import api from "../base/api";
 
-type LoginPayload = {
-  email: string;
-  password: string;
-};
+import type { LoginPayload } from "./auth.types";
 
 export async function loginAdmin(data: LoginPayload) {
   const response = await api.post("/api/auth/login", data);

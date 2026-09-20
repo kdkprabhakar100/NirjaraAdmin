@@ -1,18 +1,8 @@
 import api, {
   getApiErrorMessage,
-} from "./api";
+} from "../base/api";
 
-// ========================================
-// TYPES
-//
-// The backend responds with:
-//
-// { imageUrl: "https://res.cloudinary..." }
-// ========================================
-
-export type UploadResponse = {
-  imageUrl: string;
-};
+import type { UploadResponse } from "./upload.types";
 
 // ========================================
 // UPLOAD IMAGE
