@@ -1,7 +1,21 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
+
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
+
+import DialogBox from "../components/DialogBox";
+
+import RowActionsMenu from "../components/RowActionsMenu";
+
 import api, {
   getApiErrorMessage,
 } from "../services/base/api";
+
+// ========================================
+// TYPES
+// ========================================
 
 type Product = {
   _id: string;
@@ -15,30 +29,72 @@ type Product = {
   brand: string;
 };
 
+const emptyForm = {
+  name: "",
+  description: "",
+  price: "",
+  category: "",
+  stock: "",
+  brand: "",
+  image: "",
+};
+
+// ========================================
+// SHARED INPUT STYLE
+// ========================================
+
+const inputClass =
+  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+
 export default function AdminProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] =
+    useState<Product[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    price: "",
-    category: "",
-    stock: "",
-    brand: "",
-    image: "",
-  });
+  const [form, setForm] =
+    useState(emptyForm);
+
+  const [formOpen, setFormOpen] =
+    useState(false);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  // The product awaiting delete
+  // confirmation. Null means the dialog
+  // is closed.
+  const [
+    productToDelete,
+    setProductToDelete,
+  ] = useState<Product | null>(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  // ============================
+  // FETCH PRODUCTS
+  // ============================
 
   const fetchProducts = async () => {
     try {
-      const res = await api.get<Product[]>(
-        "/api/products"
-      );
+      setLoading(true);
+
+      const res = await api.get<
+        Product[]
+      >("/api/products");
 
       setProducts(res.data);
     } catch (error) {
       console.log(error);
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Failed to load products"
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -48,12 +104,24 @@ export default function AdminProducts() {
     fetchProducts();
   }, []);
 
-  const createProduct = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
+  // ============================
+  // FORM
+  // ============================
 
+  const openAddForm = () => {
+    setForm(emptyForm);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setForm(emptyForm);
+  };
+
+  const handleSubmit = async () => {
     try {
+      setSaving(true);
+
       await api.post("/api/products", {
         name: form.name,
         description: form.description,
@@ -65,79 +133,277 @@ export default function AdminProducts() {
         featured: false,
       });
 
-      alert("Product added successfully");
+      toast.success(
+        "Product added successfully"
+      );
 
-      setForm({
-        name: "",
-        description: "",
-        price: "",
-        category: "",
-        stock: "",
-        brand: "",
-        image: "",
-      });
+      await fetchProducts();
 
-      fetchProducts();
+      closeForm();
     } catch (error) {
       console.log(error);
 
-      alert(getApiErrorMessage(error));
+      toast.error(
+        getApiErrorMessage(error)
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
-  const deleteProduct = async (
-    id: string
-  ) => {
-    const confirmDelete = window.confirm(
-      "Delete this product?"
-    );
+  // ============================
+  // DELETE
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
+  // ============================
 
-    if (!confirmDelete) return;
+  const confirmDelete = async () => {
+    if (!productToDelete) {
+      return;
+    }
+
+    const id = productToDelete._id;
 
     try {
+      setDeleting(true);
+
       await api.delete(
         `/api/products/${id}`
       );
 
-      fetchProducts();
+      // Remove from UI immediately
+      setProducts((previous) =>
+        previous.filter(
+          (product) =>
+            product._id !== id
+        )
+      );
+
+      toast.success(
+        "Product deleted successfully"
+      );
+
+      setProductToDelete(null);
     } catch (error) {
       console.log(error);
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to delete product"
+        )
+      );
+
+      // Dialog stays open so the admin can
+      // retry.
+    } finally {
+      setDeleting(false);
     }
   };
 
-  return (
-    <section className="p-8">
-      <div className="mb-10">
-        <h1 className="font-serif text-5xl text-[#E75480]">
-          Products
-        </h1>
+  // ============================
+  // ROW PIECES
+  // ============================
 
-        <p className="mt-3 text-[#8A6F78]">
-          Manage ecommerce products
-        </p>
+  const thumbnail = (
+    product: Product
+  ) =>
+    product.images?.[0] ? (
+      <img
+        src={product.images[0]}
+        alt={product.name}
+        className="h-14 w-20 rounded-xl object-cover"
+      />
+    ) : (
+      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+        🛍
+      </div>
+    );
+
+  const renderActions = (
+    product: Product
+  ) => (
+    <RowActionsMenu
+      label={`Actions for ${product.name}`}
+      actions={[
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          onSelect: () =>
+            setProductToDelete(product),
+        },
+      ]}
+    />
+  );
+
+  // ============================
+  // COLUMNS
+  // ============================
+
+  const columns: TableColumn<Product>[] =
+    [
+      {
+        key: "image",
+        header: "Image",
+        width: "110px",
+        hideOnMobile: true,
+        render: thumbnail,
+      },
+      {
+        key: "name",
+        header: "Product",
+        hideOnMobile: true,
+        cellClassName:
+          "font-medium text-[#3A2A2F]",
+        render: (product) =>
+          product.name,
+      },
+      {
+        key: "category",
+        header: "Category",
+        hideOnMobile: true,
+        render: (product) => (
+          <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+            {product.category}
+          </span>
+        ),
+      },
+      {
+        key: "brand",
+        header: "Brand",
+        render: (product) =>
+          product.brand,
+      },
+      {
+        key: "price",
+        header: "Price",
+        cellClassName:
+          "whitespace-nowrap font-medium text-[#E75480]",
+        render: (product) =>
+          `$${product.price}`,
+      },
+      {
+        key: "stock",
+        header: "Stock",
+        cellClassName:
+          "whitespace-nowrap",
+        render: (product) =>
+          product.stock,
+      },
+      {
+        key: "description",
+        header: "Description",
+        cellClassName: "max-w-sm",
+        render: (product) => (
+          <p className="line-clamp-2 leading-6">
+            {product.description}
+          </p>
+        ),
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        width: "90px",
+        hideOnMobile: true,
+        render: renderActions,
+      },
+    ];
+
+  // ============================
+  // UI
+  // ============================
+
+  return (
+    <div>
+      {/* HEADER */}
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+            Management
+          </p>
+
+          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+            Products
+          </h1>
+
+          <p className="mt-2 text-[#8A6F78]">
+            Manage ecommerce products.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+        >
+          Add Product
+        </button>
       </div>
 
-      <div className="mb-10 rounded-3xl bg-white p-8 shadow-sm">
-        <h2 className="mb-6 text-2xl font-semibold text-[#3A2A2F]">
-          Add Product
-        </h2>
+      {/* TABLE */}
 
-        <form
-          onSubmit={createProduct}
-          className="grid gap-5 md:grid-cols-2"
-        >
+      <CustomTable
+        className="mt-10"
+        columns={columns}
+        rows={products}
+        rowKey={(product) =>
+          product._id
+        }
+        loading={loading}
+        loadingMessage="Loading products..."
+        emptyIcon="🛍"
+        emptyTitle="No products yet"
+        emptyMessage="Add your first product using the button above."
+        minWidth="1150px"
+        mobileTitle={(product) => (
+          <span className="flex items-center gap-3">
+            {thumbnail(product)}
+
+            <span>{product.name}</span>
+          </span>
+        )}
+        mobileSubtitle={(product) =>
+          product.category
+        }
+        mobileActions={renderActions}
+      />
+
+      {/* ============================ */}
+      {/* ADD                          */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={formOpen}
+        onClose={closeForm}
+        eyebrow="Management"
+        title="Add Product"
+        size="lg"
+        onSubmit={handleSubmit}
+        submitting={saving}
+        submittingLabel="Adding..."
+        confirmLabel="Add Product"
+        // A half filled form should not
+        // vanish on a stray click.
+        closeOnBackdrop={false}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
           <input
             type="text"
             placeholder="Product Name"
             required
             value={form.name}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                name: e.target.value,
+                name: event.target.value,
               })
             }
-            className="rounded-2xl border p-4 outline-none"
+            className={inputClass}
           />
 
           <input
@@ -145,13 +411,14 @@ export default function AdminProducts() {
             placeholder="Category"
             required
             value={form.category}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                category: e.target.value,
+                category:
+                  event.target.value,
               })
             }
-            className="rounded-2xl border p-4 outline-none"
+            className={inputClass}
           />
 
           <input
@@ -159,13 +426,14 @@ export default function AdminProducts() {
             placeholder="Price"
             required
             value={form.price}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                price: e.target.value,
+                price:
+                  event.target.value,
               })
             }
-            className="rounded-2xl border p-4 outline-none"
+            className={inputClass}
           />
 
           <input
@@ -173,13 +441,14 @@ export default function AdminProducts() {
             placeholder="Stock"
             required
             value={form.stock}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                stock: e.target.value,
+                stock:
+                  event.target.value,
               })
             }
-            className="rounded-2xl border p-4 outline-none"
+            className={inputClass}
           />
 
           <input
@@ -187,13 +456,14 @@ export default function AdminProducts() {
             placeholder="Brand"
             required
             value={form.brand}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                brand: e.target.value,
+                brand:
+                  event.target.value,
               })
             }
-            className="rounded-2xl border p-4 outline-none"
+            className={inputClass}
           />
 
           <input
@@ -201,13 +471,14 @@ export default function AdminProducts() {
             placeholder="Image URL"
             required
             value={form.image}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                image: e.target.value,
+                image:
+                  event.target.value,
               })
             }
-            className="rounded-2xl border p-4 outline-none"
+            className={inputClass}
           />
 
           <textarea
@@ -215,66 +486,60 @@ export default function AdminProducts() {
             required
             rows={5}
             value={form.description}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                description: e.target.value,
+                description:
+                  event.target.value,
               })
             }
-            className="rounded-2xl border p-4 outline-none md:col-span-2"
+            className={`${inputClass} md:col-span-2`}
           />
-
-          <button className="rounded-full bg-[#E75480] px-8 py-4 text-white transition hover:bg-[#d63c6d] md:col-span-2">
-            Add Product
-          </button>
-        </form>
-      </div>
-
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {products.map((product) => (
-            <div
-              key={product._id}
-              className="rounded-3xl bg-white p-5 shadow-sm"
-            >
-              <img
-                src={product.images?.[0]}
-                alt={product.name}
-                className="h-56 w-full rounded-2xl object-cover"
-              />
-
-              <div className="mt-5">
-                <p className="text-sm text-[#C77A95]">
-                  {product.category}
-                </p>
-
-                <h3 className="mt-2 text-2xl font-semibold text-[#3A2A2F]">
-                  {product.name}
-                </h3>
-
-                <p className="mt-2 text-[#8A6F78]">
-                  ${product.price}
-                </p>
-
-                <p className="mt-1 text-sm text-[#8A6F78]">
-                  Stock: {product.stock}
-                </p>
-
-                <button
-                  onClick={() =>
-                    deleteProduct(product._id)
-                  }
-                  className="mt-5 rounded-full bg-red-500 px-5 py-2 text-white"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
-      )}
-    </section>
+
+        {form.image && (
+          <div className="mt-5">
+            <p className="mb-2 text-sm text-[#8A6F78]">
+              Image Preview
+            </p>
+
+            <img
+              src={form.image}
+              alt="Preview"
+              className="h-44 w-full rounded-2xl object-cover md:max-w-md"
+            />
+          </div>
+        )}
+      </DialogBox>
+
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={Boolean(productToDelete)}
+        onClose={() =>
+          setProductToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete product?"
+        description={
+          productToDelete
+            ? `"${productToDelete.name}" will be removed from the store. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          Customers will no longer be able
+          to order this product.
+        </p>
+      </DialogBox>
+    </div>
   );
 }

@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { toast } from "react-toastify";
+
+import DialogBox from "../components/DialogBox";
 
 import CustomerForm from "../components/customers/CustomerForm";
 import CustomerTable from "../components/customers/CustomerTable";
@@ -31,9 +34,11 @@ const mockCustomers: Customer[] = [
     email: "aarati@example.com",
     phone: "+977 9800000001",
     address: "Kathmandu, Nepal",
-    notes: "Regular bridal makeup customer.",
+    notes:
+      "Regular bridal makeup customer.",
     status: "Active",
-    createdAt: "2026-09-01T10:00:00.000Z",
+    createdAt:
+      "2026-09-01T10:00:00.000Z",
   },
   {
     _id: "2",
@@ -41,9 +46,11 @@ const mockCustomers: Customer[] = [
     email: "sujata@example.com",
     phone: "+977 9800000002",
     address: "Lalitpur, Nepal",
-    notes: "Interested in beauty academy courses.",
+    notes:
+      "Interested in beauty academy courses.",
     status: "Active",
-    createdAt: "2026-09-02T10:00:00.000Z",
+    createdAt:
+      "2026-09-02T10:00:00.000Z",
   },
   {
     _id: "3",
@@ -53,7 +60,8 @@ const mockCustomers: Customer[] = [
     address: "Bhaktapur, Nepal",
     notes: "",
     status: "Inactive",
-    createdAt: "2026-09-03T10:00:00.000Z",
+    createdAt:
+      "2026-09-03T10:00:00.000Z",
   },
 ];
 
@@ -62,22 +70,39 @@ export default function CustomersAdmin() {
     useState<Customer[]>(mockCustomers);
 
   const [form, setForm] =
-    useState<CustomerFormData>(emptyForm);
+    useState<CustomerFormData>(
+      emptyForm
+    );
+
+  const [formOpen, setFormOpen] =
+    useState(false);
 
   const [editingId, setEditingId] =
     useState<string | null>(null);
 
-  const [selectedCustomer, setSelectedCustomer] =
-    useState<Customer | null>(null);
+  const [
+    selectedCustomer,
+    setSelectedCustomer,
+  ] = useState<Customer | null>(null);
 
-  const [search, setSearch] = useState("");
+  // The customer awaiting delete
+  // confirmation. Null means the dialog
+  // is closed.
+  const [
+    customerToDelete,
+    setCustomerToDelete,
+  ] = useState<Customer | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState<
-    "All" | "Active" | "Inactive"
-  >("All");
+  const [search, setSearch] =
+    useState("");
+
+  const [statusFilter, setStatusFilter] =
+    useState<
+      "All" | "Active" | "Inactive"
+    >("All");
 
   // ============================
-  // FORM CHANGE
+  // FORM
   // ============================
 
   const handleChange = (
@@ -90,11 +115,30 @@ export default function CustomersAdmin() {
     }));
   };
 
-  // ============================
-  // RESET FORM
-  // ============================
+  const openAddForm = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+    setFormOpen(true);
+  };
 
-  const resetForm = () => {
+  const openEditForm = (
+    customer: Customer
+  ) => {
+    setForm({
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address,
+      notes: customer.notes,
+      status: customer.status,
+    });
+
+    setEditingId(customer._id);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
     setForm(emptyForm);
     setEditingId(null);
   };
@@ -103,17 +147,13 @@ export default function CustomersAdmin() {
   // ADD / UPDATE CUSTOMER
   // ============================
 
-  const handleSubmit = (
-    event: React.FormEvent
-  ) => {
-    event.preventDefault();
-
+  const handleSubmit = () => {
     if (
       !form.name.trim() ||
       !form.email.trim() ||
       !form.phone.trim()
     ) {
-      alert(
+      toast.error(
         "Please fill name, email, and phone."
       );
 
@@ -132,7 +172,11 @@ export default function CustomersAdmin() {
         )
       );
 
-      resetForm();
+      toast.success(
+        "Customer updated successfully!"
+      );
+
+      closeForm();
 
       return;
     }
@@ -140,7 +184,8 @@ export default function CustomersAdmin() {
     const newCustomer: Customer = {
       _id: crypto.randomUUID(),
       ...form,
-      createdAt: new Date().toISOString(),
+      createdAt:
+        new Date().toISOString(),
     };
 
     setCustomers((previous) => [
@@ -148,46 +193,26 @@ export default function CustomersAdmin() {
       ...previous,
     ]);
 
-    resetForm();
-  };
+    toast.success(
+      "Customer added successfully!"
+    );
 
-  // ============================
-  // EDIT CUSTOMER
-  // ============================
-
-  const handleEdit = (
-    customer: Customer
-  ) => {
-    setEditingId(customer._id);
-
-    setForm({
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
-      address: customer.address,
-      notes: customer.notes,
-      status: customer.status,
-    });
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    closeForm();
   };
 
   // ============================
   // DELETE CUSTOMER
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
   // ============================
 
-  const handleDelete = (
-    id: string
-  ) => {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to delete this customer?"
-      );
+  const confirmDelete = () => {
+    if (!customerToDelete) {
+      return;
+    }
 
-    if (!confirmed) return;
+    const id = customerToDelete._id;
 
     setCustomers((previous) =>
       previous.filter(
@@ -197,14 +222,18 @@ export default function CustomersAdmin() {
     );
 
     if (editingId === id) {
-      resetForm();
+      closeForm();
     }
 
-    if (
-      selectedCustomer?._id === id
-    ) {
+    if (selectedCustomer?._id === id) {
       setSelectedCustomer(null);
     }
+
+    toast.success(
+      "Customer deleted successfully!"
+    );
+
+    setCustomerToDelete(null);
   };
 
   // ============================
@@ -213,10 +242,9 @@ export default function CustomersAdmin() {
 
   const filteredCustomers =
     customers.filter((customer) => {
-      const query =
-        search
-          .toLowerCase()
-          .trim();
+      const query = search
+        .toLowerCase()
+        .trim();
 
       const matchesSearch =
         !query ||
@@ -235,11 +263,11 @@ export default function CustomersAdmin() {
 
       const matchesStatus =
         statusFilter === "All" ||
-        customer.status === statusFilter;
+        customer.status ===
+          statusFilter;
 
       return (
-        matchesSearch &&
-        matchesStatus
+        matchesSearch && matchesStatus
       );
     });
 
@@ -263,28 +291,21 @@ export default function CustomersAdmin() {
     ).length;
 
   // ============================
-  // INDIVIDUAL PDF
+  // PDF
   // ============================
 
   const handleDownloadPdf = (
     customer: Customer,
     mode: CustomerPdfMode
   ) => {
-    downloadCustomerPdf(
-      customer,
-      mode
-    );
+    downloadCustomerPdf(customer, mode);
   };
-
-  // ============================
-  // CUSTOMER LIST PDF
-  // ============================
 
   const handleExportCustomerList = () => {
     if (
       filteredCustomers.length === 0
     ) {
-      alert(
+      toast.error(
         "No customers available to export."
       );
 
@@ -296,25 +317,42 @@ export default function CustomersAdmin() {
     );
   };
 
+  // ============================
+  // UI
+  // ============================
+
   return (
     <div className="space-y-8">
-      {/* PAGE HEADER */}
-      <div>
-        <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
-          Customer Management
-        </p>
+      {/* HEADER */}
 
-        <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
-          Customers
-        </h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+            Customer Management
+          </p>
 
-        <p className="mt-2 text-sm text-[#8A6F78] md:text-base">
-          Store and manage customer information,
-          contact details, status and notes.
-        </p>
+          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+            Customers
+          </h1>
+
+          <p className="mt-2 text-[#8A6F78]">
+            Store and manage customer
+            information, contact details,
+            status and notes.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+        >
+          Add Customer
+        </button>
       </div>
 
-      {/* CUSTOMER STATS */}
+      {/* STATS */}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-3xl bg-white p-5 shadow-sm">
           <p className="text-xs uppercase tracking-[2px] text-[#8A6F78]">
@@ -347,16 +385,8 @@ export default function CustomersAdmin() {
         </div>
       </div>
 
-      {/* CUSTOMER FORM */}
-      <CustomerForm
-        form={form}
-        onChange={handleChange}
-        onSubmit={handleSubmit}
-        editing={Boolean(editingId)}
-        onCancel={resetForm}
-      />
+      {/* RECORDS HEADER */}
 
-      {/* CUSTOMER RECORDS HEADER */}
       <div className="rounded-3xl bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -365,8 +395,9 @@ export default function CustomersAdmin() {
             </h2>
 
             <p className="mt-1 text-sm text-[#8A6F78]">
-              {filteredCustomers.length} of{" "}
-              {customers.length} customer
+              {filteredCustomers.length}{" "}
+              of {customers.length}{" "}
+              customer
               {customers.length === 1
                 ? ""
                 : "s"}{" "}
@@ -376,6 +407,7 @@ export default function CustomersAdmin() {
 
           <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
             {/* SEARCH */}
+
             <input
               type="search"
               value={search}
@@ -389,6 +421,7 @@ export default function CustomersAdmin() {
             />
 
             {/* STATUS FILTER */}
+
             <select
               value={statusFilter}
               onChange={(event) =>
@@ -415,6 +448,7 @@ export default function CustomersAdmin() {
             </select>
 
             {/* EXPORT PDF */}
+
             <button
               type="button"
               onClick={
@@ -428,35 +462,91 @@ export default function CustomersAdmin() {
         </div>
       </div>
 
-      {/* CUSTOMER TABLE */}
+      {/* TABLE */}
+
       <CustomerTable
-        customers={
-          filteredCustomers
-        }
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onView={
-          setSelectedCustomer
-        }
+        customers={filteredCustomers}
+        onEdit={openEditForm}
+        onDelete={setCustomerToDelete}
+        onView={setSelectedCustomer}
       />
 
-      {/* CUSTOMER DETAILS MODAL */}
+      {/* ============================ */}
+      {/* ADD / EDIT                   */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={formOpen}
+        onClose={closeForm}
+        eyebrow="Customer Management"
+        title={
+          editingId
+            ? "Edit Customer"
+            : "Add Customer"
+        }
+        size="lg"
+        onSubmit={handleSubmit}
+        confirmLabel={
+          editingId
+            ? "Update Customer"
+            : "Add Customer"
+        }
+        // A half filled form should not
+        // vanish on a stray click.
+        closeOnBackdrop={false}
+      >
+        <CustomerForm
+          form={form}
+          onChange={handleChange}
+        />
+      </DialogBox>
+
+      {/* ============================ */}
+      {/* DETAILS                      */}
+      {/* ============================ */}
+
       <CustomerDetailsModal
         customer={selectedCustomer}
         onClose={() =>
           setSelectedCustomer(null)
         }
         onEdit={(customer) => {
-          handleEdit(customer);
+          openEditForm(customer);
 
-          setSelectedCustomer(
-            null
-          );
+          setSelectedCustomer(null);
         }}
         onDownloadPdf={
           handleDownloadPdf
         }
       />
+
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={Boolean(customerToDelete)}
+        onClose={() =>
+          setCustomerToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete customer?"
+        description={
+          customerToDelete
+            ? `${customerToDelete.name} will be removed from your records. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          Their contact details and notes
+          will be deleted along with the
+          record.
+        </p>
+      </DialogBox>
     </div>
   );
 }

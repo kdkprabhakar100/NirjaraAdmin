@@ -1,6 +1,21 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
+
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
+
+import DialogBox from "../components/DialogBox";
+
+import RowActionsMenu from "../components/RowActionsMenu";
+
 import TiptapEditor from "../components/TiptapEditor";
+
 import { uploadImage } from "../services/upload/uploadService";
+
+// ========================================
+// TYPES
+// ========================================
 
 type Blog = {
   _id?: string;
@@ -26,28 +41,93 @@ const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
 });
 
+// ========================================
+// SHARED INPUT STYLE
+// ========================================
+
+const inputClass =
+  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+
+const labelClass =
+  "mb-2 block text-sm font-medium text-[#3A2A2F]";
+
+// Tiptap leaves these behind when the
+// editor is emptied.
+const isEmptyContent = (
+  content: string
+) =>
+  !content ||
+  content === "<p></p>" ||
+  content === "<p><br></p>";
+
 export default function BlogAdmin() {
-  const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [form, setForm] = useState<Blog>(emptyBlog);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [blogs, setBlogs] = useState<
+    Blog[]
+  >([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [form, setForm] =
+    useState<Blog>(emptyBlog);
+
+  const [formOpen, setFormOpen] =
+    useState(false);
+
+  const [editingId, setEditingId] =
+    useState<string | null>(null);
+
+  const [isUploading, setIsUploading] =
+    useState(false);
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  // The blog awaiting delete
+  // confirmation. Null means the dialog
+  // is closed.
+  const [blogToDelete, setBlogToDelete] =
+    useState<Blog | null>(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  // ============================
+  // FETCH BLOGS
+  // ============================
 
   const fetchBlogs = async () => {
     try {
+      setLoading(true);
+
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/blogs`
       );
 
       if (!res.ok) {
-        throw new Error("Failed to fetch blogs");
+        throw new Error(
+          "Failed to fetch blogs"
+        );
       }
 
       const data = await res.json();
-      setBlogs(Array.isArray(data) ? data : []);
+
+      setBlogs(
+        Array.isArray(data) ? data : []
+      );
     } catch (error) {
-      console.error("Fetch blogs error:", error);
+      console.error(
+        "Fetch blogs error:",
+        error
+      );
+
+      toast.error(
+        "Failed to load blogs"
+      );
+
       setBlogs([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,19 +135,47 @@ export default function BlogAdmin() {
     fetchBlogs();
   }, []);
 
-  const resetForm = () => {
+  // ============================
+  // FORM
+  // ============================
+
+  const openAddForm = () => {
+    setForm({ ...emptyBlog });
+    setEditingId(null);
+    setFormOpen(true);
+  };
+
+  const openEditForm = (blog: Blog) => {
+    setForm({
+      ...blog,
+      content: blog.content || "",
+      image: blog.image || "",
+    });
+
+    setEditingId(blog._id || null);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
     setForm({ ...emptyBlog });
     setEditingId(null);
   };
 
-  const handleImageUpload = async (file: File) => {
+  const handleImageUpload = async (
+    file: File
+  ) => {
     try {
       setIsUploading(true);
 
       return await uploadImage(file);
     } catch (error) {
-      console.error("Upload error:", error);
-      alert(
+      console.error(
+        "Upload error:",
+        error
+      );
+
+      toast.error(
         error instanceof Error
           ? error.message
           : "Image upload failed"
@@ -79,24 +187,24 @@ export default function BlogAdmin() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
+  const handleSubmit = async () => {
     if (
       !form.title.trim() ||
       !form.category.trim() ||
       !form.description.trim()
     ) {
-      alert("Please fill title, category, and description.");
+      toast.error(
+        "Please fill title, category, and description."
+      );
+
       return;
     }
 
-    if (
-      !form.content ||
-      form.content === "<p></p>" ||
-      form.content === "<p><br></p>"
-    ) {
-      alert("Please add the full blog content.");
+    if (isEmptyContent(form.content)) {
+      toast.error(
+        "Please add the full blog content."
+      );
+
       return;
     }
 
@@ -108,7 +216,9 @@ export default function BlogAdmin() {
         : `${import.meta.env.VITE_API_URL}/api/blogs`;
 
       const res = await fetch(url, {
-        method: editingId ? "PUT" : "POST",
+        method: editingId
+          ? "PUT"
+          : "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(form),
       });
@@ -118,22 +228,30 @@ export default function BlogAdmin() {
       if (!res.ok) {
         throw new Error(
           data.message ||
-            `Failed to ${editingId ? "update" : "add"} blog`
+            `Failed to ${
+              editingId
+                ? "update"
+                : "add"
+            } blog`
         );
       }
 
       await fetchBlogs();
-      resetForm();
 
-      alert(
+      toast.success(
         editingId
-          ? "Blog updated successfully."
-          : "Blog added successfully."
+          ? "Blog updated successfully!"
+          : "Blog added successfully!"
       );
-    } catch (error) {
-      console.error("Save blog error:", error);
 
-      alert(
+      closeForm();
+    } catch (error) {
+      console.error(
+        "Save blog error:",
+        error
+      );
+
+      toast.error(
         error instanceof Error
           ? error.message
           : "Something went wrong while saving the blog."
@@ -143,39 +261,29 @@ export default function BlogAdmin() {
     }
   };
 
-  const handleEdit = (blog: Blog) => {
-    setForm({
-      ...blog,
-      content: blog.content || "",
-      image: blog.image || "",
-    });
+  // ============================
+  // DELETE
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
+  // ============================
 
-    setEditingId(blog._id || null);
+  const confirmDelete = async () => {
+    if (!blogToDelete?._id) {
+      return;
+    }
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  const handleDelete = async (id?: string) => {
-    if (!id) return;
-
-    const shouldDelete = window.confirm(
-      "Are you sure you want to delete this blog?"
-    );
-
-    if (!shouldDelete) return;
+    const id = blogToDelete._id;
 
     try {
+      setDeleting(true);
+
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/blogs/${id}`,
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem(
-              "adminToken"
-            )}`,
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
           },
         }
       );
@@ -183,46 +291,235 @@ export default function BlogAdmin() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Failed to delete blog");
+        throw new Error(
+          data.message ||
+            "Failed to delete blog"
+        );
       }
 
       if (editingId === id) {
-        resetForm();
+        closeForm();
       }
 
       await fetchBlogs();
-    } catch (error) {
-      console.error("Delete blog error:", error);
 
-      alert(
+      toast.success(
+        "Blog deleted successfully!"
+      );
+
+      setBlogToDelete(null);
+    } catch (error) {
+      console.error(
+        "Delete blog error:",
+        error
+      );
+
+      toast.error(
         error instanceof Error
           ? error.message
           : "Something went wrong while deleting the blog."
       );
+
+      // Dialog stays open so the admin can
+      // retry.
+    } finally {
+      setDeleting(false);
     }
   };
 
+  // ============================
+  // ROW PIECES
+  // ============================
+
+  const thumbnail = (blog: Blog) =>
+    blog.image ? (
+      <img
+        src={blog.image}
+        alt={blog.title}
+        className="h-14 w-20 rounded-xl object-cover"
+      />
+    ) : (
+      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+        ✎
+      </div>
+    );
+
+  const renderActions = (blog: Blog) => (
+    <RowActionsMenu
+      label={`Actions for ${blog.title}`}
+      actions={[
+        {
+          key: "edit",
+          label: "Edit",
+          icon: "✎",
+          onSelect: () =>
+            openEditForm(blog),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          dividerBefore: true,
+          onSelect: () =>
+            setBlogToDelete(blog),
+        },
+      ]}
+    />
+  );
+
+  // ============================
+  // COLUMNS
+  // ============================
+
+  const columns: TableColumn<Blog>[] = [
+    {
+      key: "image",
+      header: "Image",
+      width: "110px",
+      hideOnMobile: true,
+      render: thumbnail,
+    },
+    {
+      key: "title",
+      header: "Title",
+      hideOnMobile: true,
+      cellClassName:
+        "font-medium text-[#3A2A2F]",
+      render: (blog) => blog.title,
+    },
+    {
+      key: "category",
+      header: "Category",
+      hideOnMobile: true,
+      render: (blog) => (
+        <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+          {blog.category}
+        </span>
+      ),
+    },
+    {
+      key: "readTime",
+      header: "Read Time",
+      cellClassName: "whitespace-nowrap",
+      render: (blog) => blog.readTime,
+    },
+    {
+      key: "description",
+      header: "Description",
+      cellClassName: "max-w-sm",
+      render: (blog) => (
+        <p className="line-clamp-2 leading-6">
+          {blog.description}
+        </p>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right",
+      width: "90px",
+      hideOnMobile: true,
+      render: renderActions,
+    },
+  ];
+
+  // ============================
+  // UI
+  // ============================
+
   return (
     <div>
-      <h1 className="font-serif text-4xl text-[#E75480] md:text-5xl">
-        Blogs
-      </h1>
+      {/* HEADER */}
 
-      <p className="mt-2 text-sm text-[#8A6F78] md:text-base">
-        Add, edit, and delete blog posts.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+            Management
+          </p>
 
-      <form
+          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+            Blogs
+          </h1>
+
+          <p className="mt-2 text-[#8A6F78]">
+            Add, edit, and delete blog posts.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+        >
+          Add Blog
+        </button>
+      </div>
+
+      {/* TABLE */}
+
+      <CustomTable
+        className="mt-10"
+        columns={columns}
+        rows={blogs}
+        rowKey={(blog, index) =>
+          blog._id ?? String(index)
+        }
+        loading={loading}
+        loadingMessage="Loading blogs..."
+        emptyIcon="✎"
+        emptyTitle="No blogs yet"
+        emptyMessage="Add your first blog post using the button above."
+        minWidth="1050px"
+        mobileTitle={(blog) => (
+          <span className="flex items-center gap-3">
+            {thumbnail(blog)}
+
+            <span>{blog.title}</span>
+          </span>
+        )}
+        mobileSubtitle={(blog) =>
+          blog.category
+        }
+        mobileActions={renderActions}
+      />
+
+      {/* ============================ */}
+      {/* ADD / EDIT                   */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={formOpen}
+        onClose={closeForm}
+        eyebrow="Management"
+        title={
+          editingId
+            ? "Edit Blog"
+            : "Add New Blog"
+        }
+        size="xl"
         onSubmit={handleSubmit}
-        className="mt-8 rounded-3xl bg-white p-4 shadow-sm md:p-6"
+        submitting={isSubmitting}
+        submittingLabel={
+          editingId
+            ? "Updating..."
+            : "Adding..."
+        }
+        confirmLabel={
+          editingId
+            ? "Update Blog"
+            : "Add Blog"
+        }
+        confirmDisabled={isUploading}
+        // A half filled form should not
+        // vanish on a stray click.
+        closeOnBackdrop={false}
       >
-        <h2 className="font-serif text-2xl text-[#3A2A2F] md:text-3xl">
-          {editingId ? "Edit Blog" : "Add New Blog"}
-        </h2>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+            <label
+              className={labelClass}
+            >
               Blog Title
             </label>
 
@@ -230,18 +527,21 @@ export default function BlogAdmin() {
               type="text"
               placeholder="Enter blog title"
               value={form.title}
-              onChange={(e) =>
+              onChange={(event) =>
                 setForm((previous) => ({
                   ...previous,
-                  title: e.target.value,
+                  title:
+                    event.target.value,
                 }))
               }
-              className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none transition focus:border-[#E75480] md:text-base"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+            <label
+              className={labelClass}
+            >
               Category
             </label>
 
@@ -249,18 +549,21 @@ export default function BlogAdmin() {
               type="text"
               placeholder="Enter category"
               value={form.category}
-              onChange={(e) =>
+              onChange={(event) =>
                 setForm((previous) => ({
                   ...previous,
-                  category: e.target.value,
+                  category:
+                    event.target.value,
                 }))
               }
-              className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none transition focus:border-[#E75480] md:text-base"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+            <label
+              className={labelClass}
+            >
               Read Time
             </label>
 
@@ -268,18 +571,21 @@ export default function BlogAdmin() {
               type="text"
               placeholder="Example: 5 min read"
               value={form.readTime}
-              onChange={(e) =>
+              onChange={(event) =>
                 setForm((previous) => ({
                   ...previous,
-                  readTime: e.target.value,
+                  readTime:
+                    event.target.value,
                 }))
               }
-              className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none transition focus:border-[#E75480] md:text-base"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+            <label
+              className={labelClass}
+            >
               Featured Image
             </label>
 
@@ -287,23 +593,34 @@ export default function BlogAdmin() {
               type="file"
               accept="image/png,image/jpeg,image/jpg,image/webp"
               disabled={isUploading}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
+              onChange={async (
+                event
+              ) => {
+                const file =
+                  event.target
+                    .files?.[0];
 
-                if (!file) return;
-
-                const imageUrl = await handleImageUpload(file);
-
-                if (imageUrl) {
-                  setForm((previous) => ({
-                    ...previous,
-                    image: imageUrl,
-                  }));
+                if (!file) {
+                  return;
                 }
 
-                e.target.value = "";
+                const imageUrl =
+                  await handleImageUpload(
+                    file
+                  );
+
+                if (imageUrl) {
+                  setForm(
+                    (previous) => ({
+                      ...previous,
+                      image: imageUrl,
+                    })
+                  );
+                }
+
+                event.target.value = "";
               }}
-              className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none file:mr-3 file:rounded-full file:border-0 file:bg-[#FCE7EF] file:px-4 file:py-2 file:text-xs file:text-[#E75480] disabled:cursor-not-allowed disabled:opacity-60"
+              className={`${inputClass} file:mr-3 file:rounded-full file:border-0 file:bg-[#FCE7EF] file:px-4 file:py-2 file:text-xs file:text-[#E75480] disabled:cursor-not-allowed disabled:opacity-60`}
             />
 
             {isUploading && (
@@ -314,26 +631,31 @@ export default function BlogAdmin() {
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+            <label
+              className={labelClass}
+            >
               Short Description
             </label>
 
             <textarea
               placeholder="Write a short blog description"
               value={form.description}
-              onChange={(e) =>
+              onChange={(event) =>
                 setForm((previous) => ({
                   ...previous,
-                  description: e.target.value,
+                  description:
+                    event.target.value,
                 }))
               }
               rows={3}
-              className="w-full resize-y rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none transition focus:border-[#E75480] md:text-base"
+              className={`${inputClass} resize-y`}
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+            <label
+              className={labelClass}
+            >
               Full Blog Content
             </label>
 
@@ -351,7 +673,7 @@ export default function BlogAdmin() {
 
         {form.image && (
           <div className="mt-5">
-            <p className="mb-2 text-sm font-medium text-[#3A2A2F]">
+            <p className="mb-2 text-sm text-[#8A6F78]">
               Image Preview
             </p>
 
@@ -377,93 +699,36 @@ export default function BlogAdmin() {
             </div>
           </div>
         )}
+      </DialogBox>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="submit"
-            disabled={isSubmitting || isUploading}
-            className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting
-              ? editingId
-                ? "Updating..."
-                : "Adding..."
-              : editingId
-                ? "Update Blog"
-                : "Add Blog"}
-          </button>
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
 
-          {editingId && (
-            <button
-              type="button"
-              onClick={resetForm}
-              disabled={isSubmitting}
-              className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-[#FFF5F8] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
-
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {blogs.map((blog) => (
-          <div
-            key={blog._id}
-            className="overflow-hidden rounded-3xl bg-white shadow-sm"
-          >
-            {blog.image && (
-              <img
-                src={blog.image}
-                alt={blog.title}
-                className="h-44 w-full object-cover"
-              />
-            )}
-
-            <div className="p-5 md:p-6">
-              <p className="break-words text-xs uppercase tracking-[2px] text-[#E75480]">
-                {blog.category}
-              </p>
-
-              <h2 className="mt-2 break-words font-serif text-xl text-[#3A2A2F] md:text-2xl">
-                {blog.title}
-              </h2>
-
-              <p className="mt-2 break-words text-sm leading-6 text-[#8A6F78]">
-                {blog.description}
-              </p>
-
-              <p className="mt-3 text-xs text-[#8A6F78]">
-                {blog.readTime}
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(blog)}
-                  className="rounded-full border border-[#E75480] px-5 py-2 text-xs text-[#E75480] transition hover:bg-[#FFF5F8]"
-                >
-                  Edit
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleDelete(blog._id)}
-                  className="rounded-full bg-[#FCE7EF] px-5 py-2 text-xs text-[#E75480] transition hover:bg-[#f8d5e2]"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {blogs.length === 0 && (
-          <div className="rounded-3xl bg-white p-8 text-center text-[#8A6F78] shadow-sm sm:col-span-2 lg:col-span-3">
-            No blogs available.
-          </div>
-        )}
-      </div>
+      <DialogBox
+        open={Boolean(blogToDelete)}
+        onClose={() =>
+          setBlogToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete blog?"
+        description={
+          blogToDelete
+            ? `"${blogToDelete.title}" will be removed from the website. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          Readers will no longer see this
+          post on the blog page.
+        </p>
+      </DialogBox>
     </div>
   );
 }

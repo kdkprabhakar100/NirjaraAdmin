@@ -1,108 +1,151 @@
+import CustomTable, {
+  type TableColumn,
+} from "../CustomTable";
+
+import RowActionsMenu from "../RowActionsMenu";
+
 import type { Customer } from "../../types/customer";
+
+// ========================================
+// CUSTOMER TABLE
+//
+// The customer columns on top of the
+// shared CustomTable, so this list looks
+// and behaves like every other list in
+// the admin panel.
+// ========================================
 
 type CustomerTableProps = {
   customers: Customer[];
+  loading?: boolean;
   onEdit: (customer: Customer) => void;
-  onDelete: (id: string) => void;
+  onDelete: (customer: Customer) => void;
   onView: (customer: Customer) => void;
 };
 
+const statusBadge = (
+  customer: Customer
+) => (
+  <span
+    className={`inline-block rounded-full px-4 py-1 text-xs ${
+      customer.status === "Active"
+        ? "bg-green-100 text-green-700"
+        : "bg-gray-100 text-gray-600"
+    }`}
+  >
+    {customer.status}
+  </span>
+);
+
 export default function CustomerTable({
   customers,
+  loading = false,
   onEdit,
   onDelete,
   onView,
 }: CustomerTableProps) {
+  const renderActions = (
+    customer: Customer
+  ) => (
+    <RowActionsMenu
+      label={`Actions for ${customer.name}`}
+      actions={[
+        {
+          key: "view",
+          label: "View",
+          icon: "👁",
+          onSelect: () =>
+            onView(customer),
+        },
+        {
+          key: "edit",
+          label: "Edit",
+          icon: "✎",
+          onSelect: () =>
+            onEdit(customer),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          dividerBefore: true,
+          onSelect: () =>
+            onDelete(customer),
+        },
+      ]}
+    />
+  );
+
+  const columns: TableColumn<Customer>[] =
+    [
+      {
+        key: "name",
+        header: "Customer",
+        hideOnMobile: true,
+        cellClassName:
+          "font-medium text-[#3A2A2F]",
+        render: (customer) =>
+          customer.name,
+      },
+      {
+        key: "email",
+        header: "Email",
+        cellClassName: "break-all",
+        render: (customer) =>
+          customer.email,
+      },
+      {
+        key: "phone",
+        header: "Phone",
+        cellClassName:
+          "whitespace-nowrap",
+        render: (customer) =>
+          customer.phone,
+      },
+      {
+        key: "address",
+        header: "Address",
+        render: (customer) =>
+          customer.address || "-",
+      },
+      {
+        key: "status",
+        header: "Status",
+        hideOnMobile: true,
+        render: statusBadge,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        width: "90px",
+        hideOnMobile: true,
+        render: renderActions,
+      },
+    ];
+
   return (
-    <div className="overflow-x-auto rounded-3xl bg-white shadow-sm">
-      <table className="w-full min-w-[900px] border-collapse">
-        <thead className="bg-[#FCE7EF] text-left text-sm text-[#E75480]">
-          <tr>
-            <th className="p-5">Customer</th>
-            <th className="p-5">Email</th>
-            <th className="p-5">Phone</th>
-            <th className="p-5">Address</th>
-            <th className="p-5">Status</th>
-            <th className="p-5">Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {customers.map((customer) => (
-            <tr
-              key={customer._id}
-              className="border-t border-[#E75480]/10 transition hover:bg-[#FFF9FB]"
-            >
-              <td className="p-5 font-medium text-[#3A2A2F]">
-                {customer.name}
-              </td>
-
-              <td className="p-5 text-sm text-[#8A6F78]">
-                {customer.email}
-              </td>
-
-              <td className="p-5 text-sm text-[#8A6F78]">
-                {customer.phone}
-              </td>
-
-              <td className="p-5 text-sm text-[#8A6F78]">
-                {customer.address || "-"}
-              </td>
-
-              <td className="p-5">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs ${
-                    customer.status === "Active"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {customer.status}
-                </span>
-              </td>
-
-              <td className="p-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onView(customer)}
-                    className="rounded-full bg-[#FFF5F8] px-4 py-2 text-xs text-[#E75480] transition hover:bg-[#FCE7EF]"
-                  >
-                    View
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onEdit(customer)}
-                    className="rounded-full border border-[#E75480] px-4 py-2 text-xs text-[#E75480] transition hover:bg-[#FFF5F8]"
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onDelete(customer._id)}
-                    className="rounded-full bg-red-50 px-4 py-2 text-xs text-red-600 transition hover:bg-red-100"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-
-          {customers.length === 0 && (
-            <tr>
-              <td
-                colSpan={6}
-                className="p-10 text-center text-[#8A6F78]"
-              >
-                No customers available.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+    <CustomTable
+      columns={columns}
+      rows={customers}
+      rowKey={(customer) =>
+        customer._id
+      }
+      loading={loading}
+      loadingMessage="Loading customers..."
+      emptyIcon="♡"
+      emptyTitle="No customers yet"
+      emptyMessage="Add your first customer using the button above."
+      minWidth="950px"
+      mobileTitle={(customer) =>
+        customer.name
+      }
+      mobileSubtitle={(customer) =>
+        customer.phone
+      }
+      mobileBadge={statusBadge}
+      mobileActions={renderActions}
+    />
   );
 }

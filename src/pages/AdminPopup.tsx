@@ -1,65 +1,114 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
+
+import DialogBox from "../components/DialogBox";
+
+import RowActionsMenu from "../components/RowActionsMenu";
+
 import api from "../services/base/api";
+
 import { uploadImage as uploadImageToServer } from "../services/upload/uploadService";
+
+// ========================================
+// TYPES
+// ========================================
+
+type Popup = {
+  _id: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  buttonText: string;
+  buttonLink: string;
+  delay: number;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+};
+
+const emptyForm = {
+  title: "",
+  subtitle: "",
+  image: "",
+  buttonText: "",
+  buttonLink: "",
+  delay: 3000,
+  startDate: "",
+  endDate: "",
+};
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
 });
 
-type Popup = {
-  _id: string;
+// ========================================
+// SHARED INPUT STYLE
+// ========================================
 
-  title: string;
+const inputClass =
+  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
-  subtitle: string;
+// A missing or malformed date should show
+// a dash, not "Invalid Date".
+const formatDate = (value?: string) => {
+  if (!value) {
+    return "-";
+  }
 
-  image: string;
+  const date = new Date(value);
 
-  buttonText: string;
-
-  buttonLink: string;
-
-  delay: number;
-
-  startDate: string;
-
-  endDate: string;
-
-  active: boolean;
+  return Number.isNaN(date.getTime())
+    ? "-"
+    : date.toLocaleDateString();
 };
 
 export default function AdminPopup() {
-  const [popups, setPopups] = useState<Popup[]>([]);
+  const [popups, setPopups] = useState<
+    Popup[]
+  >([]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] =
+    useState(false);
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const [processingId, setProcessingId] =
+    useState<string | null>(null);
+
+  const [formOpen, setFormOpen] =
+    useState(false);
 
   const [editingId, setEditingId] =
     useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    title: "",
+  const [form, setForm] =
+    useState(emptyForm);
 
-    subtitle: "",
+  // The popup awaiting delete
+  // confirmation. Null means the dialog
+  // is closed.
+  const [popupToDelete, setPopupToDelete] =
+    useState<Popup | null>(null);
 
-    image: "",
+  const [deleting, setDeleting] =
+    useState(false);
 
-    buttonText: "",
-
-    buttonLink: "",
-
-    delay: 3000,
-
-    startDate: "",
-
-    endDate: "",
-  });
-
+  // ============================
   // FETCH POPUPS
+  // ============================
+
   const fetchPopups = async () => {
     try {
+      setLoading(true);
+
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/popup`,
         {
@@ -69,11 +118,19 @@ export default function AdminPopup() {
 
       const data = await res.json();
 
-      setPopups(data);
+      setPopups(
+        Array.isArray(data) ? data : []
+      );
     } catch (error) {
       console.log(error);
 
-      toast.error("Failed to fetch popups");
+      toast.error(
+        "Failed to fetch popups"
+      );
+
+      setPopups([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,13 +138,53 @@ export default function AdminPopup() {
     fetchPopups();
   }, []);
 
-  // IMAGE UPLOAD
-  const uploadImage = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
+  // ============================
+  // FORM
+  // ============================
 
-    if (!file) return;
+  const openAddForm = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+    setFormOpen(true);
+  };
+
+  const openEditForm = (
+    popup: Popup
+  ) => {
+    setForm({
+      title: popup.title,
+      subtitle: popup.subtitle,
+      image: popup.image,
+      buttonText: popup.buttonText,
+      buttonLink: popup.buttonLink,
+      delay: popup.delay,
+      startDate:
+        popup.startDate?.split(
+          "T"
+        )[0] ?? "",
+      endDate:
+        popup.endDate?.split("T")[0] ??
+        "",
+    });
+
+    setEditingId(popup._id);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setForm(emptyForm);
+    setEditingId(null);
+  };
+
+  const uploadImage = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
 
     try {
       setUploading(true);
@@ -95,9 +192,8 @@ export default function AdminPopup() {
       const imageUrl =
         await uploadImageToServer(file);
 
-      setForm((prev) => ({
-        ...prev,
-
+      setForm((previous) => ({
+        ...previous,
         image: imageUrl,
       }));
 
@@ -115,14 +211,9 @@ export default function AdminPopup() {
     }
   };
 
-  // CREATE OR UPDATE
-  const handleSubmit = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
-
+  const handleSubmit = async () => {
     try {
-      setLoading(true);
+      setSaving(true);
 
       if (editingId) {
         await api.put(
@@ -140,357 +231,498 @@ export default function AdminPopup() {
         toast.success("Popup created 💖");
       }
 
-      setForm({
-        title: "",
+      await fetchPopups();
 
-        subtitle: "",
-
-        image: "",
-
-        buttonText: "",
-
-        buttonLink: "",
-
-        delay: 3000,
-
-        startDate: "",
-
-        endDate: "",
-      });
-
-      setEditingId(null);
-
-      fetchPopups();
+      closeForm();
     } catch (error) {
       console.log(error);
 
-      toast.error("Something went wrong");
+      toast.error(
+        "Something went wrong"
+      );
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
+  // ============================
+  // TOGGLE ACTIVE
+  // ============================
+
+  const togglePopup = async (
+    popup: Popup
+  ) => {
+    try {
+      setProcessingId(popup._id);
+
+      await api.put(
+        `/api/popup/${popup._id}/toggle`
+      );
+
+      toast.success("Popup updated 💖");
+
+      await fetchPopups();
+    } catch (error) {
+      console.log(error);
+
+      toast.error("Toggle failed");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // ============================
   // DELETE
-  const deletePopup = async (id: string) => {
-    if (!window.confirm("Delete popup?")) return;
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
+  // ============================
+
+  const confirmDelete = async () => {
+    if (!popupToDelete) {
+      return;
+    }
+
+    const id = popupToDelete._id;
 
     try {
+      setDeleting(true);
+
       await api.delete(
         `/api/popup/${id}`
       );
 
+      // Remove from UI immediately
+      setPopups((previous) =>
+        previous.filter(
+          (popup) => popup._id !== id
+        )
+      );
+
       toast.success("Popup deleted");
 
-      fetchPopups();
+      if (editingId === id) {
+        closeForm();
+      }
+
+      setPopupToDelete(null);
     } catch (error) {
       console.log(error);
 
       toast.error("Delete failed");
+
+      // Dialog stays open so the admin can
+      // retry.
+    } finally {
+      setDeleting(false);
     }
   };
 
-  // TOGGLE ACTIVE
-const togglePopup = async (id: string) => {
-  try {
-    await api.put(
-      `/api/popup/${id}/toggle`
+  // ============================
+  // ROW PIECES
+  // ============================
+
+  const thumbnail = (popup: Popup) =>
+    popup.image ? (
+      <img
+        src={popup.image}
+        alt={popup.title}
+        className="h-14 w-20 rounded-xl object-cover"
+      />
+    ) : (
+      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+        ✦
+      </div>
     );
 
-    toast.success("Popup updated 💖");
+  const statusBadge = (popup: Popup) => (
+    <span
+      className={`inline-block rounded-full px-4 py-1 text-xs ${
+        popup.active
+          ? "bg-green-100 text-green-700"
+          : "bg-gray-100 text-gray-600"
+      }`}
+    >
+      {popup.active
+        ? "Active"
+        : "Inactive"}
+    </span>
+  );
 
-    fetchPopups();
+  const renderActions = (
+    popup: Popup
+  ) => (
+    <RowActionsMenu
+      label={`Actions for ${popup.title}`}
+      busy={processingId === popup._id}
+      actions={[
+        {
+          key: "edit",
+          label: "Edit",
+          icon: "✎",
+          onSelect: () =>
+            openEditForm(popup),
+        },
+        {
+          key: "toggle",
+          label: popup.active
+            ? "Deactivate"
+            : "Activate",
+          icon: popup.active
+            ? "✕"
+            : "✓",
+          tone: popup.active
+            ? "default"
+            : "success",
+          onSelect: () =>
+            togglePopup(popup),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          dividerBefore: true,
+          onSelect: () =>
+            setPopupToDelete(popup),
+        },
+      ]}
+    />
+  );
 
-  } catch (error) {
-    console.log(error);
+  // ============================
+  // COLUMNS
+  // ============================
 
-    toast.error("Toggle failed");
-  }
-};
+  const columns: TableColumn<Popup>[] = [
+    {
+      key: "image",
+      header: "Image",
+      width: "110px",
+      hideOnMobile: true,
+      render: thumbnail,
+    },
+    {
+      key: "title",
+      header: "Title",
+      hideOnMobile: true,
+      cellClassName:
+        "font-medium text-[#3A2A2F]",
+      render: (popup) => popup.title,
+    },
+    {
+      key: "subtitle",
+      header: "Subtitle",
+      cellClassName: "max-w-sm",
+      render: (popup) => (
+        <p className="line-clamp-2 leading-6">
+          {popup.subtitle}
+        </p>
+      ),
+    },
+    {
+      key: "schedule",
+      header: "Schedule",
+      cellClassName: "whitespace-nowrap",
+      render: (popup) => (
+        <>
+          <p>
+            {formatDate(popup.startDate)}
+          </p>
 
-  // EDIT
-  const editPopup = (popup: Popup) => {
-    setEditingId(popup._id);
+          <p className="mt-1 text-xs">
+            to{" "}
+            {formatDate(popup.endDate)}
+          </p>
+        </>
+      ),
+    },
+    {
+      key: "delay",
+      header: "Delay",
+      cellClassName: "whitespace-nowrap",
+      render: (popup) =>
+        `${popup.delay} ms`,
+    },
+    {
+      key: "status",
+      header: "Status",
+      hideOnMobile: true,
+      render: statusBadge,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right",
+      width: "90px",
+      hideOnMobile: true,
+      render: renderActions,
+    },
+  ];
 
-    setForm({
-      title: popup.title,
-
-      subtitle: popup.subtitle,
-
-      image: popup.image,
-
-      buttonText: popup.buttonText,
-
-      buttonLink: popup.buttonLink,
-
-      delay: popup.delay,
-
-      startDate: popup.startDate
-        ?.split("T")[0],
-
-      endDate: popup.endDate?.split("T")[0],
-    });
-
-    window.scrollTo({
-      top: 0,
-
-      behavior: "smooth",
-    });
-  };
+  // ============================
+  // UI
+  // ============================
 
   return (
-    <div className="space-y-10">
-      {/* FORM */}
-      <div className="rounded-[40px] bg-white p-8 shadow-sm">
-        <h1 className="font-serif text-5xl text-[#E75480]">
-          Website Popup
-        </h1>
+    <div>
+      {/* HEADER */}
 
-        <p className="mt-3 text-[#8A6F78]">
-          Manage website offers &
-          announcements
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+            Management
+          </p>
 
-        <form
-          onSubmit={handleSubmit}
-          className="mt-10 space-y-6"
+          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+            Website Popup
+          </h1>
+
+          <p className="mt-2 text-[#8A6F78]">
+            Manage website offers and
+            announcements.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
         >
-          <div className="grid gap-6 md:grid-cols-2">
-            <input
-              type="text"
-              placeholder="Popup Title"
-              value={form.title}
-              onChange={(e) =>
-                setForm({
-                  ...form,
+          Add Popup
+        </button>
+      </div>
 
-                  title: e.target.value,
-                })
-              }
-              className="rounded-2xl border border-[#E75480]/20 p-4 outline-none"
-              required
-            />
+      {/* TABLE */}
 
-            <input
-              type="text"
-              placeholder="Button Text"
-              value={form.buttonText}
-              onChange={(e) =>
-                setForm({
-                  ...form,
+      <CustomTable
+        className="mt-10"
+        columns={columns}
+        rows={popups}
+        rowKey={(popup) => popup._id}
+        loading={loading}
+        loadingMessage="Loading popups..."
+        emptyIcon="✦"
+        emptyTitle="No popups yet"
+        emptyMessage="Add your first popup using the button above."
+        minWidth="1100px"
+        mobileTitle={(popup) => (
+          <span className="flex items-center gap-3">
+            {thumbnail(popup)}
 
-                  buttonText:
-                    e.target.value,
-                })
-              }
-              className="rounded-2xl border border-[#E75480]/20 p-4 outline-none"
-            />
+            <span>{popup.title}</span>
+          </span>
+        )}
+        mobileSubtitle={(popup) =>
+          `${formatDate(
+            popup.startDate
+          )} - ${formatDate(
+            popup.endDate
+          )}`
+        }
+        mobileBadge={statusBadge}
+        mobileActions={renderActions}
+      />
 
-            <input
-              type="text"
-              placeholder="Button Link"
-              value={form.buttonLink}
-              onChange={(e) =>
-                setForm({
-                  ...form,
+      {/* ============================ */}
+      {/* ADD / EDIT                   */}
+      {/* ============================ */}
 
-                  buttonLink:
-                    e.target.value,
-                })
-              }
-              className="rounded-2xl border border-[#E75480]/20 p-4 outline-none"
-            />
+      <DialogBox
+        open={formOpen}
+        onClose={closeForm}
+        eyebrow="Management"
+        title={
+          editingId
+            ? "Edit Popup"
+            : "Create Popup"
+        }
+        size="lg"
+        onSubmit={handleSubmit}
+        submitting={saving}
+        submittingLabel={
+          editingId
+            ? "Updating..."
+            : "Creating..."
+        }
+        confirmLabel={
+          editingId
+            ? "Update Popup"
+            : "Create Popup"
+        }
+        confirmDisabled={uploading}
+        // A half filled form should not
+        // vanish on a stray click.
+        closeOnBackdrop={false}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <input
+            type="text"
+            placeholder="Popup Title"
+            required
+            value={form.title}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                title:
+                  event.target.value,
+              })
+            }
+            className={inputClass}
+          />
 
-            <input
-              type="number"
-              placeholder="Delay"
-              value={form.delay}
-              onChange={(e) =>
-                setForm({
-                  ...form,
+          <input
+            type="text"
+            placeholder="Button Text"
+            value={form.buttonText}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                buttonText:
+                  event.target.value,
+              })
+            }
+            className={inputClass}
+          />
 
-                  delay: Number(
-                    e.target.value
-                  ),
-                })
-              }
-              className="rounded-2xl border border-[#E75480]/20 p-4 outline-none"
-            />
+          <input
+            type="text"
+            placeholder="Button Link"
+            value={form.buttonLink}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                buttonLink:
+                  event.target.value,
+              })
+            }
+            className={inputClass}
+          />
+
+          <input
+            type="number"
+            placeholder="Delay in milliseconds"
+            value={form.delay}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                delay: Number(
+                  event.target.value
+                ),
+              })
+            }
+            className={inputClass}
+          />
+
+          <div>
+            <label className="mb-2 block text-sm text-[#8A6F78]">
+              Start Date
+            </label>
 
             <input
               type="date"
               value={form.startDate}
-              onChange={(e) =>
+              onChange={(event) =>
                 setForm({
                   ...form,
-
                   startDate:
-                    e.target.value,
+                    event.target.value,
                 })
               }
-              className="rounded-2xl border border-[#E75480]/20 p-4 outline-none"
+              className={inputClass}
             />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm text-[#8A6F78]">
+              End Date
+            </label>
 
             <input
               type="date"
               value={form.endDate}
-              onChange={(e) =>
+              onChange={(event) =>
                 setForm({
                   ...form,
-
                   endDate:
-                    e.target.value,
+                    event.target.value,
                 })
               }
-              className="rounded-2xl border border-[#E75480]/20 p-4 outline-none"
+              className={inputClass}
             />
           </div>
 
           <textarea
             placeholder="Popup Subtitle"
             value={form.subtitle}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-
-                subtitle: e.target.value,
+                subtitle:
+                  event.target.value,
               })
             }
-            className="h-40 w-full rounded-3xl border border-[#E75480]/20 p-5 outline-none"
+            rows={4}
+            className={`${inputClass} md:col-span-2`}
           />
 
-          {/* IMAGE */}
-          <div>
-            <p className="mb-3 text-sm text-[#8A6F78]">
-              Popup Image
+          <input
+            type="file"
+            accept="image/*"
+            onChange={uploadImage}
+            className={`${inputClass} md:col-span-2`}
+          />
+        </div>
+
+        {uploading && (
+          <p className="mt-4 text-sm text-[#8A6F78]">
+            Uploading image...
+          </p>
+        )}
+
+        {form.image && (
+          <div className="mt-5">
+            <p className="mb-2 text-sm text-[#8A6F78]">
+              Image Preview
             </p>
 
-            <input
-              type="file"
-              accept="image/*"
-              onChange={uploadImage}
-              className="w-full rounded-2xl border border-[#E75480]/20 p-4"
+            <img
+              src={form.image}
+              alt="Preview"
+              className="h-48 w-full rounded-2xl object-cover md:max-w-md"
             />
-
-            {uploading && (
-              <p className="mt-3 text-sm text-[#E75480]">
-                Uploading...
-              </p>
-            )}
-
-            {form.image && (
-              <img
-                src={form.image}
-                alt="Preview"
-                className="mt-5 h-64 w-full rounded-3xl object-cover"
-              />
-            )}
           </div>
+        )}
+      </DialogBox>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-full bg-[#E75480] px-10 py-4 text-sm uppercase tracking-[4px] text-white"
-          >
-            {editingId
-              ? "Update Popup"
-              : "Create Popup"}
-          </button>
-        </form>
-      </div>
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
 
-      {/* POPUP LIST */}
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {popups.map((popup) => (
-          <div
-            key={popup._id}
-            className="overflow-hidden rounded-[35px] bg-white shadow-sm"
-          >
-            <div className="relative">
-              <img
-                src={popup.image}
-                alt={popup.title}
-                className="h-72 w-full object-cover"
-              />
-
-              <span
-                className={`absolute right-5 top-5 rounded-full px-5 py-2 text-sm ${
-                  popup.active
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
-                }`}
-              >
-                {popup.active
-                  ? "Active"
-                  : "Inactive"}
-              </span>
-            </div>
-
-            <div className="space-y-3 p-6">
-              <h2 className="font-serif text-5xl text-[#3A2A2F]">
-                {popup.title}
-              </h2>
-
-              <p className="text-[#8A6F78]">
-                {popup.subtitle}
-              </p>
-
-              <div className="space-y-1 text-sm text-[#E75480]">
-                <p>
-                  <strong>Start:</strong>{" "}
-                  {new Date(
-                    popup.startDate
-                  ).toLocaleDateString()}
-                </p>
-
-                <p>
-                  <strong>End:</strong>{" "}
-                  {new Date(
-                    popup.endDate
-                  ).toLocaleDateString()}
-                </p>
-
-                <p>
-                  <strong>Delay:</strong>{" "}
-                  {popup.delay} ms
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-3 pt-3">
-                <button
-                  onClick={() =>
-                    editPopup(popup)
-                  }
-                  className="rounded-full bg-blue-100 px-5 py-2 text-sm text-blue-700"
-                >
-                  Edit
-                </button>
-
-                <button
-                  onClick={() =>
-                    deletePopup(
-                      popup._id
-                    )
-                  }
-                  className="rounded-full bg-red-100 px-5 py-2 text-sm text-red-700"
-                >
-                  Delete
-                </button>
-
-                <button
-                  onClick={() => togglePopup(popup._id)}
-                  className={`mt-4 rounded-full px-5 py-2 text-sm ${
-                    popup.active
-                      ? "bg-[#F7E7A9] text-[#9A7B00]"
-                      : "bg-[#DDF8E7] text-[#008A4E]"
-                  }`}
-                >
-                  {popup.active ? "Deactivate" : "Activate"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <DialogBox
+        open={Boolean(popupToDelete)}
+        onClose={() =>
+          setPopupToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete popup?"
+        description={
+          popupToDelete
+            ? `"${popupToDelete.title}" will be removed from the website. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          Visitors will no longer see this
+          announcement.
+        </p>
+      </DialogBox>
     </div>
   );
 }

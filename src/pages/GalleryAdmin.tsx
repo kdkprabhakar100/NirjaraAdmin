@@ -1,5 +1,19 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
+
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
+
+import DialogBox from "../components/DialogBox";
+
+import RowActionsMenu from "../components/RowActionsMenu";
+
 import { uploadImage } from "../services/upload/uploadService";
+
+// ========================================
+// TYPES
+// ========================================
 
 type ImageItem = {
   _id?: string;
@@ -14,15 +28,28 @@ const emptyItem: ImageItem = {
   image: "",
 };
 
+// ========================================
+// REQUEST HELPERS
+// ========================================
+
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
 });
 
+// Older records were saved with a
+// localhost URL or a bare /uploads path.
 const getImageUrl = (image?: string) => {
   if (!image) return "";
 
-  if (image.startsWith("http://localhost:5000")) {
-    return image.replace("http://localhost:5000", import.meta.env.VITE_API_URL);
+  if (
+    image.startsWith(
+      "http://localhost:5000"
+    )
+  ) {
+    return image.replace(
+      "http://localhost:5000",
+      import.meta.env.VITE_API_URL
+    );
   }
 
   if (image.startsWith("/uploads")) {
@@ -32,169 +59,465 @@ const getImageUrl = (image?: string) => {
   return image;
 };
 
+// ========================================
+// SHARED INPUT STYLE
+// ========================================
+
+const inputClass =
+  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+
 export default function GalleryAdmin() {
-  const [items, setItems] = useState<ImageItem[]>([]);
-  const [form, setForm] = useState<ImageItem>(emptyItem);
-  const [uploading, setUploading] = useState(false);
+  const [items, setItems] = useState<
+    ImageItem[]
+  >([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [form, setForm] =
+    useState<ImageItem>(emptyItem);
+
+  const [formOpen, setFormOpen] =
+    useState(false);
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  // The image awaiting delete
+  // confirmation. Null means the dialog
+  // is closed.
+  const [itemToDelete, setItemToDelete] =
+    useState<ImageItem | null>(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  // ============================
+  // FETCH IMAGES
+  // ============================
 
   const fetchItems = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/gallery`);
-    const data = await res.json();
-    setItems(data);
+    try {
+      setLoading(true);
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/gallery`
+      );
+
+      const data = await res.json();
+
+      setItems(
+        Array.isArray(data) ? data : []
+      );
+    } catch (error) {
+      console.error(
+        "Fetch gallery error:",
+        error
+      );
+
+      toast.error(
+        "Failed to load gallery images"
+      );
+
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchItems();
   }, []);
 
-  const handleUpload = async (file: File) => {
+  // ============================
+  // FORM
+  // ============================
+
+  const openAddForm = () => {
+    setForm(emptyItem);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setForm(emptyItem);
+  };
+
+  const handleUpload = async (
+    file: File
+  ) => {
     try {
       setUploading(true);
 
-      const imageUrl = await uploadImage(file);
+      const imageUrl =
+        await uploadImage(file);
 
-      setForm((prev) => ({ ...prev, image: imageUrl }));
+      setForm((previous) => ({
+        ...previous,
+        image: imageUrl,
+      }));
     } catch (error) {
-      console.error("Upload error:", error);
-      alert(error instanceof Error ? error.message : "Upload failed");
+      console.error(
+        "Upload error:",
+        error
+      );
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Upload failed"
+      );
     } finally {
       setUploading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async () => {
     if (!form.image) {
-      alert("Please upload an image.");
+      toast.error(
+        "Please upload an image."
+      );
+
       return;
     }
 
-    await fetch(`${import.meta.env.VITE_API_URL}/api/gallery`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
+    try {
+      setSaving(true);
+
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/gallery`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify(form),
+        }
+      );
+
+      await fetchItems();
+
+      toast.success(
+        "Image added successfully!"
+      );
+
+      closeForm();
+    } catch (error) {
+      console.error(
+        "Save gallery error:",
+        error
+      );
+
+      toast.error(
+        "Unable to save the image"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ============================
+  // DELETE
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
+  // ============================
+
+  const confirmDelete = async () => {
+    if (!itemToDelete?._id) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/gallery/${itemToDelete._id}`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        }
+      );
+
+      await fetchItems();
+
+      toast.success(
+        "Image deleted successfully!"
+      );
+
+      setItemToDelete(null);
+    } catch (error) {
+      console.error(
+        "Delete gallery error:",
+        error
+      );
+
+      toast.error(
+        "Unable to delete the image"
+      );
+
+      // Dialog stays open so the admin can
+      // retry.
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ============================
+  // ROW PIECES
+  // ============================
+
+  const thumbnail = (
+    item: ImageItem
+  ) => (
+    <img
+      src={getImageUrl(item.image)}
+      alt={item.title || "Gallery image"}
+      className="h-14 w-20 rounded-xl object-cover"
+    />
+  );
+
+  const renderActions = (
+    item: ImageItem
+  ) => (
+    <RowActionsMenu
+      label={`Actions for ${item.title || "image"}`}
+      actions={[
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          onSelect: () =>
+            setItemToDelete(item),
+        },
+      ]}
+    />
+  );
+
+  // ============================
+  // COLUMNS
+  // ============================
+
+  const columns: TableColumn<ImageItem>[] =
+    [
+      {
+        key: "image",
+        header: "Image",
+        width: "110px",
+        hideOnMobile: true,
+        render: thumbnail,
       },
-      body: JSON.stringify(form),
-    });
+      {
+        key: "title",
+        header: "Title",
+        hideOnMobile: true,
+        cellClassName:
+          "font-medium text-[#3A2A2F]",
+        render: (item) =>
+          item.title || "Untitled",
+      },
+      {
+        key: "category",
+        header: "Category",
+        hideOnMobile: true,
+        render: (item) => (
+          <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+            {item.category}
+          </span>
+        ),
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        width: "90px",
+        hideOnMobile: true,
+        render: renderActions,
+      },
+    ];
 
-    setForm(emptyItem);
-    fetchItems();
-  };
-
-  const handleDelete = async (id?: string) => {
-    if (!id) return;
-    if (!confirm("Delete this image?")) return;
-
-    await fetch(`${import.meta.env.VITE_API_URL}/api/gallery/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
-
-    fetchItems();
-  };
+  // ============================
+  // UI
+  // ============================
 
   return (
     <div>
-      <h1 className="font-serif text-4xl text-[#E75480] md:text-5xl">
-        Gallery
-      </h1>
+      {/* HEADER */}
 
-      <p className="mt-2 text-sm text-[#8A6F78] md:text-base">
-        Upload and manage gallery images.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+            Management
+          </p>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mt-8 rounded-3xl bg-white p-4 shadow-sm md:p-6"
-      >
-        <h2 className="font-serif text-2xl text-[#3A2A2F] md:text-3xl">
+          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+            Gallery
+          </h1>
+
+          <p className="mt-2 text-[#8A6F78]">
+            Upload and manage gallery images.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+        >
           Add Image
-        </h2>
+        </button>
+      </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+      {/* TABLE */}
+
+      <CustomTable
+        className="mt-10"
+        columns={columns}
+        rows={items}
+        rowKey={(item, index) =>
+          item._id ?? String(index)
+        }
+        loading={loading}
+        loadingMessage="Loading gallery..."
+        emptyIcon="✦"
+        emptyTitle="No images uploaded"
+        emptyMessage="Add your first image using the button above."
+        minWidth="700px"
+        mobileTitle={(item) => (
+          <span className="flex items-center gap-3">
+            {thumbnail(item)}
+
+            <span>
+              {item.title || "Untitled"}
+            </span>
+          </span>
+        )}
+        mobileSubtitle={(item) =>
+          item.category
+        }
+        mobileActions={renderActions}
+      />
+
+      {/* ============================ */}
+      {/* ADD                          */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={formOpen}
+        onClose={closeForm}
+        eyebrow="Management"
+        title="Add Image"
+        size="lg"
+        onSubmit={handleSubmit}
+        submitting={saving}
+        submittingLabel="Adding..."
+        confirmLabel="Upload Image"
+        confirmDisabled={uploading}
+        // A half filled form should not
+        // vanish on a stray click.
+        closeOnBackdrop={false}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
           <input
             placeholder="Title"
             value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none md:text-base"
+            onChange={(event) =>
+              setForm({
+                ...form,
+                title:
+                  event.target.value,
+              })
+            }
+            className={inputClass}
           />
 
           <input
             placeholder="Category"
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none md:text-base"
+            onChange={(event) =>
+              setForm({
+                ...form,
+                category:
+                  event.target.value,
+              })
+            }
+            className={inputClass}
           />
 
           <input
             type="file"
             accept="image/png, image/jpeg, image/jpg, image/webp"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
+            onChange={(event) => {
+              const file =
+                event.target.files?.[0];
+
+              if (!file) {
+                return;
+              }
+
               handleUpload(file);
             }}
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none md:col-span-2"
+            className={`${inputClass} md:col-span-2`}
           />
         </div>
 
         {uploading && (
-          <p className="mt-4 text-sm text-[#8A6F78]">Uploading image...</p>
+          <p className="mt-4 text-sm text-[#8A6F78]">
+            Uploading image...
+          </p>
         )}
 
         {form.image && (
-          <img
-            src={getImageUrl(form.image)}
-            alt="Preview"
-            className="mt-5 h-44 w-full rounded-2xl object-cover md:max-w-md"
-          />
-        )}
+          <div className="mt-5">
+            <p className="mb-2 text-sm text-[#8A6F78]">
+              Image Preview
+            </p>
 
-        <button
-          disabled={uploading}
-          className="mt-6 rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white disabled:opacity-60"
-        >
-          {uploading ? "Uploading..." : "Upload Image"}
-        </button>
-      </form>
-
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {items.map((item) => (
-          <div
-            key={item._id}
-            className="overflow-hidden rounded-3xl bg-white shadow-sm"
-          >
             <img
-              src={getImageUrl(item.image)}
-              alt={item.title}
-              className="h-40 w-full object-cover"
+              src={getImageUrl(
+                form.image
+              )}
+              alt="Preview"
+              className="h-44 w-full rounded-2xl object-cover md:max-w-md"
             />
-
-            <div className="p-4">
-              <h3 className="truncate font-medium text-[#3A2A2F]">
-                {item.title || "Untitled"}
-              </h3>
-
-              <p className="mt-1 text-xs text-[#8A6F78]">{item.category}</p>
-
-              <button
-                onClick={() => handleDelete(item._id)}
-                className="mt-3 w-full rounded-full bg-[#FCE7EF] px-4 py-2 text-xs text-[#E75480]"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {items.length === 0 && (
-          <div className="col-span-full rounded-3xl bg-white p-8 text-center text-[#8A6F78] shadow-sm">
-            No images uploaded.
           </div>
         )}
-      </div>
+      </DialogBox>
+
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={Boolean(itemToDelete)}
+        onClose={() =>
+          setItemToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete image?"
+        description={
+          itemToDelete
+            ? `"${itemToDelete.title || "Untitled"}" will be removed from the gallery. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          Visitors will no longer see this
+          image on the website gallery.
+        </p>
+      </DialogBox>
     </div>
   );
 }

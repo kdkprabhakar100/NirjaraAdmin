@@ -1,4 +1,17 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
+
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
+
+import DialogBox from "../components/DialogBox";
+
+import RowActionsMenu from "../components/RowActionsMenu";
+
+// ========================================
+// TYPES
+// ========================================
 
 type Message = {
   _id: string;
@@ -9,112 +22,443 @@ type Message = {
   status: string;
 };
 
+const getAuthHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+});
+
 export default function ContactMessagesAdmin() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] =
+    useState<Message[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [processingId, setProcessingId] =
+    useState<string | null>(null);
+
+  // The message being read in the details
+  // dialog. Null means it is closed.
+  const [
+    selectedMessage,
+    setSelectedMessage,
+  ] = useState<Message | null>(null);
+
+  // The message awaiting delete
+  // confirmation.
+  const [
+    messageToDelete,
+    setMessageToDelete,
+  ] = useState<Message | null>(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  // ============================
+  // FETCH MESSAGES
+  // ============================
 
   const fetchMessages = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/contact`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-      },
-    });
+    try {
+      setLoading(true);
 
-    const data = await res.json();
-    setMessages(data);
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/contact`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+
+      const data = await res.json();
+
+      setMessages(
+        Array.isArray(data) ? data : []
+      );
+    } catch (error) {
+      console.error(
+        "Fetch messages error:",
+        error
+      );
+
+      toast.error(
+        "Failed to load messages"
+      );
+
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchMessages();
   }, []);
 
-  const markAsRead = async (id: string) => {
-    await fetch(`${import.meta.env.VITE_API_URL}/api/contact/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-      },
-      body: JSON.stringify({ status: "Read" }),
-    });
+  // ============================
+  // MARK AS READ
+  // ============================
 
-    fetchMessages();
+  const markAsRead = async (
+    message: Message
+  ) => {
+    try {
+      setProcessingId(message._id);
+
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/contact/${message._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type":
+              "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({
+            status: "Read",
+          }),
+        }
+      );
+
+      // Update UI immediately
+      setMessages((previous) =>
+        previous.map((item) =>
+          item._id === message._id
+            ? {
+                ...item,
+                status: "Read",
+              }
+            : item
+        )
+      );
+
+      toast.success(
+        "Message marked as read!"
+      );
+    } catch (error) {
+      console.error(
+        "Update message error:",
+        error
+      );
+
+      toast.error(
+        "Unable to update the message"
+      );
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const deleteMessage = async (id: string) => {
-    if (!confirm("Delete this message?")) return;
+  // ============================
+  // DELETE
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
+  // ============================
 
-    await fetch(`${import.meta.env.VITE_API_URL}/api/contact/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-      },
-    });
+  const confirmDelete = async () => {
+    if (!messageToDelete) {
+      return;
+    }
 
-    fetchMessages();
+    const id = messageToDelete._id;
+
+    try {
+      setDeleting(true);
+
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/contact/${id}`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        }
+      );
+
+      // Remove from UI immediately
+      setMessages((previous) =>
+        previous.filter(
+          (item) => item._id !== id
+        )
+      );
+
+      toast.success(
+        "Message deleted successfully!"
+      );
+
+      if (
+        selectedMessage?._id === id
+      ) {
+        setSelectedMessage(null);
+      }
+
+      setMessageToDelete(null);
+    } catch (error) {
+      console.error(
+        "Delete message error:",
+        error
+      );
+
+      toast.error(
+        "Unable to delete the message"
+      );
+
+      // Dialog stays open so the admin can
+      // retry.
+    } finally {
+      setDeleting(false);
+    }
   };
+
+  // ============================
+  // ROW PIECES
+  // ============================
+
+  const statusBadge = (
+    message: Message
+  ) => (
+    <span
+      className={`inline-block rounded-full px-4 py-1 text-xs ${
+        message.status === "Read"
+          ? "bg-green-100 text-green-700"
+          : "bg-[#FCE7EF] text-[#E75480]"
+      }`}
+    >
+      {message.status}
+    </span>
+  );
+
+  const renderActions = (
+    message: Message
+  ) => (
+    <RowActionsMenu
+      label={`Actions for ${message.subject}`}
+      busy={
+        processingId === message._id
+      }
+      actions={[
+        {
+          key: "view",
+          label: "View",
+          icon: "👁",
+          onSelect: () =>
+            setSelectedMessage(message),
+        },
+        {
+          key: "read",
+          label: "Mark read",
+          icon: "✓",
+          tone: "success",
+          disabled:
+            message.status === "Read",
+          onSelect: () =>
+            markAsRead(message),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          dividerBefore: true,
+          onSelect: () =>
+            setMessageToDelete(message),
+        },
+      ]}
+    />
+  );
+
+  // ============================
+  // COLUMNS
+  // ============================
+
+  const columns: TableColumn<Message>[] =
+    [
+      {
+        key: "subject",
+        header: "Subject",
+        hideOnMobile: true,
+        cellClassName:
+          "font-medium text-[#3A2A2F]",
+        render: (message) =>
+          message.subject,
+      },
+      {
+        key: "name",
+        header: "Name",
+        render: (message) =>
+          message.name,
+      },
+      {
+        key: "email",
+        header: "Email",
+        cellClassName: "break-all",
+        render: (message) =>
+          message.email,
+      },
+      {
+        key: "message",
+        header: "Message",
+        cellClassName: "max-w-sm",
+        render: (message) => (
+          <p className="line-clamp-2 leading-6">
+            {message.message}
+          </p>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        hideOnMobile: true,
+        render: statusBadge,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        width: "90px",
+        hideOnMobile: true,
+        render: renderActions,
+      },
+    ];
+
+  // ============================
+  // UI
+  // ============================
 
   return (
     <div>
-      <h1 className="font-serif text-5xl text-[#E75480]">
-        Contact Messages
-      </h1>
+      {/* HEADER */}
 
-      <p className="mt-2 text-[#8A6F78]">
-        View and manage messages sent from the contact page.
-      </p>
+      <div>
+        <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+          Management
+        </p>
 
-      <div className="mt-10 space-y-6">
-        {messages.map((msg) => (
-          <div
-            key={msg._id}
-            className="rounded-3xl bg-white p-6 shadow-sm"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h2 className="font-serif text-2xl text-[#E75480]">
-                  {msg.subject}
-                </h2>
+        <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+          Contact Messages
+        </h1>
 
-                <p className="mt-2 text-sm text-[#8A6F78]">
-                  {msg.name} • {msg.email}
-                </p>
-              </div>
+        <p className="mt-2 text-[#8A6F78]">
+          View and manage messages sent from
+          the contact page.
+        </p>
+      </div>
 
-              <span
-                className={`rounded-full px-4 py-1 text-xs ${
-                  msg.status === "Read"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-[#FCE7EF] text-[#E75480]"
-                }`}
-              >
-                {msg.status}
-              </span>
+      {/* TABLE */}
+
+      <CustomTable
+        className="mt-10"
+        columns={columns}
+        rows={messages}
+        rowKey={(message) => message._id}
+        loading={loading}
+        loadingMessage="Loading messages..."
+        emptyIcon="✉"
+        emptyTitle="No messages yet"
+        emptyMessage="Messages sent from the contact page will show up here."
+        minWidth="1000px"
+        mobileTitle={(message) =>
+          message.subject
+        }
+        mobileSubtitle={(message) =>
+          message.name
+        }
+        mobileBadge={statusBadge}
+        mobileActions={renderActions}
+      />
+
+      {/* ============================ */}
+      {/* MESSAGE DETAILS              */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={Boolean(selectedMessage)}
+        onClose={() =>
+          setSelectedMessage(null)
+        }
+        eyebrow="Contact Message"
+        title={
+          selectedMessage?.subject ??
+          "Message"
+        }
+        size="md"
+        cancelLabel="Close"
+      >
+        {selectedMessage && (
+          <div className="space-y-5 text-sm">
+            <div>
+              <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+                From
+              </p>
+
+              <p className="mt-1 text-[#3A2A2F]">
+                {selectedMessage.name}
+              </p>
             </div>
 
-            <p className="mt-5 leading-7 text-[#3A2A2F]">{msg.message}</p>
+            <div>
+              <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+                Email
+              </p>
 
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => markAsRead(msg._id)}
-                className="rounded-full border border-[#E75480] px-5 py-2 text-xs text-[#E75480]"
-              >
-                Mark Read
-              </button>
+              <p className="mt-1 break-words text-[#3A2A2F]">
+                {selectedMessage.email}
+              </p>
+            </div>
 
-              <button
-                onClick={() => deleteMessage(msg._id)}
-                className="rounded-full bg-[#FCE7EF] px-5 py-2 text-xs text-[#E75480]"
-              >
-                Delete
-              </button>
+            <div>
+              <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+                Status
+              </p>
+
+              <div className="mt-2">
+                {statusBadge(
+                  selectedMessage
+                )}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+                Message
+              </p>
+
+              <p className="mt-1 whitespace-pre-line leading-7 text-[#3A2A2F]">
+                {
+                  selectedMessage.message
+                }
+              </p>
             </div>
           </div>
-        ))}
-
-        {messages.length === 0 && (
-          <p className="text-center text-[#8A6F78]">No messages yet.</p>
         )}
-      </div>
+      </DialogBox>
+
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={Boolean(messageToDelete)}
+        onClose={() =>
+          setMessageToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete message?"
+        description={
+          messageToDelete
+            ? `The message from ${messageToDelete.name} will be removed. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          You will lose the customer's
+          contact details along with the
+          message.
+        </p>
+      </DialogBox>
     </div>
   );
 }

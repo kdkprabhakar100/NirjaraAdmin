@@ -1,44 +1,92 @@
 import { useEffect, useState } from "react";
-import api from "../services/base/api";
-import { motion } from "framer-motion";
+import { toast } from "react-toastify";
+
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
+
+import DialogBox from "../components/DialogBox";
+
+import RowActionsMenu from "../components/RowActionsMenu";
+
+import api from "../services/base/api";
+
 import getCroppedImg from "../utils/cropImage";
+
 import { uploadImage as uploadImageToServer } from "../services/upload/uploadService";
+
+// ========================================
+// TYPES
+// ========================================
 
 interface EventType {
   _id: string;
   title: string;
   description: string;
   image: string;
- location: string;
+  location: string;
   date: string;
   time: string;
   featured: boolean;
   active: boolean;
 }
 
+const emptyForm = {
+  title: "",
+  description: "",
+  image: "",
+  location: "",
+  date: "",
+  time: "",
+  buttonText: "Register Now",
+  buttonLink: "/contact",
+};
+
+// ========================================
+// SHARED INPUT STYLE
+// ========================================
+
+const inputClass =
+  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+
 const AdminEvents = () => {
-  const [events, setEvents] = useState<EventType[]>([]);
+  const [events, setEvents] = useState<
+    EventType[]
+  >([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [processingId, setProcessingId] =
+    useState<string | null>(null);
+
+  const [formOpen, setFormOpen] =
+    useState(false);
 
   const [editingId, setEditingId] =
     useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    image: "",
-    location: "",
-    date: "",
-    time: "",
-    buttonText: "Register Now",
-    buttonLink: "/contact",
-  });
+  const [formData, setFormData] =
+    useState(emptyForm);
 
-  // =============================
-  // CROPPER STATES
-  // =============================
+  // The event awaiting delete
+  // confirmation. Null means the dialog
+  // is closed.
+  const [eventToDelete, setEventToDelete] =
+    useState<EventType | null>(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  // ============================
+  // CROPPER STATE
+  // ============================
 
   const [crop, setCrop] = useState({
     x: 0,
@@ -47,28 +95,45 @@ const AdminEvents = () => {
 
   const [zoom, setZoom] = useState(1);
 
-  const [croppedAreaPixels, setCroppedAreaPixels] =
-    useState<any>(null);
+  const [
+    croppedAreaPixels,
+    setCroppedAreaPixels,
+  ] = useState<Area | null>(null);
 
+  // The picked file, before cropping.
   const [imageSrc, setImageSrc] =
     useState("");
 
-  const [croppedImage, setCroppedImage] =
-    useState("");
+  const [cropping, setCropping] =
+    useState(false);
 
-  // =============================
+  // ============================
   // FETCH EVENTS
-  // =============================
+  // ============================
 
   const fetchEvents = async () => {
     try {
+      setLoading(true);
+
       const res = await api.get(
         `/api/events/admin/all`
       );
 
-      setEvents(res.data);
+      setEvents(
+        Array.isArray(res.data)
+          ? res.data
+          : []
+      );
     } catch (error) {
       console.log(error);
+
+      toast.error(
+        "Failed to load events"
+      );
+
+      setEvents([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,62 +141,94 @@ const AdminEvents = () => {
     fetchEvents();
   }, []);
 
-  // =============================
-  // HANDLE CHANGE
-  // =============================
+  // ============================
+  // FORM
+  // ============================
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement
+    event: React.ChangeEvent<
+      | HTMLInputElement
+      | HTMLTextAreaElement
     >
   ) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [event.target.name]:
+        event.target.value,
     });
   };
 
-  // =============================
-  // CROP COMPLETE
-  // =============================
-
-const onCropComplete = (
-  _: Area,
-  croppedAreaPixels: Area
-) => {
-  setCroppedAreaPixels(croppedAreaPixels);
-};
-
-  // =============================
-  // IMAGE SELECT
-  // =============================
-
-  const uploadImage = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-
-    if (!file) return;
-
-    const imageUrl =
-      URL.createObjectURL(file);
-
-    setImageSrc(imageUrl);
+  const openAddForm = () => {
+    setFormData(emptyForm);
+    setEditingId(null);
+    setImageSrc("");
+    setFormOpen(true);
   };
 
-  // =============================
-  // HANDLE CROP DONE
-  // =============================
+  const openEditForm = (
+    item: EventType
+  ) => {
+    setFormData({
+      title: item.title,
+      description: item.description,
+      image: item.image,
+      location: item.location,
+      date: item.date.split("T")[0],
+      time: item.time,
+      buttonText: "Register Now",
+      buttonLink: "/contact",
+    });
+
+    setEditingId(item._id);
+    setImageSrc("");
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setFormData(emptyForm);
+    setEditingId(null);
+    setImageSrc("");
+  };
+
+  // ============================
+  // IMAGE SELECT + CROP
+  // ============================
+
+  const onCropComplete = (
+    _: Area,
+    areaPixels: Area
+  ) => {
+    setCroppedAreaPixels(areaPixels);
+  };
+
+  const pickImage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setImageSrc(
+      URL.createObjectURL(file)
+    );
+  };
 
   const handleCropDone = async () => {
     try {
-      const croppedBlob: any =
+      setCropping(true);
+
+      const croppedBlob =
         await getCroppedImg(
           imageSrc,
           croppedAreaPixels
         );
 
-      if (!croppedBlob) return;
+      if (!croppedBlob) {
+        return;
+      }
 
       const imageUrl =
         await uploadImageToServer(
@@ -139,496 +236,603 @@ const onCropComplete = (
           "event.jpg"
         );
 
-      setFormData({
-        ...formData,
+      setFormData((previous) => ({
+        ...previous,
         image: imageUrl,
-      });
-
-      setCroppedImage(imageUrl);
+      }));
 
       setImageSrc("");
     } catch (error) {
       console.log(error);
+
+      toast.error(
+        "Unable to upload the image"
+      );
+    } finally {
+      setCropping(false);
     }
   };
 
-  // =============================
-  // CREATE EVENT
-  // =============================
+  // ============================
+  // CREATE / UPDATE
+  // ============================
 
-  const createEvent = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
-
+  const handleSubmit = async () => {
     try {
-      await api.post(
-        `/api/events`,
-        formData
-      );
+      setSaving(true);
 
-      setFormData({
-        title: "",
-        description: "",
-        image: "",
-        location: "",
-        date: "",
-        time: "",
-        buttonText: "Register Now",
-        buttonLink: "/contact",
-      });
+      if (editingId) {
+        await api.put(
+          `/api/events/${editingId}`,
+          formData
+        );
 
-      setCroppedImage("");
+        toast.success(
+          "Event updated successfully!"
+        );
+      } else {
+        await api.post(
+          `/api/events`,
+          formData
+        );
 
-      fetchEvents();
+        toast.success(
+          "Event created successfully!"
+        );
+      }
+
+      await fetchEvents();
+
+      closeForm();
     } catch (error) {
       console.log(error);
+
+      toast.error(
+        "Unable to save the event"
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
-  // =============================
-  // EDIT EVENT
-  // =============================
+  // ============================
+  // TOGGLES
+  // ============================
 
-  const editEvent = (
-    event: EventType
+  const toggleFeatured = async (
+    item: EventType
   ) => {
-    setEditingId(event._id);
-
-    setFormData({
-      title: event.title,
-      description: event.description,
-      image: event.image,
-      location: event.location,
-      date:
-        event.date.split("T")[0],
-      time: event.time,
-      buttonText: "Register Now",
-      buttonLink: "/contact",
-    });
-
-    setCroppedImage(event.image);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  // =============================
-  // UPDATE EVENT
-  // =============================
-
-  const updateEvent = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
-
     try {
+      setProcessingId(item._id);
+
       await api.put(
-        `/api/events/${editingId}`,
-        formData
+        `/api/events/${item._id}/featured`
       );
 
-      setEditingId(null);
-
-      setFormData({
-        title: "",
-        description: "",
-        image: "",
-        location: "",
-        date: "",
-        time: "",
-        buttonText: "Register Now",
-        buttonLink: "/contact",
-      });
-
-      setCroppedImage("");
-
-      fetchEvents();
+      await fetchEvents();
     } catch (error) {
       console.log(error);
+
+      toast.error(
+        "Unable to update the event"
+      );
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  // =============================
-  // DELETE EVENT
-  // =============================
-
-  const deleteEvent = async (
-    id: string
+  const toggleActive = async (
+    item: EventType
   ) => {
     try {
+      setProcessingId(item._id);
+
+      await api.put(
+        `/api/events/${item._id}/active`
+      );
+
+      await fetchEvents();
+    } catch (error) {
+      console.log(error);
+
+      toast.error(
+        "Unable to update the event"
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // ============================
+  // DELETE
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
+  // ============================
+
+  const confirmDelete = async () => {
+    if (!eventToDelete) {
+      return;
+    }
+
+    const id = eventToDelete._id;
+
+    try {
+      setDeleting(true);
+
       await api.delete(
         `/api/events/${id}`
       );
 
-      fetchEvents();
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  // =============================
-  // TOGGLE FEATURED
-  // =============================
-
-  const toggleFeatured = async (
-    id: string
-  ) => {
-    try {
-      await api.put(
-        `/api/events/${id}/featured`
+      // Remove from UI immediately
+      setEvents((previous) =>
+        previous.filter(
+          (item) => item._id !== id
+        )
       );
 
-      fetchEvents();
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  // =============================
-  // TOGGLE ACTIVE
-  // =============================
-
-  const toggleActive = async (
-    id: string
-  ) => {
-    try {
-      await api.put(
-        `/api/events/${id}/active`
+      toast.success(
+        "Event deleted successfully!"
       );
 
-      fetchEvents();
+      if (editingId === id) {
+        closeForm();
+      }
+
+      setEventToDelete(null);
     } catch (error) {
       console.log(error);
+
+      toast.error(
+        "Unable to delete the event"
+      );
+
+      // Dialog stays open so the admin can
+      // retry.
+    } finally {
+      setDeleting(false);
     }
   };
+
+  // ============================
+  // ROW PIECES
+  // ============================
+
+  const thumbnail = (
+    item: EventType
+  ) =>
+    item.image ? (
+      <img
+        src={item.image}
+        alt={item.title}
+        className="h-14 w-20 rounded-xl object-cover"
+      />
+    ) : (
+      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+        ✦
+      </div>
+    );
+
+  const statusBadge = (
+    item: EventType
+  ) => (
+    <div className="flex flex-wrap gap-2">
+      <span
+        className={`inline-block rounded-full px-4 py-1 text-xs ${
+          item.active
+            ? "bg-green-100 text-green-700"
+            : "bg-gray-100 text-gray-600"
+        }`}
+      >
+        {item.active
+          ? "Active"
+          : "Inactive"}
+      </span>
+
+      {item.featured && (
+        <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs text-[#E75480]">
+          Featured
+        </span>
+      )}
+    </div>
+  );
+
+  const renderActions = (
+    item: EventType
+  ) => (
+    <RowActionsMenu
+      label={`Actions for ${item.title}`}
+      busy={processingId === item._id}
+      actions={[
+        {
+          key: "edit",
+          label: "Edit",
+          icon: "✎",
+          onSelect: () =>
+            openEditForm(item),
+        },
+        {
+          key: "featured",
+          label: item.featured
+            ? "Unfeature"
+            : "Make featured",
+          icon: "★",
+          onSelect: () =>
+            toggleFeatured(item),
+        },
+        {
+          key: "active",
+          label: item.active
+            ? "Deactivate"
+            : "Activate",
+          icon: item.active
+            ? "✕"
+            : "✓",
+          tone: item.active
+            ? "default"
+            : "success",
+          onSelect: () =>
+            toggleActive(item),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          dividerBefore: true,
+          onSelect: () =>
+            setEventToDelete(item),
+        },
+      ]}
+    />
+  );
+
+  // ============================
+  // COLUMNS
+  // ============================
+
+  const columns: TableColumn<EventType>[] =
+    [
+      {
+        key: "image",
+        header: "Image",
+        width: "110px",
+        hideOnMobile: true,
+        render: thumbnail,
+      },
+      {
+        key: "title",
+        header: "Title",
+        hideOnMobile: true,
+        cellClassName:
+          "font-medium text-[#3A2A2F]",
+        render: (item) => item.title,
+      },
+      {
+        key: "location",
+        header: "Location",
+        render: (item) => item.location,
+      },
+      {
+        key: "date",
+        header: "Date",
+        cellClassName:
+          "whitespace-nowrap",
+        render: (item) =>
+          new Date(
+            item.date
+          ).toLocaleDateString(),
+      },
+      {
+        key: "time",
+        header: "Time",
+        cellClassName:
+          "whitespace-nowrap",
+        render: (item) => item.time,
+      },
+      {
+        key: "description",
+        header: "Description",
+        cellClassName: "max-w-sm",
+        render: (item) => (
+          <p className="line-clamp-2 leading-6">
+            {item.description}
+          </p>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        hideOnMobile: true,
+        render: statusBadge,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        width: "90px",
+        hideOnMobile: true,
+        render: renderActions,
+      },
+    ];
+
+  // ============================
+  // UI
+  // ============================
 
   return (
-    <div className="p-6 bg-pink-50 min-h-screen">
-      {/* TITLE */}
+    <div>
+      {/* HEADER */}
 
-      <h1 className="text-4xl font-bold text-pink-600 mb-8">
-        Admin Events
-      </h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+            Management
+          </p>
 
-      {/* FORM */}
+          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+            Events
+          </h1>
 
-      <form
-        onSubmit={
-          editingId
-            ? updateEvent
-            : createEvent
+          <p className="mt-2 text-[#8A6F78]">
+            Create, edit, and manage website
+            events.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+        >
+          Add Event
+        </button>
+      </div>
+
+      {/* TABLE */}
+
+      <CustomTable
+        className="mt-10"
+        columns={columns}
+        rows={events}
+        rowKey={(item) => item._id}
+        loading={loading}
+        loadingMessage="Loading events..."
+        emptyIcon="✦"
+        emptyTitle="No events yet"
+        emptyMessage="Add your first event using the button above."
+        minWidth="1200px"
+        mobileTitle={(item) => (
+          <span className="flex items-center gap-3">
+            {thumbnail(item)}
+
+            <span>{item.title}</span>
+          </span>
+        )}
+        mobileSubtitle={(item) =>
+          `${new Date(
+            item.date
+          ).toLocaleDateString()} · ${
+            item.time
+          }`
         }
-        className="bg-white rounded-3xl shadow-xl p-6 mb-12 space-y-5"
+        mobileActions={renderActions}
+      />
+
+      {/* ============================ */}
+      {/* ADD / EDIT                   */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={formOpen}
+        onClose={closeForm}
+        eyebrow="Management"
+        title={
+          editingId
+            ? "Edit Event"
+            : "Create Event"
+        }
+        size="lg"
+        onSubmit={handleSubmit}
+        submitting={saving}
+        submittingLabel={
+          editingId
+            ? "Updating..."
+            : "Creating..."
+        }
+        confirmLabel={
+          editingId
+            ? "Update Event"
+            : "Create Event"
+        }
+        // The picked image still needs
+        // cropping before it can be saved.
+        confirmDisabled={Boolean(
+          imageSrc
+        )}
+        // A half filled form should not
+        // vanish on a stray click.
+        closeOnBackdrop={false}
       >
-        {/* TITLE */}
-
-        <input
-          type="text"
-          name="title"
-          placeholder="Event Title"
-          value={formData.title}
-          onChange={handleChange}
-          className="w-full border p-4 rounded-xl"
-          required
-        />
-
-        {/* DESCRIPTION */}
-
-        <textarea
-          name="description"
-          placeholder="Event Description"
-          value={formData.description}
-          onChange={handleChange}
-          rows={5}
-          className="w-full border p-4 rounded-xl"
-          required
-        />
-
-        {/* LOCATION */}
-
-        <input
-          type="text"
-          name="location"
-          placeholder="Event Location"
-          value={formData.location}
-          onChange={handleChange}
-          className="w-full border p-4 rounded-xl"
-          required
-        />
-
-        {/* DATE TIME */}
-
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           <input
-            type="date"
-            name="date"
-            value={formData.date}
-            onChange={handleChange}
-            className="w-full border p-4 rounded-xl"
+            type="text"
+            name="title"
+            placeholder="Event Title"
             required
+            value={formData.title}
+            onChange={handleChange}
+            className={inputClass}
           />
 
           <input
             type="text"
-            name="time"
-            placeholder="2:00 PM"
-            value={formData.time}
-            onChange={handleChange}
-            className="w-full border p-4 rounded-xl"
+            name="location"
+            placeholder="Event Location"
             required
-          />
-        </div>
-
-        {/* IMAGE UPLOAD */}
-
-        <div className="space-y-4">
-          <input
-            type="file"
-            onChange={uploadImage}
-            className="w-full border p-4 rounded-xl"
+            value={formData.location}
+            onChange={handleChange}
+            className={inputClass}
           />
 
-          <p className="text-sm text-gray-500">
-            Recommended size:
-            1200 × 800 px
-          </p>
+          <div>
+            <label className="mb-2 block text-sm text-[#8A6F78]">
+              Date
+            </label>
 
-          {/* CROPPER */}
-
-          {imageSrc && (
-            <>
-              <div className="relative w-full h-[400px] bg-black rounded-2xl overflow-hidden">
-                <Cropper
-                  image={imageSrc}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={3 / 2}
-                  onCropChange={
-                    setCrop
-                  }
-                  onZoomChange={
-                    setZoom
-                  }
-                  onCropComplete={
-                    onCropComplete
-                  }
-                />
-              </div>
-
-              {/* ZOOM */}
-
-              <div>
-                <label className="text-sm text-gray-600">
-                  Zoom
-                </label>
-
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.1}
-                  value={zoom}
-                  onChange={(e) =>
-                    setZoom(
-                      Number(
-                        e.target.value
-                      )
-                    )
-                  }
-                  className="w-full"
-                />
-              </div>
-
-              {/* DONE BUTTON */}
-
-              <button
-                type="button"
-                onClick={
-                  handleCropDone
-                }
-                className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-xl"
-              >
-                Done Cropping
-              </button>
-            </>
-          )}
-
-          {/* PREVIEW */}
-
-          {croppedImage && (
-            <img
-              src={croppedImage}
-              alt=""
-              className="w-48 h-32 object-cover rounded-2xl border"
+            <input
+              type="date"
+              name="date"
+              required
+              value={formData.date}
+              onChange={handleChange}
+              className={inputClass}
             />
-          )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm text-[#8A6F78]">
+              Time
+            </label>
+
+            <input
+              type="text"
+              name="time"
+              placeholder="2:00 PM"
+              required
+              value={formData.time}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </div>
+
+          <textarea
+            name="description"
+            placeholder="Event Description"
+            required
+            rows={5}
+            value={formData.description}
+            onChange={handleChange}
+            className={`${inputClass} md:col-span-2`}
+          />
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm text-[#8A6F78]">
+              Event Image
+            </label>
+
+            <input
+              type="file"
+              accept="image/*"
+              onChange={pickImage}
+              className={inputClass}
+            />
+
+            <p className="mt-2 text-xs text-[#8A6F78]">
+              Recommended size: 1200 × 800
+              px
+            </p>
+          </div>
         </div>
 
-        {/* ACTION BUTTONS */}
+        {/* CROPPER */}
 
-        <div className="flex gap-4 flex-wrap">
-          <button
-            type="submit"
-            className="bg-pink-600 hover:bg-pink-700 text-white px-8 py-3 rounded-xl"
-          >
-            {editingId
-              ? "Update Event"
-              : "Create Event"}
-          </button>
+        {imageSrc && (
+          <div className="mt-5">
+            <div className="relative h-80 w-full overflow-hidden rounded-2xl bg-black">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={3 / 2}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={
+                  onCropComplete
+                }
+              />
+            </div>
 
-          {editingId && (
+            <div className="mt-4">
+              <label className="text-sm text-[#8A6F78]">
+                Zoom
+              </label>
+
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(event) =>
+                  setZoom(
+                    Number(
+                      event.target.value
+                    )
+                  )
+                }
+                className="w-full"
+              />
+            </div>
+
             <button
               type="button"
-              onClick={() => {
-                setEditingId(null);
-
-                setFormData({
-                  title: "",
-                  description:
-                    "",
-                  image: "",
-                  location: "",
-                  date: "",
-                  time: "",
-                  buttonText:
-                    "Register Now",
-                  buttonLink:
-                    "/contact",
-                });
-
-                setCroppedImage(
-                  ""
-                );
-              }}
-              className="bg-gray-400 hover:bg-gray-500 text-white px-8 py-3 rounded-xl"
+              onClick={handleCropDone}
+              disabled={cropping}
+              className="mt-3 rounded-full bg-[#E75480] px-6 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cancel
+              {cropping
+                ? "Uploading..."
+                : "Done Cropping"}
             </button>
-          )}
-        </div>
-      </form>
+          </div>
+        )}
 
-      {/* EVENTS GRID */}
+        {/* PREVIEW */}
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {events.map((event) => (
-          <motion.div
-            key={event._id}
-            whileHover={{
-              y: -6,
-            }}
-            className="bg-white rounded-3xl overflow-hidden shadow-xl"
-          >
-            {/* IMAGE */}
+        {!imageSrc && formData.image && (
+          <div className="mt-5">
+            <p className="mb-2 text-sm text-[#8A6F78]">
+              Image Preview
+            </p>
 
             <img
-              src={event.image}
-              alt={event.title}
-              className="w-full h-64 object-cover"
+              src={formData.image}
+              alt="Preview"
+              className="h-44 w-full rounded-2xl object-cover md:max-w-md"
             />
+          </div>
+        )}
+      </DialogBox>
 
-            {/* CONTENT */}
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
 
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-2xl font-bold text-pink-700">
-                  {event.title}
-                </h2>
-
-                {event.featured && (
-                  <span className="bg-green-500 text-white text-xs px-3 py-1 rounded-full">
-                    Featured
-                  </span>
-                )}
-              </div>
-
-              <p className="text-gray-600 line-clamp-3 mb-4">
-                {event.description}
-              </p>
-
-              <div className="text-sm text-gray-500 space-y-1 mb-6">
-                <p>
-                  📍 {event.location}
-                </p>
-
-                <p>
-                  📅{" "}
-                  {new Date(
-                    event.date
-                  ).toLocaleDateString()}
-                </p>
-
-                <p>
-                  ⏰ {event.time}
-                </p>
-              </div>
-
-              {/* BUTTONS */}
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() =>
-                    editEvent(
-                      event
-                    )
-                  }
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl"
-                >
-                  Edit
-                </button>
-
-                <button
-                  onClick={() =>
-                    toggleFeatured(
-                      event._id
-                    )
-                  }
-                  className={`px-4 py-2 rounded-xl text-white ${
-                    event.featured
-                      ? "bg-green-600"
-                      : "bg-gray-500"
-                  }`}
-                >
-                  {event.featured
-                    ? "Featured"
-                    : "Make Featured"}
-                </button>
-
-                <button
-                  onClick={() =>
-                    toggleActive(
-                      event._id
-                    )
-                  }
-                  className={`px-4 py-2 rounded-xl text-white ${
-                    event.active
-                      ? "bg-orange-500"
-                      : "bg-gray-500"
-                  }`}
-                >
-                  {event.active
-                    ? "Active"
-                    : "Inactive"}
-                </button>
-
-                <button
-                  onClick={() =>
-                    deleteEvent(
-                      event._id
-                    )
-                  }
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      <DialogBox
+        open={Boolean(eventToDelete)}
+        onClose={() =>
+          setEventToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete event?"
+        description={
+          eventToDelete
+            ? `"${eventToDelete.title}" will be removed from the website. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          Visitors will no longer see this
+          event on the website.
+        </p>
+      </DialogBox>
     </div>
   );
 };

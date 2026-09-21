@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 import CustomTable, {
@@ -6,6 +6,8 @@ import CustomTable, {
 } from "../components/CustomTable";
 
 import DialogBox from "../components/DialogBox";
+
+import RowActionsMenu from "../components/RowActionsMenu";
 
 import { getApiErrorMessage } from "../services/base/api";
 
@@ -21,14 +23,11 @@ export default function BookingsAdmin() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // The booking awaiting delete confirmation.
   // Null means the dialog is closed.
   const [bookingToDelete, setBookingToDelete] =
     useState<Booking | null>(null);
-
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   // ============================
   // FETCH BOOKINGS
@@ -65,37 +64,6 @@ export default function BookingsAdmin() {
   }, []);
 
   // ============================
-  // CLOSE ACTION MENU
-  // ============================
-
-  useEffect(() => {
-    const handleClickOutside = (
-      event: MouseEvent
-    ) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(
-          event.target as Node
-        )
-      ) {
-        setOpenMenuId(null);
-      }
-    };
-
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
-    };
-  }, []);
-
-  // ============================
   // UPDATE STATUS
   // ============================
 
@@ -105,7 +73,6 @@ export default function BookingsAdmin() {
   ) => {
     try {
       setProcessingId(id);
-      setOpenMenuId(null);
 
       await updateBookingStatus(
         id,
@@ -163,7 +130,6 @@ export default function BookingsAdmin() {
   const requestDelete = (
     booking: Booking
   ) => {
-    setOpenMenuId(null);
     setBookingToDelete(booking);
   };
 
@@ -255,103 +221,53 @@ export default function BookingsAdmin() {
 
   const renderActions = (
     booking: Booking
-  ) => {
-    const isOpen =
-      openMenuId === booking._id;
-
-    const processing =
-      processingId === booking._id;
-
-    return (
-      <div
-        className="relative"
-        ref={
-          isOpen
-            ? menuRef
-            : null
-        }
-      >
-        <button
-          type="button"
-          disabled={processing}
-          onClick={() =>
-            setOpenMenuId(
-              isOpen
-                ? null
-                : booking._id
-            )
-          }
-          className="flex min-w-[120px] items-center justify-between gap-3 rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-2 text-xs text-[#3A2A2F] transition hover:border-[#E75480] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <span>
-            {processing
-              ? "Processing..."
-              : "Actions"}
-          </span>
-
-          <span
-            className={`transition ${
-              isOpen
-                ? "rotate-180"
-                : ""
-            }`}
-          >
-            ▾
-          </span>
-        </button>
-
-        {isOpen && (
-          <div className="absolute right-0 z-50 mt-2 w-40 overflow-hidden rounded-xl border border-[#E75480]/10 bg-white py-2 shadow-xl">
-            <button
-              type="button"
-              disabled={
-                booking.status ===
-                "Confirmed"
-              }
-              onClick={() =>
-                updateStatus(
-                  booking._id,
-                  "Confirmed"
-                )
-              }
-              className="block w-full px-4 py-3 text-left text-xs text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ✓ Confirm
-            </button>
-
-            <button
-              type="button"
-              disabled={
-                booking.status ===
-                "Cancelled"
-              }
-              onClick={() =>
-                updateStatus(
-                  booking._id,
-                  "Cancelled"
-                )
-              }
-              className="block w-full px-4 py-3 text-left text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ✕ Cancel
-            </button>
-
-            <div className="my-1 border-t border-gray-100" />
-
-            <button
-              type="button"
-              onClick={() =>
-                requestDelete(booking)
-              }
-              className="block w-full px-4 py-3 text-left text-xs text-[#E75480] transition hover:bg-[#FFF5F8]"
-            >
-              Delete
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
+  ) => (
+    <RowActionsMenu
+      label={`Actions for ${booking.name}`}
+      busy={
+        processingId === booking._id
+      }
+      actions={[
+        {
+          key: "confirm",
+          label: "Confirm",
+          icon: "✓",
+          tone: "success",
+          disabled:
+            booking.status ===
+            "Confirmed",
+          onSelect: () =>
+            updateStatus(
+              booking._id,
+              "Confirmed"
+            ),
+        },
+        {
+          key: "cancel",
+          label: "Cancel",
+          icon: "✕",
+          tone: "danger",
+          disabled:
+            booking.status ===
+            "Cancelled",
+          onSelect: () =>
+            updateStatus(
+              booking._id,
+              "Cancelled"
+            ),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          dividerBefore: true,
+          onSelect: () =>
+            requestDelete(booking),
+        },
+      ]}
+    />
+  );
 
   // ============================
   // COLUMNS
@@ -426,6 +342,8 @@ export default function BookingsAdmin() {
     {
       key: "actions",
       header: "Actions",
+      align: "right",
+      width: "90px",
       hideOnMobile: true,
       render: renderActions,
     },
@@ -470,7 +388,7 @@ export default function BookingsAdmin() {
           booking.type
         }
         mobileBadge={statusBadge}
-        mobileFooter={renderActions}
+        mobileActions={renderActions}
       />
 
       {/* ============================ */}

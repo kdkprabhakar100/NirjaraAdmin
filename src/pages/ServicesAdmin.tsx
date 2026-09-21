@@ -7,6 +7,8 @@ import CustomTable, {
 
 import DialogBox from "../components/DialogBox";
 
+import RowActionsMenu from "../components/RowActionsMenu";
+
 import { getApiErrorMessage } from "../services/base/api";
 
 import { uploadImage } from "../services/upload/uploadService";
@@ -367,27 +369,29 @@ export default function ServicesAdmin() {
   const renderActions = (
     service: Service
   ) => (
-    <div className="flex flex-wrap gap-2">
-      <button
-        type="button"
-        onClick={() =>
-          openEditForm(service)
-        }
-        className="rounded-full border border-[#E75480] px-5 py-2 text-xs text-[#E75480] transition hover:bg-[#FFF5F8]"
-      >
-        Edit
-      </button>
-
-      <button
-        type="button"
-        onClick={() =>
-          setServiceToDelete(service)
-        }
-        className="rounded-full bg-[#FCE7EF] px-5 py-2 text-xs text-[#E75480] transition hover:bg-[#FBD5E3]"
-      >
-        Delete
-      </button>
-    </div>
+    <RowActionsMenu
+      label={`Actions for ${service.title}`}
+      actions={[
+        {
+          key: "edit",
+          label: "Edit",
+          icon: "✎",
+          onSelect: () =>
+            openEditForm(service),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          dividerBefore: true,
+          onSelect: () =>
+            setServiceToDelete(
+              service
+            ),
+        },
+      ]}
+    />
   );
 
   // ============================
@@ -442,6 +446,8 @@ export default function ServicesAdmin() {
     {
       key: "actions",
       header: "Actions",
+      align: "right",
+      width: "90px",
       hideOnMobile: true,
       render: renderActions,
     },
@@ -504,7 +510,7 @@ export default function ServicesAdmin() {
         mobileSubtitle={(service) =>
           service.category
         }
-        mobileFooter={renderActions}
+        mobileActions={renderActions}
       />
 
       {/* ============================ */}

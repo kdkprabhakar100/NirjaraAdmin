@@ -1,4 +1,7 @@
-import type { ReactNode } from "react";
+import type {
+  HTMLAttributes,
+  ReactNode,
+} from "react";
 
 // ========================================
 // CUSTOM TABLE
@@ -88,6 +91,20 @@ export type TableColumn<T> = {
 };
 
 // ========================================
+// ROW EXTRAS
+//
+// Anything a page wants on the row element
+// itself. `className` is appended to the
+// table's own row classes rather than
+// replacing them.
+// ========================================
+
+export type RowExtraProps =
+  HTMLAttributes<HTMLElement> & {
+    draggable?: boolean;
+  };
+
+// ========================================
 // PROPS
 // ========================================
 
@@ -126,6 +143,17 @@ export type CustomTableProps<T> = {
     rowIndex: number
   ) => void;
 
+  // Extra attributes for the row element:
+  // drag handlers, a highlight class, data
+  // attributes. Applied to the <tr> on
+  // desktop and to the card on mobile, so
+  // a page can make its rows sortable
+  // without owning the whole table.
+  rowProps?: (
+    row: T,
+    rowIndex: number
+  ) => RowExtraProps;
+
   // ---- Mobile card ----
   //
   // The card header. Without these the card
@@ -139,8 +167,14 @@ export type CustomTableProps<T> = {
 
   mobileBadge?: (row: T) => ReactNode;
 
-  // Pinned to the bottom of each card,
-  // typically the action menu.
+  // Pinned to the top right of each card,
+  // beside the badge. This is where the
+  // three dot menu goes: a card has no
+  // Actions column to put it in.
+  mobileActions?: (row: T) => ReactNode;
+
+  // Pinned to the bottom of each card, for
+  // anything wider than the menu.
   mobileFooter?: (row: T) => ReactNode;
 
   // ---- Extras ----
@@ -253,9 +287,11 @@ export default function CustomTable<T>({
   emptyMessage,
   minWidth = "900px",
   onRowClick,
+  rowProps,
   mobileTitle,
   mobileSubtitle,
   mobileBadge,
+  mobileActions,
   mobileFooter,
   footer,
   className = "",
@@ -303,7 +339,16 @@ export default function CustomTable<T>({
       {/* ================================ */}
 
       <div className="grid gap-4 md:hidden">
-        {rows.map((row, rowIndex) => (
+        {rows.map((row, rowIndex) => {
+          const {
+            className: extraClassName =
+              "",
+            ...extra
+          } =
+            rowProps?.(row, rowIndex) ??
+            {};
+
+          return (
           <div
             key={rowKey(row, rowIndex)}
             onClick={
@@ -315,18 +360,20 @@ export default function CustomTable<T>({
                     )
                 : undefined
             }
+            {...extra}
             className={`rounded-3xl bg-white p-5 shadow-sm ${
               onRowClick
                 ? "cursor-pointer"
                 : ""
-            }`}
+            } ${extraClassName}`}
           >
             {/* CARD HEADER */}
 
             {(mobileTitle ||
-              mobileBadge) && (
+              mobileBadge ||
+              mobileActions) && (
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   {mobileTitle && (
                     <h3
                       className={`font-semibold ${THEME.strong}`}
@@ -346,9 +393,14 @@ export default function CustomTable<T>({
                   )}
                 </div>
 
-                {mobileBadge && (
-                  <div className="shrink-0">
-                    {mobileBadge(row)}
+                {(mobileBadge ||
+                  mobileActions) && (
+                  <div className="flex shrink-0 items-center gap-2">
+                    {mobileBadge?.(row)}
+
+                    {mobileActions?.(
+                      row
+                    )}
                   </div>
                 )}
               </div>
@@ -399,7 +451,8 @@ export default function CustomTable<T>({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
 
         {footer}
       </div>
@@ -448,7 +501,18 @@ export default function CustomTable<T>({
 
             <tbody>
               {rows.map(
-                (row, rowIndex) => (
+                (row, rowIndex) => {
+                  const {
+                    className:
+                      extraClassName = "",
+                    ...extra
+                  } =
+                    rowProps?.(
+                      row,
+                      rowIndex
+                    ) ?? {};
+
+                  return (
                   <tr
                     key={rowKey(
                       row,
@@ -463,13 +527,14 @@ export default function CustomTable<T>({
                             )
                         : undefined
                     }
+                    {...extra}
                     className={`${
                       THEME.row
                     } ${
                       onRowClick
                         ? "cursor-pointer"
                         : ""
-                    }`}
+                    } ${extraClassName}`}
                   >
                     {columns.map(
                       (column) => (
@@ -494,7 +559,8 @@ export default function CustomTable<T>({
                       )
                     )}
                   </tr>
-                )
+                  );
+                }
               )}
             </tbody>
           </table>

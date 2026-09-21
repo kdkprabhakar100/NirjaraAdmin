@@ -5,6 +5,16 @@ import {
   useState,
 } from "react";
 
+import { toast } from "react-toastify";
+
+import CustomTable, {
+  type TableColumn,
+} from "../components/CustomTable";
+
+import DialogBox from "../components/DialogBox";
+
+import RowActionsMenu from "../components/RowActionsMenu";
+
 import {
   createTeamMember,
   deleteTeamMember,
@@ -20,8 +30,6 @@ import type {
 } from "../services/team/team.types";
 
 import { uploadImage } from "../services/upload/uploadService";
-
-import { toast } from "react-toastify";
 
 // ========================================
 // FORM TYPE
@@ -56,6 +64,16 @@ const ACCEPTED_IMAGE_TYPES = [
 ];
 
 // ========================================
+// SHARED INPUT STYLE
+// ========================================
+
+const inputClass =
+  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+
+const labelClass =
+  "mb-2 block text-sm font-medium text-[#3A2A2F]";
+
+// ========================================
 // COMPONENT
 // ========================================
 
@@ -74,7 +92,10 @@ export default function AdminTeam() {
   const [saving, setSaving] =
     useState(false);
 
-  const [deletingId, setDeletingId] =
+  const [deleting, setDeleting] =
+    useState(false);
+
+  const [processingId, setProcessingId] =
     useState<string | null>(null);
 
   // ======================================
@@ -84,8 +105,19 @@ export default function AdminTeam() {
   const [form, setForm] =
     useState<TeamFormState>(EMPTY_FORM);
 
+  const [formOpen, setFormOpen] =
+    useState(false);
+
   const [editingMember, setEditingMember] =
     useState<TeamMember | null>(null);
+
+  // The member awaiting delete
+  // confirmation. Null means the dialog
+  // is closed.
+  const [
+    memberToDelete,
+    setMemberToDelete,
+  ] = useState<TeamMember | null>(null);
 
   // ======================================
   // IMAGE STATE
@@ -142,8 +174,7 @@ export default function AdminTeam() {
 
       const sorted = [...data].sort(
         (a, b) =>
-          (a.order ?? 0) -
-          (b.order ?? 0)
+          (a.order ?? 0) - (b.order ?? 0)
       );
 
       setMembers(sorted);
@@ -181,8 +212,7 @@ export default function AdminTeam() {
   }, [page, totalPages]);
 
   const paginatedMembers = useMemo(() => {
-    const start =
-      (page - 1) * pageSize;
+    const start = (page - 1) * pageSize;
 
     return members.slice(
       start,
@@ -197,15 +227,10 @@ export default function AdminTeam() {
   const handleChange = (
     event:
       | React.ChangeEvent<HTMLInputElement>
-      | React.ChangeEvent<
-          HTMLTextAreaElement
-        >
-      | React.ChangeEvent<
-          HTMLSelectElement
-        >
+      | React.ChangeEvent<HTMLTextAreaElement>
+      | React.ChangeEvent<HTMLSelectElement>
   ) => {
-    const { name, value } =
-      event.target;
+    const { name, value } = event.target;
 
     setForm((previous) => ({
       ...previous,
@@ -220,8 +245,7 @@ export default function AdminTeam() {
   const handleImageChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file =
-      event.target.files?.[0];
+    const file = event.target.files?.[0];
 
     if (!file) {
       return;
@@ -268,7 +292,7 @@ export default function AdminTeam() {
   };
 
   // ======================================
-  // RESET FORM
+  // FORM OPEN / CLOSE
   // ======================================
 
   const resetForm = () => {
@@ -285,15 +309,45 @@ export default function AdminTeam() {
     }
   };
 
+  const openAddForm = () => {
+    resetForm();
+    setFormOpen(true);
+  };
+
+  const openEditForm = (
+    member: TeamMember
+  ) => {
+    setEditingMember(member);
+
+    setForm({
+      name: member.name,
+      designation: member.designation,
+      bio: member.bio || "",
+      image: member.image || "",
+      status: member.status,
+    });
+
+    setImageFile(null);
+
+    setImagePreview(member.image || "");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    resetForm();
+  };
+
   // ======================================
   // SUBMIT
   // ======================================
 
-  const handleSubmit = async (
-    event: React.FormEvent
-  ) => {
-    event.preventDefault();
-
+  const handleSubmit = async () => {
     const name = form.name.trim();
 
     const designation =
@@ -322,8 +376,9 @@ export default function AdminTeam() {
 
       // Upload newly selected image
       if (imageFile) {
-        image =
-          await uploadImage(imageFile);
+        image = await uploadImage(
+          imageFile
+        );
       }
 
       // ================================
@@ -355,7 +410,7 @@ export default function AdminTeam() {
           "Team member updated successfully."
         );
 
-        resetForm();
+        closeForm();
 
         return;
       }
@@ -376,9 +431,7 @@ export default function AdminTeam() {
       };
 
       const created =
-        await createTeamMember(
-          payload
-        );
+        await createTeamMember(payload);
 
       setMembers((previous) => [
         ...previous,
@@ -389,16 +442,13 @@ export default function AdminTeam() {
         "Team member added successfully."
       );
 
-      resetForm();
+      closeForm();
 
       // Go to page containing new member
-      const newCount =
-        members.length + 1;
+      const newCount = members.length + 1;
 
       setPage(
-        Math.ceil(
-          newCount / pageSize
-        )
+        Math.ceil(newCount / pageSize)
       );
     } catch (error) {
       console.error(
@@ -417,76 +467,35 @@ export default function AdminTeam() {
   };
 
   // ======================================
-  // EDIT
-  // ======================================
-
-  const handleEdit = (
-    member: TeamMember
-  ) => {
-    setEditingMember(member);
-
-    setForm({
-      name: member.name,
-      designation:
-        member.designation,
-      bio: member.bio || "",
-      image: member.image || "",
-      status: member.status,
-    });
-
-    setImageFile(null);
-
-    setImagePreview(
-      member.image || ""
-    );
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  // ======================================
   // DELETE
+  //
+  // Asking happens in the dialog; this
+  // only runs once the admin confirms.
   // ======================================
 
-  const handleDelete = async (
-    member: TeamMember
-  ) => {
-    const confirmed =
-      window.confirm(
-        `Delete ${member.name}?`
-      );
-
-    if (!confirmed) {
+  const confirmDelete = async () => {
+    if (!memberToDelete) {
       return;
     }
 
-    try {
-      setDeletingId(member._id);
+    const member = memberToDelete;
 
-      await deleteTeamMember(
-        member._id
+    try {
+      setDeleting(true);
+
+      await deleteTeamMember(member._id);
+
+      const remaining = members.filter(
+        (item) => item._id !== member._id
       );
 
-      const remaining =
-        members.filter(
-          (item) =>
-            item._id !== member._id
-        );
-
       // Reassign local order
-      const reordered =
-        remaining.map(
-          (item, index) => ({
-            ...item,
-            order: index + 1,
-          })
-        );
+      const reordered = remaining.map(
+        (item, index) => ({
+          ...item,
+          order: index + 1,
+        })
+      );
 
       setMembers(reordered);
 
@@ -508,15 +517,16 @@ export default function AdminTeam() {
       }
 
       if (
-        editingMember?._id ===
-        member._id
+        editingMember?._id === member._id
       ) {
-        resetForm();
+        closeForm();
       }
 
       toast.success(
         "Team member deleted."
       );
+
+      setMemberToDelete(null);
     } catch (error) {
       console.error(
         "DELETE TEAM ERROR:",
@@ -526,8 +536,11 @@ export default function AdminTeam() {
       toast.error(
         "Unable to delete team member."
       );
+
+      // Dialog stays open so the admin can
+      // retry.
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
@@ -544,6 +557,8 @@ export default function AdminTeam() {
         : "Active";
 
     try {
+      setProcessingId(member._id);
+
       const updated =
         await updateTeamMember(
           member._id,
@@ -574,11 +589,13 @@ export default function AdminTeam() {
       toast.error(
         "Unable to update team member status."
       );
+    } finally {
+      setProcessingId(null);
     }
   };
 
   // ======================================
-  // DRAG START
+  // DRAG AND DROP
   // ======================================
 
   const handleDragStart = (
@@ -586,10 +603,6 @@ export default function AdminTeam() {
   ) => {
     setDraggedId(member._id);
   };
-
-  // ======================================
-  // DRAG OVER
-  // ======================================
 
   const handleDragOver = (
     event: React.DragEvent,
@@ -605,18 +618,10 @@ export default function AdminTeam() {
     }
   };
 
-  // ======================================
-  // DRAG END
-  // ======================================
-
   const handleDragEnd = () => {
     setDraggedId(null);
     setDragOverId(null);
   };
-
-  // ======================================
-  // DROP
-  // ======================================
 
   const handleDrop = async (
     event: React.DragEvent,
@@ -632,9 +637,7 @@ export default function AdminTeam() {
       return;
     }
 
-    const oldMembers = [
-      ...members,
-    ];
+    const oldMembers = [...members];
 
     const draggedIndex =
       members.findIndex(
@@ -645,8 +648,7 @@ export default function AdminTeam() {
     const targetIndex =
       members.findIndex(
         (member) =>
-          member._id ===
-          targetMember._id
+          member._id === targetMember._id
       );
 
     if (
@@ -657,15 +659,10 @@ export default function AdminTeam() {
       return;
     }
 
-    const reordered = [
-      ...members,
-    ];
+    const reordered = [...members];
 
     const [draggedMember] =
-      reordered.splice(
-        draggedIndex,
-        1
-      );
+      reordered.splice(draggedIndex, 1);
 
     reordered.splice(
       targetIndex,
@@ -673,13 +670,12 @@ export default function AdminTeam() {
       draggedMember
     );
 
-    const normalized =
-      reordered.map(
-        (member, index) => ({
-          ...member,
-          order: index + 1,
-        })
-      );
+    const normalized = reordered.map(
+      (member, index) => ({
+        ...member,
+        order: index + 1,
+      })
+    );
 
     // Optimistic update
     setMembers(normalized);
@@ -742,770 +738,583 @@ export default function AdminTeam() {
     return `${API_URL}/${image}`;
   };
 
-  // ======================================
-  // DISPLAY PREVIEW
-  // ======================================
-
   const displayPreview =
     imagePreview ||
     getImageUrl(form.image);
+
+  // ======================================
+  // ROW PIECES
+  // ======================================
+
+  const photo = (member: TeamMember) =>
+    member.image ? (
+      <img
+        src={getImageUrl(member.image)}
+        alt={member.name}
+        className="h-14 w-14 rounded-2xl object-cover"
+      />
+    ) : (
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF5F8] text-[#E75480]">
+        ♡
+      </div>
+    );
+
+  const statusBadge = (
+    member: TeamMember
+  ) => (
+    <span
+      className={`inline-block rounded-full px-4 py-1 text-xs ${
+        member.status === "Active"
+          ? "bg-green-100 text-green-700"
+          : "bg-gray-100 text-gray-600"
+      }`}
+    >
+      {member.status}
+    </span>
+  );
+
+  const renderActions = (
+    member: TeamMember
+  ) => (
+    <RowActionsMenu
+      label={`Actions for ${member.name}`}
+      busy={
+        processingId === member._id ||
+        (deleting &&
+          memberToDelete?._id ===
+            member._id)
+      }
+      actions={[
+        {
+          key: "edit",
+          label: "Edit",
+          icon: "✎",
+          onSelect: () =>
+            openEditForm(member),
+        },
+        {
+          key: "status",
+          label:
+            member.status === "Active"
+              ? "Hide"
+              : "Show",
+          icon:
+            member.status === "Active"
+              ? "✕"
+              : "✓",
+          tone:
+            member.status === "Active"
+              ? "default"
+              : "success",
+          onSelect: () =>
+            handleToggleStatus(member),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "🗑",
+          tone: "danger",
+          dividerBefore: true,
+          onSelect: () =>
+            setMemberToDelete(member),
+        },
+      ]}
+    />
+  );
+
+  // ======================================
+  // COLUMNS
+  // ======================================
+
+  const columns: TableColumn<TeamMember>[] =
+    [
+      {
+        key: "move",
+        header: "Move",
+        width: "70px",
+        hideOnMobile: true,
+        render: () => (
+          <span
+            title="Drag the row to reorder"
+            className="cursor-grab text-xl text-[#8A6F78] active:cursor-grabbing"
+          >
+            ☰
+          </span>
+        ),
+      },
+      {
+        key: "photo",
+        header: "Photo",
+        width: "90px",
+        hideOnMobile: true,
+        render: photo,
+      },
+      {
+        key: "name",
+        header: "Name",
+        hideOnMobile: true,
+        render: (member) => (
+          <>
+            <p className="font-medium text-[#3A2A2F]">
+              {member.name}
+            </p>
+
+            {member.bio && (
+              <p className="mt-1 max-w-[220px] truncate text-xs">
+                {member.bio}
+              </p>
+            )}
+          </>
+        ),
+      },
+      {
+        key: "designation",
+        header: "Designation",
+        render: (member) =>
+          member.designation,
+      },
+      {
+        key: "order",
+        header: "Order",
+        width: "80px",
+        render: (member) => member.order,
+      },
+      {
+        key: "status",
+        header: "Status",
+        hideOnMobile: true,
+        render: statusBadge,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        width: "90px",
+        hideOnMobile: true,
+        render: renderActions,
+      },
+    ];
+
+  // ======================================
+  // PAGINATION FOOTER
+  // ======================================
+
+  const paginationFooter =
+    members.length > 0 ? (
+      <div className="flex flex-col gap-4 rounded-3xl border-t border-[#E75480]/10 bg-white p-5 sm:flex-row sm:items-center sm:justify-between md:rounded-none">
+        <p className="text-sm text-[#8A6F78]">
+          Showing{" "}
+          {(page - 1) * pageSize + 1}
+          {" - "}
+          {Math.min(
+            page * pageSize,
+            members.length
+          )}{" "}
+          of {members.length}
+        </p>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={page === 1}
+            onClick={() =>
+              setPage(
+                (previous) => previous - 1
+              )
+            }
+            className="rounded-full border border-[#E75480]/30 px-4 py-2 text-xs text-[#E75480] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Previous
+          </button>
+
+          <span className="px-3 text-sm text-[#8A6F78]">
+            Page {page} of {totalPages}
+          </span>
+
+          <button
+            type="button"
+            disabled={
+              page === totalPages
+            }
+            onClick={() =>
+              setPage(
+                (previous) => previous + 1
+              )
+            }
+            className="rounded-full border border-[#E75480]/30 px-4 py-2 text-xs text-[#E75480] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    ) : undefined;
 
   // ======================================
   // RENDER
   // ======================================
 
   return (
-    <div className="min-h-screen bg-[#FFF5F8] px-4 py-8 md:px-8 lg:px-12">
+    <div>
+      {/* HEADER */}
 
-      {/* =================================
-          PAGE HEADER
-      ================================= */}
-
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#E75480]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
             Website Management
           </p>
 
-          <h1 className="font-serif text-4xl text-[#3A2A2F] md:text-5xl">
+          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
             Team
           </h1>
 
-          <p className="mt-3 text-sm text-[#8A6F78]">
-            Add, edit, organize and
-            manage the team members
-            displayed on the Nirjara
-            Beauty website.
+          <p className="mt-2 text-[#8A6F78]">
+            Add, edit, organize and manage
+            the team members displayed on
+            the Nirjara Beauty website.
           </p>
         </div>
 
-        {/* =================================
-            ADD / EDIT FORM
-        ================================= */}
-
-        <form
-          onSubmit={handleSubmit}
-          className="mb-8 rounded-3xl bg-white p-6 shadow-sm md:p-8"
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
         >
-          <div className="mb-6">
-            <h2 className="font-serif text-3xl text-[#3A2A2F]">
-              {editingMember
-                ? "Edit Team Member"
-                : "Add Team Member"}
-            </h2>
+          Add Team Member
+        </button>
+      </div>
 
-            <p className="mt-2 text-sm text-[#8A6F78]">
-              {editingMember
-                ? "Update the team member information shown on the website."
-                : "Add the staff information that will appear on the Nirjara Beauty About Us page."}
-            </p>
-          </div>
+      {/* LIST TOOLBAR */}
 
-          <div className="grid gap-7 lg:grid-cols-[200px_1fr]">
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-5 shadow-sm">
+        <div>
+          <h2 className="font-serif text-2xl text-[#3A2A2F]">
+            Team Members
+          </h2>
 
-            {/* PHOTO */}
+          <p className="mt-1 text-sm text-[#8A6F78]">
+            {members.length}{" "}
+            {members.length === 1
+              ? "team member"
+              : "team members"}{" "}
+            · drag a row to reorder
+          </p>
+        </div>
 
-            <div>
-              <label className="mb-3 block text-sm font-medium text-[#3A2A2F]">
-                Profile Photo
-              </label>
+        <div className="flex items-center gap-3">
+          {reordering && (
+            <span className="text-xs text-[#E75480]">
+              Saving order...
+            </span>
+          )}
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp"
-                onChange={
-                  handleImageChange
-                }
-                className="hidden"
-              />
+          <span className="text-xs text-[#8A6F78]">
+            Show
+          </span>
 
+          <select
+            value={pageSize}
+            onChange={(event) => {
+              setPageSize(
+                Number(
+                  event.target.value
+                )
+              );
+
+              setPage(1);
+            }}
+            className="rounded-xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-2 text-sm outline-none"
+          >
+            <option value={5}>5</option>
+
+            <option value={10}>10</option>
+
+            <option value={15}>15</option>
+
+            <option value={20}>20</option>
+          </select>
+        </div>
+      </div>
+
+      {/* TABLE */}
+
+      <CustomTable
+        className="mt-6"
+        columns={columns}
+        rows={paginatedMembers}
+        rowKey={(member) => member._id}
+        loading={loading}
+        loadingMessage="Loading team members..."
+        emptyIcon="♡"
+        emptyTitle="No team members yet"
+        emptyMessage="Add your first team member using the button above."
+        minWidth="950px"
+        // Rows carry the drag handlers, so
+        // the list can be reordered without
+        // CustomTable knowing about it.
+        rowProps={(member) => ({
+          draggable: true,
+          onDragStart: () =>
+            handleDragStart(member),
+          onDragOver: (event) =>
+            handleDragOver(
+              event as React.DragEvent,
+              member
+            ),
+          onDrop: (event) =>
+            handleDrop(
+              event as React.DragEvent,
+              member
+            ),
+          onDragEnd: handleDragEnd,
+          className: `${
+            dragOverId === member._id
+              ? "bg-[#FFF0F5]"
+              : ""
+          } ${
+            draggedId === member._id
+              ? "opacity-50"
+              : ""
+          }`,
+        })}
+        mobileTitle={(member) => (
+          <span className="flex items-center gap-3">
+            {photo(member)}
+
+            <span>{member.name}</span>
+          </span>
+        )}
+        mobileSubtitle={(member) =>
+          member.designation
+        }
+        mobileBadge={statusBadge}
+        mobileActions={renderActions}
+        footer={paginationFooter}
+      />
+
+      {/* ============================ */}
+      {/* ADD / EDIT                   */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={formOpen}
+        onClose={closeForm}
+        eyebrow="Website Management"
+        title={
+          editingMember
+            ? "Edit Team Member"
+            : "Add Team Member"
+        }
+        description={
+          editingMember
+            ? "Update the team member information shown on the website."
+            : "Add the staff information that will appear on the About Us page."
+        }
+        size="lg"
+        onSubmit={handleSubmit}
+        submitting={saving}
+        submittingLabel="Saving..."
+        confirmLabel={
+          editingMember
+            ? "Update Team Member"
+            : "Add Team Member"
+        }
+        // A half filled form should not
+        // vanish on a stray click.
+        closeOnBackdrop={false}
+      >
+        <div className="grid gap-7 lg:grid-cols-[200px_1fr]">
+          {/* PHOTO */}
+
+          <div>
+            <label className={labelClass}>
+              Profile Photo
+            </label>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp"
+              onChange={
+                handleImageChange
+              }
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              onClick={() =>
+                fileInputRef.current?.click()
+              }
+              className="relative flex aspect-[4/5] w-full max-w-[200px] overflow-hidden rounded-3xl border-2 border-dashed border-[#E75480]/30 bg-[#FFF5F8] transition hover:border-[#E75480]"
+            >
+              {displayPreview ? (
+                <img
+                  src={displayPreview}
+                  alt="Team preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center p-5 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#FCE7EF] text-2xl text-[#E75480]">
+                    +
+                  </div>
+
+                  <span className="text-sm font-medium text-[#E75480]">
+                    Upload Photo
+                  </span>
+
+                  <span className="mt-2 text-xs text-[#8A6F78]">
+                    JPG, PNG or WebP
+                  </span>
+
+                  <span className="mt-1 text-xs text-[#8A6F78]">
+                    Maximum 5 MB
+                  </span>
+                </div>
+              )}
+            </button>
+
+            {displayPreview && (
               <button
                 type="button"
-                onClick={() =>
-                  fileInputRef.current?.click()
-                }
-                className="relative flex aspect-[4/5] w-full max-w-[200px] overflow-hidden rounded-3xl border-2 border-dashed border-[#E75480]/30 bg-[#FFF5F8] transition hover:border-[#E75480]"
+                onClick={() => {
+                  setImageFile(null);
+                  setImagePreview("");
+
+                  setForm(
+                    (previous) => ({
+                      ...previous,
+                      image: "",
+                    })
+                  );
+
+                  if (
+                    fileInputRef.current
+                  ) {
+                    fileInputRef.current.value =
+                      "";
+                  }
+                }}
+                className="mt-3 text-xs font-medium text-red-500 hover:underline"
               >
-                {displayPreview ? (
-                  <img
-                    src={displayPreview}
-                    alt="Team preview"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center p-5 text-center">
-                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#FCE7EF] text-2xl text-[#E75480]">
-                      +
-                    </div>
-
-                    <span className="text-sm font-medium text-[#E75480]">
-                      Upload Photo
-                    </span>
-
-                    <span className="mt-2 text-xs text-[#8A6F78]">
-                      JPG, PNG or WebP
-                    </span>
-
-                    <span className="mt-1 text-xs text-[#8A6F78]">
-                      Maximum 5 MB
-                    </span>
-                  </div>
-                )}
+                Remove photo
               </button>
+            )}
+          </div>
 
-              {displayPreview && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImageFile(null);
-                    setImagePreview("");
-                    setForm(
-                      (previous) => ({
-                        ...previous,
-                        image: "",
-                      })
-                    );
+          {/* FIELDS */}
 
-                    if (
-                      fileInputRef.current
-                    ) {
-                      fileInputRef.current.value =
-                        "";
-                    }
-                  }}
-                  className="mt-3 text-xs font-medium text-red-500 hover:underline"
-                >
-                  Remove photo
-                </button>
-              )}
-            </div>
-
-            {/* FORM FIELDS */}
-
-            <div className="space-y-5">
-
-              <div className="grid gap-5 md:grid-cols-2">
-
-                {/* NAME */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
-                    Full Name *
-                  </label>
-
-                  <input
-                    type="text"
-                    name="name"
-                    value={form.name}
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Enter full name"
-                    className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
-                  />
-                </div>
-
-                {/* DESIGNATION */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
-                    Designation / Role *
-                  </label>
-
-                  <input
-                    type="text"
-                    name="designation"
-                    value={
-                      form.designation
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="e.g. Senior Beauty Professional"
-                    className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
-                  />
-                </div>
-              </div>
-
-              {/* BIO */}
-
+          <div className="space-y-5">
+            <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
-                  Short Bio
+                <label
+                  className={labelClass}
+                >
+                  Full Name *
                 </label>
 
-                <textarea
-                  name="bio"
-                  value={form.bio}
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
                   onChange={handleChange}
-                  rows={5}
-                  placeholder="Write a short professional introduction..."
-                  className="w-full resize-none rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
+                  placeholder="Enter full name"
+                  className={inputClass}
                 />
               </div>
 
-              {/* STATUS */}
-
-              <div className="max-w-sm">
-                <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
-                  Status
+              <div>
+                <label
+                  className={labelClass}
+                >
+                  Designation / Role *
                 </label>
 
-                <select
-                  name="status"
-                  value={form.status}
+                <input
+                  type="text"
+                  name="designation"
+                  value={
+                    form.designation
+                  }
                   onChange={handleChange}
-                  className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none focus:border-[#E75480]"
-                >
-                  <option value="Active">
-                    Active
-                  </option>
-
-                  <option value="Hidden">
-                    Hidden
-                  </option>
-                </select>
-              </div>
-
-              {/* BUTTONS */}
-
-              <div className="flex flex-wrap gap-3 pt-1">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-full bg-[#E75480] px-7 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {saving
-                    ? "Saving..."
-                    : editingMember
-                      ? "Update Team Member"
-                      : "Add Team Member"}
-                </button>
-
-                {editingMember && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="rounded-full border border-[#E75480] px-7 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#E75480]"
-                  >
-                    Cancel
-                  </button>
-                )}
+                  placeholder="e.g. Senior Beauty Professional"
+                  className={inputClass}
+                />
               </div>
             </div>
-          </div>
-        </form>
 
-        {/* =================================
-            TEAM LIST
-        ================================= */}
-
-        <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
-
-          {/* LIST HEADER */}
-
-          <div className="flex flex-col gap-4 border-b border-[#E75480]/10 p-6 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="font-serif text-3xl text-[#3A2A2F]">
-                Team Members
-              </h2>
+              <label
+                className={labelClass}
+              >
+                Short Bio
+              </label>
 
-              <p className="mt-1 text-sm text-[#8A6F78]">
-                {members.length}{" "}
-                {members.length === 1
-                  ? "team member"
-                  : "team members"}
-              </p>
+              <textarea
+                name="bio"
+                value={form.bio}
+                onChange={handleChange}
+                rows={5}
+                placeholder="Write a short professional introduction..."
+                className={`${inputClass} resize-none`}
+              />
             </div>
 
-            <div className="flex items-center gap-3">
-              {reordering && (
-                <span className="text-xs text-[#E75480]">
-                  Saving order...
-                </span>
-              )}
-
-              <span className="text-xs text-[#8A6F78]">
-                Show
-              </span>
+            <div className="max-w-sm">
+              <label
+                className={labelClass}
+              >
+                Status
+              </label>
 
               <select
-                value={pageSize}
-                onChange={(event) => {
-                  setPageSize(
-                    Number(
-                      event.target.value
-                    )
-                  );
-
-                  setPage(1);
-                }}
-                className="rounded-xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-2 text-sm outline-none"
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                className={inputClass}
               >
-                <option value={5}>
-                  5
+                <option value="Active">
+                  Active
                 </option>
 
-                <option value={10}>
-                  10
-                </option>
-
-                <option value={15}>
-                  15
-                </option>
-
-                <option value={20}>
-                  20
+                <option value="Hidden">
+                  Hidden
                 </option>
               </select>
             </div>
           </div>
-
-          {/* =================================
-              DESKTOP TABLE
-          ================================= */}
-
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[900px] border-collapse">
-
-              <thead className="bg-[#FCE7EF] text-left text-xs font-semibold text-[#E75480]">
-                <tr>
-                  <th className="px-5 py-4">
-                    Move
-                  </th>
-
-                  <th className="px-5 py-4">
-                    Photo
-                  </th>
-
-                  <th className="px-5 py-4">
-                    Name
-                  </th>
-
-                  <th className="px-5 py-4">
-                    Designation
-                  </th>
-
-                  <th className="px-5 py-4">
-                    Order
-                  </th>
-
-                  <th className="px-5 py-4">
-                    Status
-                  </th>
-
-                  <th className="px-5 py-4">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="p-12 text-center text-[#8A6F78]"
-                    >
-                      Loading team members...
-                    </td>
-                  </tr>
-                ) : paginatedMembers.length ===
-                  0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="p-12 text-center"
-                    >
-                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF5F8] text-xl text-[#E75480]">
-                        ♡
-                      </div>
-
-                      <p className="font-medium text-[#3A2A2F]">
-                        No team members yet
-                      </p>
-
-                      <p className="mt-2 text-sm text-[#8A6F78]">
-                        Add your first team
-                        member using the form
-                        above.
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedMembers.map(
-                    (member) => (
-                      <tr
-                        key={member._id}
-                        draggable
-                        onDragStart={() =>
-                          handleDragStart(
-                            member
-                          )
-                        }
-                        onDragOver={(
-                          event
-                        ) =>
-                          handleDragOver(
-                            event,
-                            member
-                          )
-                        }
-                        onDrop={(event) =>
-                          handleDrop(
-                            event,
-                            member
-                          )
-                        }
-                        onDragEnd={
-                          handleDragEnd
-                        }
-                        className={`border-t border-[#E75480]/10 transition ${
-                          dragOverId ===
-                          member._id
-                            ? "bg-[#FFF0F5]"
-                            : "bg-white"
-                        } ${
-                          draggedId ===
-                          member._id
-                            ? "opacity-50"
-                            : ""
-                        }`}
-                      >
-                        {/* MOVE */}
-
-                        <td className="px-5 py-4">
-                          <button
-                            type="button"
-                            title="Drag to reorder"
-                            className="cursor-grab rounded-lg px-2 py-2 text-xl text-[#8A6F78] active:cursor-grabbing"
-                          >
-                            ☰
-                          </button>
-                        </td>
-
-                        {/* PHOTO */}
-
-                        <td className="px-5 py-4">
-                          {member.image ? (
-                            <img
-                              src={getImageUrl(
-                                member.image
-                              )}
-                              alt={
-                                member.name
-                              }
-                              className="h-14 w-14 rounded-2xl object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF5F8] text-[#E75480]">
-                              ♡
-                            </div>
-                          )}
-                        </td>
-
-                        {/* NAME */}
-
-                        <td className="px-5 py-4">
-                          <p className="font-medium text-[#3A2A2F]">
-                            {member.name}
-                          </p>
-
-                          {member.bio && (
-                            <p className="mt-1 max-w-[220px] truncate text-xs text-[#8A6F78]">
-                              {member.bio}
-                            </p>
-                          )}
-                        </td>
-
-                        {/* DESIGNATION */}
-
-                        <td className="px-5 py-4 text-sm text-[#8A6F78]">
-                          {
-                            member.designation
-                          }
-                        </td>
-
-                        {/* ORDER */}
-
-                        <td className="px-5 py-4 text-sm text-[#8A6F78]">
-                          {member.order}
-                        </td>
-
-                        {/* STATUS */}
-
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                              member.status ===
-                              "Active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-600"
-                            }`}
-                          >
-                            {member.status}
-                          </span>
-                        </td>
-
-                        {/* ACTIONS */}
-
-                        <td className="px-5 py-4">
-                          <div className="flex flex-wrap gap-2">
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleEdit(
-                                  member
-                                )
-                              }
-                              className="rounded-full border border-[#E75480] px-4 py-2 text-xs text-[#E75480] transition hover:bg-[#FFF5F8]"
-                            >
-                              Edit
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleToggleStatus(
-                                  member
-                                )
-                              }
-                              className="rounded-full bg-[#FFF5F8] px-4 py-2 text-xs text-[#E75480]"
-                            >
-                              {member.status ===
-                              "Active"
-                                ? "Hide"
-                                : "Show"}
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={
-                                deletingId ===
-                                member._id
-                              }
-                              onClick={() =>
-                                handleDelete(
-                                  member
-                                )
-                              }
-                              className="rounded-full bg-red-50 px-4 py-2 text-xs text-red-600 disabled:opacity-50"
-                            >
-                              {deletingId ===
-                              member._id
-                                ? "Deleting..."
-                                : "Delete"}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* =================================
-              MOBILE CARDS
-          ================================= */}
-
-          <div className="space-y-4 p-4 md:hidden">
-            {loading ? (
-              <div className="py-10 text-center text-sm text-[#8A6F78]">
-                Loading team members...
-              </div>
-            ) : paginatedMembers.length ===
-              0 ? (
-              <div className="py-10 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF5F8] text-[#E75480]">
-                  ♡
-                </div>
-
-                <p className="font-medium text-[#3A2A2F]">
-                  No team members yet
-                </p>
-              </div>
-            ) : (
-              paginatedMembers.map(
-                (member) => (
-                  <div
-                    key={member._id}
-                    className="rounded-2xl border border-[#E75480]/10 p-4"
-                  >
-                    <div className="flex gap-4">
-
-                      {member.image ? (
-                        <img
-                          src={getImageUrl(
-                            member.image
-                          )}
-                          alt={
-                            member.name
-                          }
-                          className="h-20 w-20 flex-shrink-0 rounded-2xl object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF5F8] text-[#E75480]">
-                          ♡
-                        </div>
-                      )}
-
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-[#3A2A2F]">
-                          {member.name}
-                        </p>
-
-                        <p className="mt-1 text-sm text-[#8A6F78]">
-                          {
-                            member.designation
-                          }
-                        </p>
-
-                        <div className="mt-2 flex items-center gap-2">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs ${
-                              member.status ===
-                              "Active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-600"
-                            }`}
-                          >
-                            {
-                              member.status
-                            }
-                          </span>
-
-                          <span className="text-xs text-[#8A6F78]">
-                            Order{" "}
-                            {member.order}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {member.bio && (
-                      <p className="mt-4 text-sm leading-6 text-[#8A6F78]">
-                        {member.bio}
-                      </p>
-                    )}
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleEdit(
-                            member
-                          )
-                        }
-                        className="rounded-full border border-[#E75480] px-4 py-2 text-xs text-[#E75480]"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleToggleStatus(
-                            member
-                          )
-                        }
-                        className="rounded-full bg-[#FFF5F8] px-4 py-2 text-xs text-[#E75480]"
-                      >
-                        {member.status ===
-                        "Active"
-                          ? "Hide"
-                          : "Show"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDelete(
-                            member
-                          )
-                        }
-                        disabled={
-                          deletingId ===
-                          member._id
-                        }
-                        className="rounded-full bg-red-50 px-4 py-2 text-xs text-red-600 disabled:opacity-50"
-                      >
-                        {deletingId ===
-                        member._id
-                          ? "Deleting..."
-                          : "Delete"}
-                      </button>
-                    </div>
-                  </div>
-                )
-              )
-            )}
-          </div>
-
-          {/* =================================
-              PAGINATION
-          ================================= */}
-
-          {!loading &&
-            members.length > 0 && (
-              <div className="flex flex-col gap-4 border-t border-[#E75480]/10 p-5 sm:flex-row sm:items-center sm:justify-between">
-
-                <p className="text-sm text-[#8A6F78]">
-                  Showing{" "}
-                  {(page - 1) *
-                    pageSize +
-                    1}
-                  {" - "}
-                  {Math.min(
-                    page * pageSize,
-                    members.length
-                  )}{" "}
-                  of {members.length}
-                </p>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={page === 1}
-                    onClick={() =>
-                      setPage(
-                        (previous) =>
-                          previous - 1
-                      )
-                    }
-                    className="rounded-full border border-[#E75480]/30 px-4 py-2 text-xs text-[#E75480] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Previous
-                  </button>
-
-                  <span className="px-3 text-sm text-[#8A6F78]">
-                    Page {page} of{" "}
-                    {totalPages}
-                  </span>
-
-                  <button
-                    type="button"
-                    disabled={
-                      page === totalPages
-                    }
-                    onClick={() =>
-                      setPage(
-                        (previous) =>
-                          previous + 1
-                      )
-                    }
-                    className="rounded-full border border-[#E75480]/30 px-4 py-2 text-xs text-[#E75480] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
         </div>
-      </div>
+      </DialogBox>
+
+      {/* ============================ */}
+      {/* DELETE CONFIRMATION          */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={Boolean(memberToDelete)}
+        onClose={() =>
+          setMemberToDelete(null)
+        }
+        eyebrow="Confirm"
+        title="Delete team member?"
+        description={
+          memberToDelete
+            ? `${memberToDelete.name} will be removed from the website. This cannot be undone.`
+            : undefined
+        }
+        size="sm"
+        destructive
+        confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
+        onConfirm={confirmDelete}
+      >
+        <p className="text-sm text-[#8A6F78]">
+          The remaining members are
+          renumbered so the website order
+          stays correct.
+        </p>
+      </DialogBox>
     </div>
   );
 }
