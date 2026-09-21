@@ -16,6 +16,20 @@ import type {
 const SERVICE_API = "/api/services";
 
 // ========================================
+// FILTERS
+//
+// Both optional. `search` matches the
+// title or the category name; `category`
+// is a category id.
+// ========================================
+
+export type ServiceFilters = {
+  search?: string;
+
+  category?: string;
+};
+
+// ========================================
 // GET ALL SERVICES
 //
 // GET /api/services
@@ -24,16 +38,25 @@ const SERVICE_API = "/api/services";
 // interceptor adds is simply ignored.
 // ========================================
 
-export const getServices =
-  async (): Promise<Service[]> => {
-    const response = await api.get<
-      Service[]
-    >(SERVICE_API);
+export const getServices = async (
+  filters: ServiceFilters = {}
+): Promise<Service[]> => {
+  const response = await api.get<
+    Service[]
+  >(SERVICE_API, {
+    params: {
+      search:
+        filters.search?.trim() ||
+        undefined,
+      category:
+        filters.category || undefined,
+    },
+  });
 
-    return Array.isArray(response.data)
-      ? response.data
-      : [];
-  };
+  return Array.isArray(response.data)
+    ? response.data
+    : [];
+};
 
 // ========================================
 // CREATE SERVICE

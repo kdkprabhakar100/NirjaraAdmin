@@ -15,6 +15,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import BookingsAdmin from "./pages/BookingsAdmin";
 import ServicesAdmin from "./pages/ServicesAdmin";
+import ServiceCategoriesAdmin from "./pages/ServiceCategoriesAdmin";
 import GalleryAdmin from "./pages/GalleryAdmin";
 import CoursesAdmin from "./pages/CoursesAdmin";
 import ContactMessagesAdmin from "./pages/ContactMessagesAdmin";
@@ -88,6 +89,16 @@ export default function App() {
           element={
             <ProtectedPage>
               <ServicesAdmin />
+            </ProtectedPage>
+          }
+        />
+
+        {/* SERVICE CATEGORIES */}
+        <Route
+          path="/service-categories"
+          element={
+            <ProtectedPage>
+              <ServiceCategoriesAdmin />
             </ProtectedPage>
           }
         />

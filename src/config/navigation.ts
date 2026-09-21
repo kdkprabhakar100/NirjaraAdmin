@@ -2,6 +2,7 @@ export const navigation = [
   { label: "Dashboard", path: "/dashboard" },
   { label: "Bookings", path: "/bookings" },
   { label: "Services", path: "/services" },
+  { label: "Service Categories", path: "/service-categories" },
   { label: "Gallery", path: "/gallery" },
   { label: "Courses", path: "/courses" },
   { label: "Messages", path: "/messages" },

@@ -1,3 +1,5 @@
+import type { ServiceCategory } from "../serviceCategory/serviceCategory.types";
+
 // ========================================
 // SERVICE TYPES
 //
@@ -18,7 +20,11 @@ export type Service = {
   // Free text, e.g. "From Rs. 800".
   price: string;
 
-  category: string;
+  // The server populates the category, so
+  // a row can show its name without a
+  // second request. Null when the category
+  // was removed underneath us.
+  category: ServiceCategory | null;
 
   image?: string;
 
@@ -31,10 +37,16 @@ export type Service = {
 // PAYLOAD
 //
 // What the form sends. The server owns the
-// id and the timestamps.
+// id and the timestamps, and wants the
+// category as a plain id.
 // ========================================
 
 export type ServicePayload = Omit<
   Service,
-  "_id" | "createdAt" | "updatedAt"
->;
+  | "_id"
+  | "category"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  category: string;
+};

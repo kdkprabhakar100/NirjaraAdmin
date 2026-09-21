@@ -1,4 +1,14 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+
 import { toast } from "react-toastify";
 
 import CustomTable, {
@@ -20,33 +30,40 @@ import {
   updateService,
 } from "../services/service/serviceService";
 
+import { getServiceCategories } from "../services/serviceCategory/serviceCategoryService";
+
 import type {
   Service,
   ServicePayload,
 } from "../services/service/service.types";
 
+import type { ServiceCategory } from "../services/serviceCategory/serviceCategory.types";
+
 // ========================================
 // FORM DEFAULTS
+//
+// Categories live in their own collection
+// now, so the form holds a category id and
+// the list of options comes from the API.
 // ========================================
-
-const categories = [
-  "Hair",
-  "Skin",
-  "Bridal",
-  "Nails",
-  "Spa",
-  "Academy",
-  "Other",
-];
 
 const emptyForm: ServicePayload = {
   icon: "✦",
   title: "",
   description: "",
   price: "",
-  category: "Hair",
+  category: "",
   image: "",
 };
+
+// Categories are managed on their own
+// page; this one only reads them.
+const CATEGORIES_PATH =
+  "/service-categories";
+
+// How long typing settles before the
+// search request goes out.
+const SEARCH_DELAY_MS = 350;
 
 // ========================================
 // SHARED INPUT STYLE
@@ -56,11 +73,44 @@ const inputClass =
   "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function ServicesAdmin() {
+  const navigate = useNavigate();
+
+  // "View services" on the categories page
+  // links here with ?category=<id>.
+  const [searchParams] =
+    useSearchParams();
+
   const [services, setServices] =
     useState<Service[]>([]);
 
+  const [categories, setCategories] =
+    useState<ServiceCategory[]>([]);
+
+  // Only the first load blanks the table.
+  // Later loads (a search, a filter) swap
+  // the rows in place.
   const [loading, setLoading] =
     useState(true);
+
+  // ---- Search + filter ----
+  //
+  // `search` follows the keyboard;
+  // `appliedSearch` is what was actually
+  // sent, so the server is not hit on every
+  // keystroke.
+
+  const [search, setSearch] =
+    useState("");
+
+  const [appliedSearch, setAppliedSearch] =
+    useState("");
+
+  const [categoryFilter, setCategoryFilter] =
+    useState(
+      () =>
+        searchParams.get("category") ??
+        ""
+    );
 
   // ---- Add / edit dialog ----
 
@@ -72,9 +122,6 @@ export default function ServicesAdmin() {
 
   const [editingId, setEditingId] =
     useState<string | null>(null);
-
-  const [customCategory, setCustomCategory] =
-    useState("");
 
   const [uploading, setUploading] =
     useState(false);
@@ -90,15 +137,73 @@ export default function ServicesAdmin() {
   const [deleting, setDeleting] =
     useState(false);
 
+  // Counts the service requests, so a slow
+  // one cannot overwrite a fresher list.
+  const latestRequest = useRef(0);
+
+  // ============================
+  // FETCH CATEGORIES
+  //
+  // Read only here: the dropdowns need the
+  // names, and the Service Categories page
+  // owns adding and editing them.
+  // ============================
+
+  const fetchCategories = async () => {
+    try {
+      const data =
+        await getServiceCategories();
+
+      setCategories(data);
+
+      return data;
+    } catch (error) {
+      console.error(
+        "Fetch categories error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Failed to load categories"
+        )
+      );
+
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
   // ============================
   // FETCH SERVICES
+  //
+  // Filtering happens on the server, so the
+  // search box matches every service, not
+  // only the ones already on screen.
   // ============================
 
   const fetchServices = async () => {
-    try {
-      setLoading(true);
+    // Typing fires one request per pause,
+    // so an older answer must not land on
+    // top of a newer one.
+    const requestId = ++latestRequest.current;
 
-      const data = await getServices();
+    try {
+      const data = await getServices({
+        search: appliedSearch,
+        category: categoryFilter,
+      });
+
+      if (
+        requestId !==
+        latestRequest.current
+      ) {
+        return;
+      }
 
       setServices(data);
     } catch (error) {
@@ -106,6 +211,13 @@ export default function ServicesAdmin() {
         "Fetch services error:",
         error
       );
+
+      if (
+        requestId !==
+        latestRequest.current
+      ) {
+        return;
+      }
 
       toast.error(
         getApiErrorMessage(
@@ -116,13 +228,28 @@ export default function ServicesAdmin() {
 
       setServices([]);
     } finally {
-      setLoading(false);
+      if (
+        requestId ===
+        latestRequest.current
+      ) {
+        setLoading(false);
+      }
     }
   };
 
+  // ---- Debounce the search box ----
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedSearch(search.trim());
+    }, SEARCH_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => {
     fetchServices();
-  }, []);
+  }, [appliedSearch, categoryFilter]);
 
   // ============================
   // OPEN THE FORM
@@ -133,8 +260,24 @@ export default function ServicesAdmin() {
   // ============================
 
   const openAddForm = () => {
-    setForm(emptyForm);
-    setCustomCategory("");
+    // A service must belong to a category,
+    // so there is nothing to fill in yet.
+    if (categories.length === 0) {
+      toast.info(
+        "Add a service category first."
+      );
+
+      navigate(CATEGORIES_PATH);
+
+      return;
+    }
+
+    setForm({
+      ...emptyForm,
+      category:
+        categories[0]?._id ?? "",
+    });
+
     setEditingId(null);
     setFormOpen(true);
   };
@@ -142,31 +285,19 @@ export default function ServicesAdmin() {
   const openEditForm = (
     service: Service
   ) => {
-    const isKnownCategory =
-      categories.includes(
-        service.category
-      );
-
     setForm({
       icon: service.icon || "✦",
       title: service.title || "",
       description:
         service.description || "",
       price: service.price || "",
-      category: isKnownCategory
-        ? service.category
-        : "Other",
+      // Blank when the category was removed
+      // underneath this service, so the
+      // admin has to pick a live one.
+      category:
+        service.category?._id ?? "",
       image: service.image || "",
     });
-
-    // A category the dropdown does not
-    // know about becomes "Other" plus the
-    // original text.
-    setCustomCategory(
-      isKnownCategory
-        ? ""
-        : service.category || ""
-    );
 
     setEditingId(service._id || null);
     setFormOpen(true);
@@ -175,7 +306,6 @@ export default function ServicesAdmin() {
   const closeForm = () => {
     setFormOpen(false);
     setForm(emptyForm);
-    setCustomCategory("");
     setEditingId(null);
   };
 
@@ -225,22 +355,17 @@ export default function ServicesAdmin() {
   // ============================
   // SAVE
   //
-  // Title, price and description are
-  // marked required, so the browser blocks
-  // the submit before this runs. Only the
-  // rules HTML cannot express are checked
-  // here.
+  // Title, price, category and description
+  // are marked required, so the browser
+  // blocks the submit before this runs.
+  // Only the rules HTML cannot express are
+  // checked here.
   // ============================
 
   const handleSubmit = async () => {
-    const category =
-      form.category === "Other"
-        ? customCategory.trim()
-        : form.category;
-
-    if (!category) {
+    if (!form.category) {
       toast.error(
-        "Please enter a category."
+        "Please choose a category."
       );
 
       return;
@@ -254,25 +379,20 @@ export default function ServicesAdmin() {
       return;
     }
 
-    const payload: ServicePayload = {
-      ...form,
-      category,
-    };
-
     try {
       setSaving(true);
 
       if (editingId) {
         await updateService(
           editingId,
-          payload
+          form
         );
 
         toast.success(
           "Service updated successfully!"
         );
       } else {
-        await createService(payload);
+        await createService(form);
 
         toast.success(
           "Service added successfully!"
@@ -419,11 +539,16 @@ export default function ServicesAdmin() {
       key: "category",
       header: "Category",
       hideOnMobile: true,
-      render: (service) => (
-        <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
-          {service.category}
-        </span>
-      ),
+      render: (service) =>
+        service.category ? (
+          <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+            {service.category.name}
+          </span>
+        ) : (
+          <span className="text-xs uppercase tracking-[1px] text-[#B59AA3]">
+            No category
+          </span>
+        ),
     },
     {
       key: "price",
@@ -457,6 +582,10 @@ export default function ServicesAdmin() {
   // UI
   // ============================
 
+  const filtersActive = Boolean(
+    appliedSearch || categoryFilter
+  );
+
   return (
     <div>
       {/* HEADER */}
@@ -476,19 +605,91 @@ export default function ServicesAdmin() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openAddForm}
-          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
-        >
-          Add Service
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              navigate(CATEGORIES_PATH)
+            }
+            className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-[#FFF5F8]"
+          >
+            Service Categories
+            {categories.length > 0 && (
+              <span className="ml-2 rounded-full bg-[#FCE7EF] px-2 py-0.5 text-[10px]">
+                {categories.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={openAddForm}
+            className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+          >
+            Add Service
+          </button>
+        </div>
+      </div>
+
+      {/* SEARCH + CATEGORY FILTER */}
+
+      <div className="mt-8 flex flex-col gap-3 rounded-3xl bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-sm text-[#8A6F78]">
+          {services.length} service
+          {services.length === 1
+            ? ""
+            : "s"}{" "}
+          {filtersActive
+            ? "found"
+            : "in total"}
+        </p>
+
+        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) =>
+              setSearch(
+                event.target.value
+              )
+            }
+            placeholder="Search by service name or category..."
+            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
+          />
+
+          <select
+            value={categoryFilter}
+            onChange={(event) =>
+              setCategoryFilter(
+                event.target.value
+              )
+            }
+            className="rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm text-[#3A2A2F] outline-none focus:border-[#E75480]"
+          >
+            <option value="">
+              All Categories
+            </option>
+
+            {categories.map(
+              (category) => (
+                <option
+                  key={category._id}
+                  value={
+                    category._id ?? ""
+                  }
+                >
+                  {category.name}
+                </option>
+              )
+            )}
+          </select>
+        </div>
       </div>
 
       {/* TABLE */}
 
       <CustomTable
-        className="mt-10"
+        className="mt-6"
         columns={columns}
         rows={services}
         rowKey={(service, index) =>
@@ -497,8 +698,16 @@ export default function ServicesAdmin() {
         loading={loading}
         loadingMessage="Loading services..."
         emptyIcon="✦"
-        emptyTitle="No services yet"
-        emptyMessage="Add your first service using the button above."
+        emptyTitle={
+          filtersActive
+            ? "No matching services"
+            : "No services yet"
+        }
+        emptyMessage={
+          filtersActive
+            ? "Try a different name, or pick another category."
+            : "Add your first service using the button above."
+        }
         minWidth="1000px"
         mobileTitle={(service) => (
           <span className="flex items-center gap-3">
@@ -508,7 +717,8 @@ export default function ServicesAdmin() {
           </span>
         )}
         mobileSubtitle={(service) =>
-          service.category
+          service.category?.name ??
+          "No category"
         }
         mobileActions={renderActions}
       />
@@ -574,6 +784,7 @@ export default function ServicesAdmin() {
           />
 
           <select
+            required
             value={form.category}
             onChange={(event) =>
               setForm({
@@ -584,13 +795,19 @@ export default function ServicesAdmin() {
             }
             className={inputClass}
           >
+            <option value="">
+              Select a category
+            </option>
+
             {categories.map(
               (category) => (
                 <option
-                  key={category}
-                  value={category}
+                  key={category._id}
+                  value={
+                    category._id ?? ""
+                  }
                 >
-                  {category}
+                  {category.name}
                 </option>
               )
             )}
@@ -611,21 +828,6 @@ export default function ServicesAdmin() {
             }}
             className={inputClass}
           />
-
-          {form.category ===
-            "Other" && (
-            <input
-              required
-              placeholder="Enter custom category"
-              value={customCategory}
-              onChange={(event) =>
-                setCustomCategory(
-                  event.target.value
-                )
-              }
-              className={`${inputClass} md:col-span-2`}
-            />
-          )}
 
           <textarea
             required
