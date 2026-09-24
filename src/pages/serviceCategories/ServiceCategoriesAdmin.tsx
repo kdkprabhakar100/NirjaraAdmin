@@ -35,6 +35,8 @@ import type {
   ServiceCategoryPayload,
 } from "../../services/serviceCategory/serviceCategory.types";
 
+import FormField from "../../components/FormField";
+
 // ========================================
 // FORM DEFAULTS
 // ========================================
@@ -586,44 +588,55 @@ export default function ServiceCategoriesAdmin() {
         closeOnBackdrop={false}
       >
         <div className="grid gap-4 md:grid-cols-[120px_1fr]">
-          <input
-            placeholder="Icon"
-            value={form.icon ?? ""}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                icon: event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          <FormField label="Icon">
+            <input
+              value={form.icon ?? ""}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  icon: event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
+          <FormField
+            label="Category Name"
             required
-            placeholder="Category Name e.g. Hair"
-            value={form.name}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                name: event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          >
+            <input
+              required
+              placeholder="e.g. Hair"
+              value={form.name}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  name: event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <textarea
-            placeholder="Short description (optional)"
-            value={form.description ?? ""}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                description:
-                  event.target.value,
-              })
-            }
-            rows={3}
-            className={`${inputClass} md:col-span-2`}
-          />
+          <FormField
+            label="Description"
+            className="md:col-span-2"
+          >
+            <textarea
+              placeholder="Short description (optional)"
+              value={form.description ?? ""}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  description:
+                    event.target.value,
+                })
+              }
+              rows={3}
+              className={inputClass}
+            />
+          </FormField>
         </div>
 
         <p className="mt-4 text-sm text-[#8A6F78]">

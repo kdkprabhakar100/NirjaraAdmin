@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginAdmin } from "../../services/auth/authService";
 
+import { FormLabel } from "../../components/FormField";
+
 export default function Login() {
   const navigate = useNavigate();
 
@@ -56,9 +58,10 @@ export default function Login() {
           className="mt-8 space-y-5"
         >
           <div>
-            <label className="mb-2 block text-sm text-[#3A2A2F]">
-              Email
-            </label>
+            <FormLabel
+              label="Email"
+              required
+            />
 
             <input
               type="email"
@@ -73,9 +76,10 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-[#3A2A2F]">
-              Password
-            </label>
+            <FormLabel
+              label="Password"
+              required
+            />
 
             <input
               type="password"

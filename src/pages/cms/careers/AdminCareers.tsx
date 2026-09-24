@@ -13,6 +13,8 @@ import api, {
   getApiErrorMessage,
 } from "../../../services/base/api";
 
+import FormField from "../../../components/FormField";
+
 // ========================================
 // TYPES
 // ========================================
@@ -492,59 +494,82 @@ export default function AdminCareers() {
         closeOnBackdrop={false}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <input
-            name="title"
-            placeholder="Job Title"
+          <FormField
+            label="Job Title"
             required
-            value={formData.title}
-            onChange={handleChange}
-            className={inputClass}
-          />
+          >
+            <input
+              name="title"
+              required
+              value={formData.title}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            name="location"
-            placeholder="Location"
+          <FormField
+            label="Location"
             required
-            value={formData.location}
-            onChange={handleChange}
-            className={inputClass}
-          />
+          >
+            <input
+              name="location"
+              required
+              value={formData.location}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            name="type"
-            placeholder="Full Time / Part Time"
+          <FormField
+            label="Job Type"
             required
-            value={formData.type}
-            onChange={handleChange}
-            className={inputClass}
-          />
+          >
+            <input
+              name="type"
+              placeholder="Full Time / Part Time"
+              required
+              value={formData.type}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            name="salary"
-            placeholder="Salary"
-            value={formData.salary}
-            onChange={handleChange}
-            className={inputClass}
-          />
+          <FormField label="Salary">
+            <input
+              name="salary"
+              value={formData.salary}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
 
-          <textarea
-            name="description"
-            placeholder="Job Description"
+          <FormField
+            label="Job Description"
             required
-            rows={5}
-            value={formData.description}
-            onChange={handleChange}
-            className={`${inputClass} md:col-span-2`}
-          />
+            className="md:col-span-2"
+          >
+            <textarea
+              name="description"
+              required
+              rows={5}
+              value={formData.description}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
 
-          <textarea
-            name="requirements"
-            placeholder="Requirements"
-            rows={5}
-            value={formData.requirements}
-            onChange={handleChange}
-            className={`${inputClass} md:col-span-2`}
-          />
+          <FormField
+            label="Requirements"
+            className="md:col-span-2"
+          >
+            <textarea
+              name="requirements"
+              rows={5}
+              value={formData.requirements}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
         </div>
       </DialogBox>
 

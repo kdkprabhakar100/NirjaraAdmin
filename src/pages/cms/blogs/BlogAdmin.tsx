@@ -18,6 +18,8 @@ import {
   validate,
 } from "../../../utils/validation";
 
+import { FormLabel } from "../../../components/FormField";
+
 // ========================================
 // TYPES
 // ========================================
@@ -52,9 +54,6 @@ const getAuthHeaders = () => ({
 
 const inputClass =
   "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
-
-const labelClass =
-  "mb-2 block text-sm font-medium text-[#3A2A2F]";
 
 // Tiptap leaves these behind when the
 // editor is emptied.
@@ -525,13 +524,13 @@ export default function BlogAdmin() {
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label
-              className={labelClass}
-            >
-              Blog Title
-            </label>
+            <FormLabel
+              label="Blog Title"
+              required
+            />
 
             <input
+              required
               type="text"
               placeholder="Enter blog title"
               value={form.title}
@@ -547,13 +546,13 @@ export default function BlogAdmin() {
           </div>
 
           <div>
-            <label
-              className={labelClass}
-            >
-              Category
-            </label>
+            <FormLabel
+              label="Category"
+              required
+            />
 
             <input
+              required
               type="text"
               placeholder="Enter category"
               value={form.category}
@@ -569,11 +568,7 @@ export default function BlogAdmin() {
           </div>
 
           <div>
-            <label
-              className={labelClass}
-            >
-              Read Time
-            </label>
+            <FormLabel label="Read Time" />
 
             <input
               type="text"
@@ -591,11 +586,7 @@ export default function BlogAdmin() {
           </div>
 
           <div>
-            <label
-              className={labelClass}
-            >
-              Featured Image
-            </label>
+            <FormLabel label="Featured Image" />
 
             <input
               type="file"
@@ -639,13 +630,13 @@ export default function BlogAdmin() {
           </div>
 
           <div className="md:col-span-2">
-            <label
-              className={labelClass}
-            >
-              Short Description
-            </label>
+            <FormLabel
+              label="Short Description"
+              required
+            />
 
             <textarea
+              required
               placeholder="Write a short blog description"
               value={form.description}
               onChange={(event) =>
@@ -661,11 +652,10 @@ export default function BlogAdmin() {
           </div>
 
           <div className="md:col-span-2">
-            <label
-              className={labelClass}
-            >
-              Full Blog Content
-            </label>
+            <FormLabel
+              label="Full Blog Content"
+              required
+            />
 
             <TiptapEditor
               value={form.content}

@@ -13,6 +13,8 @@ import api from "../../../services/base/api";
 
 import { uploadImage as uploadImageToServer } from "../../../services/upload/uploadService";
 
+import FormField, { FormLabel } from "../../../components/FormField";
+
 // ========================================
 // TYPES
 // ========================================
@@ -556,68 +558,77 @@ export default function AdminPopup() {
         closeOnBackdrop={false}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <input
-            type="text"
-            placeholder="Popup Title"
+          <FormField
+            label="Popup Title"
             required
-            value={form.title}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                title:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          >
+            <input
+              type="text"
+              required
+              value={form.title}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  title:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="text"
-            placeholder="Button Text"
-            value={form.buttonText}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                buttonText:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          <FormField label="Button Text">
+            <input
+              type="text"
+              value={form.buttonText}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  buttonText:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="text"
-            placeholder="Button Link"
-            value={form.buttonLink}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                buttonLink:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          <FormField label="Button Link">
+            <input
+              type="text"
+              value={form.buttonLink}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  buttonLink:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="number"
-            placeholder="Delay in milliseconds"
-            value={form.delay}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                delay: Number(
-                  event.target.value
-                ),
-              })
-            }
-            className={inputClass}
-          />
+          <FormField
+            label="Delay"
+            hint="in milliseconds"
+          >
+            <input
+              type="number"
+              placeholder="e.g. 3000"
+              value={form.delay}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  delay: Number(
+                    event.target.value
+                  ),
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
           <div>
-            <label className="mb-2 block text-sm text-[#8A6F78]">
-              Start Date
-            </label>
+            <FormLabel label="Start Date" />
 
             <input
               type="date"
@@ -634,9 +645,7 @@ export default function AdminPopup() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-[#8A6F78]">
-              End Date
-            </label>
+            <FormLabel label="End Date" />
 
             <input
               type="date"
@@ -652,26 +661,35 @@ export default function AdminPopup() {
             />
           </div>
 
-          <textarea
-            placeholder="Popup Subtitle"
-            value={form.subtitle}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                subtitle:
-                  event.target.value,
-              })
-            }
-            rows={4}
-            className={`${inputClass} md:col-span-2`}
-          />
+          <FormField
+            label="Subtitle"
+            className="md:col-span-2"
+          >
+            <textarea
+              value={form.subtitle}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  subtitle:
+                    event.target.value,
+                })
+              }
+              rows={4}
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="file"
-            accept="image/*"
-            onChange={uploadImage}
-            className={`${inputClass} md:col-span-2`}
-          />
+          <FormField
+            label="Popup Image"
+            className="md:col-span-2"
+          >
+            <input
+              type="file"
+              accept="image/*"
+              onChange={uploadImage}
+              className={inputClass}
+            />
+          </FormField>
         </div>
 
         {uploading && (

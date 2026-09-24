@@ -39,6 +39,8 @@ import type {
 
 import type { ServiceCategory } from "../../services/serviceCategory/serviceCategory.types";
 
+import FormField from "../../components/FormField";
+
 // ========================================
 // FORM DEFAULTS
 //
@@ -755,94 +757,118 @@ export default function ServicesAdmin() {
         closeOnBackdrop={false}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <input
+          <FormField
+            label="Service Title"
             required
-            placeholder="Service Title"
-            value={form.title}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                title:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
-
-          <input
-            required
-            placeholder="Price e.g. From Rs. 800"
-            value={form.price}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                price:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
-
-          <select
-            required
-            value={form.category}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                category:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
           >
-            <option value="">
-              Select a category
-            </option>
-
-            {categories.map(
-              (category) => (
-                <option
-                  key={category._id}
-                  value={
-                    category._id ?? ""
-                  }
-                >
-                  {category.name}
-                </option>
-              )
-            )}
-          </select>
-
-          <input
-            type="file"
-            accept="image/png, image/jpeg, image/jpg, image/webp"
-            onChange={(event) => {
-              const file =
-                event.target.files?.[0];
-
-              if (!file) {
-                return;
+            <input
+              required
+              value={form.title}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  title:
+                    event.target.value,
+                })
               }
+              className={inputClass}
+            />
+          </FormField>
 
-              handleImageUpload(file);
-            }}
-            className={inputClass}
-          />
-
-          <textarea
+          <FormField
+            label="Price"
             required
-            placeholder="Service Description"
-            value={form.description}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                description:
-                  event.target.value,
-              })
-            }
-            rows={4}
-            className={`${inputClass} md:col-span-2`}
-          />
+          >
+            <input
+              required
+              placeholder="e.g. From Rs. 800"
+              value={form.price}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  price:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
+
+          <FormField
+            label="Category"
+            required
+          >
+            <select
+              required
+              value={form.category}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  category:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            >
+              <option value="">
+                Select a category
+              </option>
+
+              {categories.map(
+                (category) => (
+                  <option
+                    key={category._id}
+                    value={
+                      category._id ?? ""
+                    }
+                  >
+                    {category.name}
+                  </option>
+                )
+              )}
+            </select>
+          </FormField>
+
+          <FormField
+            label="Service Image"
+            required
+          >
+            <input
+              type="file"
+              accept="image/png, image/jpeg, image/jpg, image/webp"
+              onChange={(event) => {
+                const file =
+                  event.target.files?.[0];
+
+                if (!file) {
+                  return;
+                }
+
+                handleImageUpload(file);
+              }}
+              className={inputClass}
+            />
+          </FormField>
+
+          <FormField
+            label="Description"
+            required
+            className="md:col-span-2"
+          >
+            <textarea
+              required
+              value={form.description}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  description:
+                    event.target.value,
+                })
+              }
+              rows={4}
+              className={inputClass}
+            />
+          </FormField>
         </div>
 
         {uploading && (

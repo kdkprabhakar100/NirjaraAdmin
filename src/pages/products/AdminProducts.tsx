@@ -20,6 +20,8 @@ import api, {
   getApiErrorMessage,
 } from "../../services/base/api";
 
+import FormField from "../../components/FormField";
+
 // ========================================
 // TYPES
 // ========================================
@@ -418,109 +420,138 @@ export default function AdminProducts() {
         closeOnBackdrop={false}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <input
-            type="text"
-            placeholder="Product Name"
+          <FormField
+            label="Product Name"
             required
-            value={form.name}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                name: event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          >
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  name: event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="text"
-            placeholder="Category"
+          <FormField
+            label="Category"
             required
-            value={form.category}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                category:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          >
+            <input
+              type="text"
+              required
+              value={form.category}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  category:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="number"
-            placeholder="Price"
+          <FormField
+            label="Price"
             required
-            value={form.price}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                price:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          >
+            <input
+              type="number"
+              required
+              value={form.price}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  price:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="number"
-            placeholder="Stock"
+          <FormField
+            label="Stock"
             required
-            value={form.stock}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                stock:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          >
+            <input
+              type="number"
+              required
+              value={form.stock}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  stock:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="text"
-            placeholder="Brand"
+          <FormField
+            label="Brand"
             required
-            value={form.brand}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                brand:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          >
+            <input
+              type="text"
+              required
+              value={form.brand}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  brand:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="text"
-            placeholder="Image URL"
+          <FormField
+            label="Image URL"
             required
-            value={form.image}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                image:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+          >
+            <input
+              type="text"
+              required
+              value={form.image}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  image:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <textarea
-            placeholder="Description"
+          <FormField
+            label="Description"
             required
-            rows={5}
-            value={form.description}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                description:
-                  event.target.value,
-              })
-            }
-            className={`${inputClass} md:col-span-2`}
-          />
+            className="md:col-span-2"
+          >
+            <textarea
+              required
+              rows={5}
+              value={form.description}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  description:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
         </div>
 
         {form.image && (

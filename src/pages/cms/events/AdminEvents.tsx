@@ -18,6 +18,8 @@ import getCroppedImg from "../../../utils/cropImage";
 
 import { uploadImage as uploadImageToServer } from "../../../services/upload/uploadService";
 
+import FormField, { FormLabel } from "../../../components/FormField";
+
 // ========================================
 // TYPES
 // ========================================
@@ -655,30 +657,39 @@ const AdminEvents = () => {
         closeOnBackdrop={false}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <input
-            type="text"
-            name="title"
-            placeholder="Event Title"
+          <FormField
+            label="Event Title"
             required
-            value={formData.title}
-            onChange={handleChange}
-            className={inputClass}
-          />
+          >
+            <input
+              type="text"
+              name="title"
+              required
+              value={formData.title}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
 
-          <input
-            type="text"
-            name="location"
-            placeholder="Event Location"
+          <FormField
+            label="Location"
             required
-            value={formData.location}
-            onChange={handleChange}
-            className={inputClass}
-          />
+          >
+            <input
+              type="text"
+              name="location"
+              required
+              value={formData.location}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
 
           <div>
-            <label className="mb-2 block text-sm text-[#8A6F78]">
-              Date
-            </label>
+            <FormLabel
+              label="Date"
+              required
+            />
 
             <input
               type="date"
@@ -691,9 +702,10 @@ const AdminEvents = () => {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-[#8A6F78]">
-              Time
-            </label>
+            <FormLabel
+              label="Time"
+              required
+            />
 
             <input
               type="text"
@@ -706,20 +718,23 @@ const AdminEvents = () => {
             />
           </div>
 
-          <textarea
-            name="description"
-            placeholder="Event Description"
+          <FormField
+            label="Description"
             required
-            rows={5}
-            value={formData.description}
-            onChange={handleChange}
-            className={`${inputClass} md:col-span-2`}
-          />
+            className="md:col-span-2"
+          >
+            <textarea
+              name="description"
+              required
+              rows={5}
+              value={formData.description}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </FormField>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm text-[#8A6F78]">
-              Event Image
-            </label>
+            <FormLabel label="Event Image" />
 
             <input
               type="file"

@@ -11,6 +11,8 @@ import RowActionsMenu from "../../components/RowActionsMenu";
 
 import { uploadImage } from "../../services/upload/uploadService";
 
+import FormField from "../../components/FormField";
+
 // ========================================
 // TYPES
 // ========================================
@@ -478,90 +480,119 @@ export default function CoursesAdmin() {
         closeOnBackdrop={false}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <input
+          <FormField
+            label="Course Title"
             required
-            placeholder="Course Title"
-            value={form.title}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                title:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
-
-          <input
-            required
-            placeholder="Duration e.g. 3 Months"
-            value={form.duration}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                duration:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
-
-          <input
-            required
-            placeholder="Fee e.g. Rs. 25,000"
-            value={form.fee}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                fee: event.target.value,
-              })
-            }
-            className={inputClass}
-          />
-
-          <input
-            required
-            placeholder="Certificate e.g. Included"
-            value={form.certificate}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                certificate:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
-
-          <input
-            type="file"
-            accept="image/png, image/jpeg, image/jpg, image/webp"
-            onChange={(event) => {
-              const file =
-                event.target.files?.[0];
-
-              if (!file) {
-                return;
+          >
+            <input
+              required
+              value={form.title}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  title:
+                    event.target.value,
+                })
               }
+              className={inputClass}
+            />
+          </FormField>
 
-              handleImageUpload(file);
-            }}
-            className={`${inputClass} md:col-span-2`}
-          />
+          <FormField
+            label="Duration"
+            required
+          >
+            <input
+              required
+              placeholder="e.g. 3 Months"
+              value={form.duration}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  duration:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
 
-          <textarea
-            placeholder="Course Description"
-            value={form.description}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                description:
-                  event.target.value,
-              })
-            }
-            rows={4}
-            className={`${inputClass} md:col-span-2`}
-          />
+          <FormField
+            label="Fee"
+            required
+          >
+            <input
+              required
+              placeholder="e.g. Rs. 25,000"
+              value={form.fee}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  fee: event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
+
+          <FormField
+            label="Certificate"
+            required
+          >
+            <input
+              required
+              placeholder="e.g. Included"
+              value={form.certificate}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  certificate:
+                    event.target.value,
+                })
+              }
+              className={inputClass}
+            />
+          </FormField>
+
+          <FormField
+            label="Course Image"
+            required
+            className="md:col-span-2"
+          >
+            <input
+              type="file"
+              accept="image/png, image/jpeg, image/jpg, image/webp"
+              onChange={(event) => {
+                const file =
+                  event.target.files?.[0];
+
+                if (!file) {
+                  return;
+                }
+
+                handleImageUpload(file);
+              }}
+              className={inputClass}
+            />
+          </FormField>
+
+          <FormField
+            label="Description"
+            className="md:col-span-2"
+          >
+            <textarea
+              value={form.description}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  description:
+                    event.target.value,
+                })
+              }
+              rows={4}
+              className={inputClass}
+            />
+          </FormField>
         </div>
 
         {uploading && (

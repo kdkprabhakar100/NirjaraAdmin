@@ -38,6 +38,8 @@ import {
 
 import { uploadImage } from "../../../services/upload/uploadService";
 
+import { FormLabel } from "../../../components/FormField";
+
 // ========================================
 // FORM TYPE
 // ========================================
@@ -64,9 +66,6 @@ const EMPTY_FORM: TeamFormState = {
 
 const inputClass =
   "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
-
-const labelClass =
-  "mb-2 block text-sm font-medium text-[#3A2A2F]";
 
 // ========================================
 // COMPONENT
@@ -1109,9 +1108,7 @@ export default function AdminTeam() {
           {/* PHOTO */}
 
           <div>
-            <label className={labelClass}>
-              Profile Photo
-            </label>
+            <FormLabel label="Profile Photo" />
 
             <input
               ref={fileInputRef}
@@ -1190,13 +1187,13 @@ export default function AdminTeam() {
           <div className="space-y-5">
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label
-                  className={labelClass}
-                >
-                  Full Name *
-                </label>
+                <FormLabel
+                  label="Full Name"
+                  required
+                />
 
                 <input
+                  required
                   type="text"
                   name="name"
                   value={form.name}
@@ -1207,13 +1204,13 @@ export default function AdminTeam() {
               </div>
 
               <div>
-                <label
-                  className={labelClass}
-                >
-                  Designation / Role *
-                </label>
+                <FormLabel
+                  label="Designation / Role"
+                  required
+                />
 
                 <input
+                  required
                   type="text"
                   name="designation"
                   value={
@@ -1227,11 +1224,7 @@ export default function AdminTeam() {
             </div>
 
             <div>
-              <label
-                className={labelClass}
-              >
-                Short Bio
-              </label>
+              <FormLabel label="Short Bio" />
 
               <textarea
                 name="bio"
@@ -1244,11 +1237,7 @@ export default function AdminTeam() {
             </div>
 
             <div className="max-w-sm">
-              <label
-                className={labelClass}
-              >
-                Status
-              </label>
+              <FormLabel label="Status" />
 
               <select
                 name="status"

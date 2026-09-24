@@ -3,6 +3,8 @@ import type {
   CustomerStatus,
 } from "../../types/customer";
 
+import FormField from "../FormField";
+
 // ========================================
 // CUSTOMER FORM
 //
@@ -29,83 +31,108 @@ export default function CustomerForm({
 }: CustomerFormProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <input
-        placeholder="Full Name"
-        value={form.name}
-        onChange={(e) =>
-          onChange("name", e.target.value)
-        }
-        className={inputClass}
-      />
-
-      <input
-        type="email"
-        placeholder="Email Address"
-        value={form.email}
-        onChange={(e) =>
-          onChange(
-            "email",
-            e.target.value
-          )
-        }
-        className={inputClass}
-      />
-
-      <input
-        placeholder="Phone Number"
-        value={form.phone}
-        onChange={(e) =>
-          onChange(
-            "phone",
-            e.target.value
-          )
-        }
-        className={inputClass}
-      />
-
-      <select
-        value={form.status}
-        onChange={(e) =>
-          onChange(
-            "status",
-            e.target.value as CustomerStatus
-          )
-        }
-        className={inputClass}
+      <FormField
+        label="Full Name"
+        required
       >
-        <option value="Active">
-          Active
-        </option>
+        <input
+          required
+          value={form.name}
+          onChange={(e) =>
+            onChange("name", e.target.value)
+          }
+          className={inputClass}
+        />
+      </FormField>
 
-        <option value="Inactive">
-          Inactive
-        </option>
-      </select>
+      <FormField
+        label="Email"
+        required
+      >
+        <input
+          required
+          type="email"
+          value={form.email}
+          onChange={(e) =>
+            onChange(
+              "email",
+              e.target.value
+            )
+          }
+          className={inputClass}
+        />
+      </FormField>
 
-      <input
-        placeholder="Address"
-        value={form.address}
-        onChange={(e) =>
-          onChange(
-            "address",
-            e.target.value
-          )
-        }
-        className={`${inputClass} md:col-span-2`}
-      />
+      <FormField
+        label="Phone"
+        required
+      >
+        <input
+          required
+          value={form.phone}
+          onChange={(e) =>
+            onChange(
+              "phone",
+              e.target.value
+            )
+          }
+          className={inputClass}
+        />
+      </FormField>
 
-      <textarea
-        placeholder="Notes"
-        value={form.notes}
-        onChange={(e) =>
-          onChange(
-            "notes",
-            e.target.value
-          )
-        }
-        rows={4}
-        className={`${inputClass} md:col-span-2`}
-      />
+      <FormField label="Status">
+        <select
+          value={form.status}
+          onChange={(e) =>
+            onChange(
+              "status",
+              e.target.value as CustomerStatus
+            )
+          }
+          className={inputClass}
+        >
+          <option value="Active">
+            Active
+          </option>
+
+          <option value="Inactive">
+            Inactive
+          </option>
+        </select>
+      </FormField>
+
+      <FormField
+        label="Address"
+        className="md:col-span-2"
+      >
+        <input
+          value={form.address}
+          onChange={(e) =>
+            onChange(
+              "address",
+              e.target.value
+            )
+          }
+          className={inputClass}
+        />
+      </FormField>
+
+      <FormField
+        label="Notes"
+        className="md:col-span-2"
+      >
+        <textarea
+          value={form.notes}
+          onChange={(e) =>
+            onChange(
+              "notes",
+              e.target.value
+            )
+          }
+          rows={4}
+          className={inputClass}
+        />
+      </FormField>
     </div>
   );
 }
