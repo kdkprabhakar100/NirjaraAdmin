@@ -1,22 +1,11 @@
 import { useEffect, useState } from "react";
 
-type Branch = {
-  name: string;
-  label: string;
-  address: string;
-  phone: string;
-  openingHours: string;
-  mapUrl: string;
-};
-
 type SiteSettings = {
   salonName: string;
   description: string;
   email: string;
   phone: string;
   whatsapp: string;
-
-  branches: Branch[];
 
   socialLinks: {
     facebook: string;
@@ -36,8 +25,6 @@ const initialSettings: SiteSettings = {
   phone: "",
 
   whatsapp: "",
-
-  branches: [],
 
   socialLinks: {
     facebook: "",
@@ -104,56 +91,6 @@ export default function AdminSettings() {
     }));
   };
 
-  const updateBranch = (
-    index: number,
-    field: keyof Branch,
-    value: string
-  ) => {
-    setSettings((previous) => {
-      const branches = [...previous.branches];
-
-      branches[index] = {
-        ...branches[index],
-        [field]: value,
-      };
-
-      return {
-        ...previous,
-        branches,
-      };
-    });
-  };
-
-  const addBranch = () => {
-    setSettings((previous) => ({
-      ...previous,
-
-      branches: [
-        ...previous.branches,
-        {
-          name: "",
-          label: "",
-          address: "",
-          phone: "",
-          openingHours: "",
-          mapUrl: "",
-        },
-      ],
-    }));
-  };
-
-  const removeBranch = (index: number) => {
-    if (!window.confirm("Remove this branch?")) return;
-
-    setSettings((previous) => ({
-      ...previous,
-
-      branches: previous.branches.filter(
-        (_, branchIndex) => branchIndex !== index
-      ),
-    }));
-  };
-
   const saveSettings = async (
     event: React.FormEvent
   ) => {
@@ -175,7 +112,17 @@ export default function AdminSettings() {
             )}`,
           },
 
-          body: JSON.stringify(settings),
+          // Branches have their own page and
+          // are left out, so saving here never
+          // overwrites them.
+          body: JSON.stringify({
+            salonName: settings.salonName,
+            description: settings.description,
+            email: settings.email,
+            phone: settings.phone,
+            whatsapp: settings.whatsapp,
+            socialLinks: settings.socialLinks,
+          }),
         }
       );
 
@@ -215,8 +162,9 @@ export default function AdminSettings() {
       </h1>
 
       <p className="mt-2 text-[#8A6F78]">
-        Manage contact information, branches and social
-        media displayed across the website.
+        Manage contact information and social media
+        displayed across the website. Branches have
+        their own page.
       </p>
 
       <form
@@ -277,133 +225,6 @@ export default function AdminSettings() {
                 updateField("description", e.target.value)
               }
             />
-          </div>
-        </section>
-
-        {/* BRANCHES */}
-
-        <section className="rounded-3xl bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-2xl text-[#3A2A2F]">
-                Branches
-              </h2>
-
-              <p className="mt-1 text-sm text-[#8A6F78]">
-                Manage salon locations and contact details.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={addBranch}
-              className="rounded-full border border-[#E75480] px-5 py-2 text-sm text-[#E75480]"
-            >
-              + Add Branch
-            </button>
-          </div>
-
-          <div className="mt-6 space-y-6">
-            {settings.branches.map((branch, index) => (
-              <div
-                key={index}
-                className="rounded-2xl border border-[#E75480]/15 bg-[#FFF9FB] p-5"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="font-serif text-xl text-[#E75480]">
-                    Branch {index + 1}
-                  </h3>
-
-                  <button
-                    type="button"
-                    onClick={() => removeBranch(index)}
-                    className="text-sm text-red-500"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <input
-                    className={inputStyle}
-                    placeholder="Branch Name"
-                    value={branch.name}
-                    onChange={(e) =>
-                      updateBranch(
-                        index,
-                        "name",
-                        e.target.value
-                      )
-                    }
-                  />
-
-                  <input
-                    className={inputStyle}
-                    placeholder="Label e.g. Main Branch"
-                    value={branch.label}
-                    onChange={(e) =>
-                      updateBranch(
-                        index,
-                        "label",
-                        e.target.value
-                      )
-                    }
-                  />
-
-                  <input
-                    className={inputStyle}
-                    placeholder="Address"
-                    value={branch.address}
-                    onChange={(e) =>
-                      updateBranch(
-                        index,
-                        "address",
-                        e.target.value
-                      )
-                    }
-                  />
-
-                  <input
-                    className={inputStyle}
-                    placeholder="Phone"
-                    value={branch.phone}
-                    onChange={(e) =>
-                      updateBranch(
-                        index,
-                        "phone",
-                        e.target.value
-                      )
-                    }
-                  />
-
-                  <input
-                    className={inputStyle}
-                    placeholder="Opening Hours"
-                    value={branch.openingHours}
-                    onChange={(e) =>
-                      updateBranch(
-                        index,
-                        "openingHours",
-                        e.target.value
-                      )
-                    }
-                  />
-
-                  <input
-                    className={inputStyle}
-                    placeholder="Google Maps URL"
-                    value={branch.mapUrl}
-                    onChange={(e) =>
-                      updateBranch(
-                        index,
-                        "mapUrl",
-                        e.target.value
-                      )
-                    }
-                  />
-                </div>
-              </div>
-            ))}
           </div>
         </section>
 

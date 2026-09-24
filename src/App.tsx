@@ -28,6 +28,7 @@ import AdminCareers from "./pages/cms/careers/AdminCareers";
 import CustomersAdmin from "./pages/customers/CustomersAdmin";
 import AdminTeam from "./pages/cms/team/AdminTeam";
 import AdminSettings from "./pages/settings/AdminSettings";
+import BranchesAdmin from "./pages/branches/BranchesAdmin";
 
 function ProtectedPage({
   children,
@@ -69,6 +70,16 @@ export default function App() {
           element={
             <ProtectedPage>
               <Dashboard />
+            </ProtectedPage>
+          }
+        />
+
+        {/* BRANCHES */}
+        <Route
+          path="/branches"
+          element={
+            <ProtectedPage>
+              <BranchesAdmin />
             </ProtectedPage>
           }
         />

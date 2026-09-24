@@ -28,6 +28,7 @@ export const isNavGroup = (
 
 export const navigation: NavItem[] = [
   { label: "Dashboard", path: "/dashboard" },
+  { label: "Branches", path: "/branches" },
   { label: "Bookings", path: "/bookings" },
   {
     label: "Services",
