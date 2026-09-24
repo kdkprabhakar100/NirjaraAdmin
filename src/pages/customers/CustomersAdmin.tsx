@@ -386,7 +386,7 @@ export default function CustomersAdmin() {
             Customers
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Store and manage customer
             information, contact details,
             status and notes.
@@ -405,18 +405,18 @@ export default function CustomersAdmin() {
       {/* STATS */}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-3xl bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[2px] text-[#8A6F78]">
+        <div className="rounded-3xl bg-surface p-5 shadow-sm">
+          <p className="text-xs uppercase tracking-[2px] text-muted">
             Total Customers
           </p>
 
-          <p className="mt-3 text-3xl font-semibold text-[#3A2A2F]">
+          <p className="mt-3 text-3xl font-semibold text-ink">
             {totalCustomers}
           </p>
         </div>
 
-        <div className="rounded-3xl bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[2px] text-[#8A6F78]">
+        <div className="rounded-3xl bg-surface p-5 shadow-sm">
+          <p className="text-xs uppercase tracking-[2px] text-muted">
             Active
           </p>
 
@@ -425,8 +425,8 @@ export default function CustomersAdmin() {
           </p>
         </div>
 
-        <div className="rounded-3xl bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[2px] text-[#8A6F78]">
+        <div className="rounded-3xl bg-surface p-5 shadow-sm">
+          <p className="text-xs uppercase tracking-[2px] text-muted">
             Inactive
           </p>
 
@@ -438,14 +438,14 @@ export default function CustomersAdmin() {
 
       {/* RECORDS HEADER */}
 
-      <div className="rounded-3xl bg-white p-5 shadow-sm">
+      <div className="rounded-3xl bg-surface p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="font-serif text-2xl text-[#3A2A2F]">
+            <h2 className="font-serif text-2xl text-ink">
               Customer Records
             </h2>
 
-            <p className="mt-1 text-sm text-[#8A6F78]">
+            <p className="mt-1 text-sm text-muted">
               {filteredCustomers.length}{" "}
               of {customers.length}{" "}
               customer
@@ -468,7 +468,7 @@ export default function CustomersAdmin() {
                 )
               }
               placeholder="Search name, email, phone or address..."
-              className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
+              className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
             />
 
             {/* STATUS FILTER */}
@@ -483,7 +483,7 @@ export default function CustomersAdmin() {
                     | "Inactive"
                 )
               }
-              className="rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm text-[#3A2A2F] outline-none focus:border-[#E75480]"
+              className="rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm text-ink outline-none focus:border-[#E75480]"
             >
               <option value="All">
                 All Status
@@ -601,7 +601,7 @@ export default function CustomersAdmin() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Their contact details and notes
           will be deleted along with the
           record.

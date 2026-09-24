@@ -37,24 +37,24 @@ const THEME = {
     "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4",
 
   panel:
-    "flex max-h-[90vh] w-full flex-col overflow-hidden rounded-3xl bg-white shadow-2xl",
+    "flex max-h-[90vh] w-full flex-col overflow-hidden rounded-3xl bg-surface shadow-2xl",
 
   eyebrow:
     "text-xs uppercase tracking-[2px] text-[#E75480]",
 
   title:
-    "mt-2 font-serif text-3xl text-[#3A2A2F]",
+    "mt-2 font-serif text-3xl text-ink",
 
-  description: "mt-2 text-sm text-[#8A6F78]",
+  description: "mt-2 text-sm text-muted",
 
   closeButton:
-    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF5F8] text-[#E75480] transition hover:bg-[#FCE7EF] disabled:cursor-not-allowed disabled:opacity-50",
+    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-soft text-[#E75480] transition hover:bg-blush disabled:cursor-not-allowed disabled:opacity-50",
 
   primaryButton:
     "rounded-full bg-[#E75480] px-6 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873] disabled:cursor-not-allowed disabled:opacity-50",
 
   secondaryButton:
-    "rounded-full border border-[#E75480] px-6 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-[#FFF5F8] disabled:cursor-not-allowed disabled:opacity-50",
+    "rounded-full border border-[#E75480] px-6 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-soft disabled:cursor-not-allowed disabled:opacity-50",
 
   dangerButton:
     "rounded-full bg-[#DC2626] px-6 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#b91c1c] disabled:cursor-not-allowed disabled:opacity-50",

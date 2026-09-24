@@ -52,7 +52,7 @@ const emptyForm = {
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 const AdminEvents = () => {
   const [events, setEvents] = useState<
@@ -410,7 +410,7 @@ const AdminEvents = () => {
         className="h-14 w-20 rounded-xl object-cover"
       />
     ) : (
-      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-soft text-lg text-[#E75480]">
         ✦
       </div>
     );
@@ -432,7 +432,7 @@ const AdminEvents = () => {
       </span>
 
       {item.featured && (
-        <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs text-[#E75480]">
+        <span className="inline-block rounded-full bg-blush px-4 py-1 text-xs text-[#E75480]">
           Featured
         </span>
       )}
@@ -507,7 +507,7 @@ const AdminEvents = () => {
         header: "Title",
         hideOnMobile: true,
         cellClassName:
-          "font-medium text-[#3A2A2F]",
+          "font-medium text-ink",
         render: (item) => item.title,
       },
       {
@@ -576,7 +576,7 @@ const AdminEvents = () => {
             Events
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Create, edit, and manage website
             events.
           </p>
@@ -743,7 +743,7 @@ const AdminEvents = () => {
               className={inputClass}
             />
 
-            <p className="mt-2 text-xs text-[#8A6F78]">
+            <p className="mt-2 text-xs text-muted">
               Recommended size: 1200 × 800
               px
             </p>
@@ -769,7 +769,7 @@ const AdminEvents = () => {
             </div>
 
             <div className="mt-4">
-              <label className="text-sm text-[#8A6F78]">
+              <label className="text-sm text-muted">
                 Zoom
               </label>
 
@@ -807,7 +807,7 @@ const AdminEvents = () => {
 
         {!imageSrc && formData.image && (
           <div className="mt-5">
-            <p className="mb-2 text-sm text-[#8A6F78]">
+            <p className="mb-2 text-sm text-muted">
               Image Preview
             </p>
 
@@ -843,7 +843,7 @@ const AdminEvents = () => {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Visitors will no longer see this
           event on the website.
         </p>

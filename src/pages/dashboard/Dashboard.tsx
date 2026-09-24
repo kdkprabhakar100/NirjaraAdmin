@@ -179,11 +179,11 @@ export default function Dashboard() {
           Overview
         </p>
 
-        <h1 className="mt-2 font-serif text-4xl text-[#3A2A2F] md:text-5xl">
+        <h1 className="mt-2 font-serif text-4xl text-ink md:text-5xl">
           Dashboard
         </h1>
 
-        <p className="mt-3 text-sm text-[#8A6F78]">
+        <p className="mt-3 text-sm text-muted">
           Manage your website content and activity from one place.
         </p>
       </div>
@@ -194,20 +194,20 @@ export default function Dashboard() {
           <button
             key={card.title}
             onClick={() => navigate(card.path)}
-            className="group rounded-3xl border border-[#E75480]/10 bg-white p-6 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
+            className="group rounded-3xl border border-[#E75480]/10 bg-surface p-6 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-[#8A6F78]">
+                <p className="text-sm text-muted">
                   {card.title}
                 </p>
 
-                <p className="mt-3 text-3xl font-semibold text-[#3A2A2F]">
+                <p className="mt-3 text-3xl font-semibold text-ink">
                   {loading ? "..." : card.value}
                 </p>
               </div>
 
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF5F8] text-xl">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-soft text-xl">
                 {card.icon}
               </div>
             </div>
@@ -222,13 +222,13 @@ export default function Dashboard() {
       {/* LOWER SECTION */}
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         {/* QUICK ACTIONS */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm lg:col-span-2">
+        <div className="rounded-3xl bg-surface p-6 shadow-sm lg:col-span-2">
           <div className="mb-6">
-            <h2 className="font-serif text-2xl text-[#3A2A2F]">
+            <h2 className="font-serif text-2xl text-ink">
               Quick Actions
             </h2>
 
-            <p className="mt-1 text-sm text-[#8A6F78]">
+            <p className="mt-1 text-sm text-muted">
               Quickly access frequently used sections.
             </p>
           </div>
@@ -236,52 +236,52 @@ export default function Dashboard() {
           <div className="grid gap-3 sm:grid-cols-2">
             <button
               onClick={() => navigate("/services")}
-              className="rounded-2xl bg-[#FFF5F8] p-4 text-left transition hover:bg-[#FCE7EF]"
+              className="rounded-2xl bg-soft p-4 text-left transition hover:bg-blush"
             >
-              <p className="font-medium text-[#3A2A2F]">
+              <p className="font-medium text-ink">
                 Manage Services
               </p>
 
-              <p className="mt-1 text-xs text-[#8A6F78]">
+              <p className="mt-1 text-xs text-muted">
                 Add or update salon services
               </p>
             </button>
 
             <button
               onClick={() => navigate("/blogs")}
-              className="rounded-2xl bg-[#FFF5F8] p-4 text-left transition hover:bg-[#FCE7EF]"
+              className="rounded-2xl bg-soft p-4 text-left transition hover:bg-blush"
             >
-              <p className="font-medium text-[#3A2A2F]">
+              <p className="font-medium text-ink">
                 Create Blog
               </p>
 
-              <p className="mt-1 text-xs text-[#8A6F78]">
+              <p className="mt-1 text-xs text-muted">
                 Publish new website content
               </p>
             </button>
 
             <button
               onClick={() => navigate("/events")}
-              className="rounded-2xl bg-[#FFF5F8] p-4 text-left transition hover:bg-[#FCE7EF]"
+              className="rounded-2xl bg-soft p-4 text-left transition hover:bg-blush"
             >
-              <p className="font-medium text-[#3A2A2F]">
+              <p className="font-medium text-ink">
                 Manage Events
               </p>
 
-              <p className="mt-1 text-xs text-[#8A6F78]">
+              <p className="mt-1 text-xs text-muted">
                 Add and update upcoming events
               </p>
             </button>
 
             <button
               onClick={() => navigate("/products")}
-              className="rounded-2xl bg-[#FFF5F8] p-4 text-left transition hover:bg-[#FCE7EF]"
+              className="rounded-2xl bg-soft p-4 text-left transition hover:bg-blush"
             >
-              <p className="font-medium text-[#3A2A2F]">
+              <p className="font-medium text-ink">
                 Manage Products
               </p>
 
-              <p className="mt-1 text-xs text-[#8A6F78]">
+              <p className="mt-1 text-xs text-muted">
                 Update your store products
               </p>
             </button>
@@ -305,7 +305,7 @@ export default function Dashboard() {
 
           <button
             onClick={() => navigate("/settings")}
-            className="mt-8 rounded-full bg-white px-6 py-3 text-xs font-semibold uppercase tracking-[2px] text-[#E75480]"
+            className="mt-8 rounded-full bg-surface px-6 py-3 text-xs font-semibold uppercase tracking-[2px] text-[#E75480]"
           >
             Website Settings
           </button>

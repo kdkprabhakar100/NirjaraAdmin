@@ -65,7 +65,7 @@ const EMPTY_FORM: TeamFormState = {
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 // ========================================
 // COMPONENT
@@ -736,7 +736,7 @@ export default function AdminTeam() {
         className="h-14 w-14 rounded-2xl object-cover"
       />
     ) : (
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF5F8] text-[#E75480]">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-soft text-[#E75480]">
         ♡
       </div>
     );
@@ -818,7 +818,7 @@ export default function AdminTeam() {
         render: () => (
           <span
             title="Drag the row to reorder"
-            className="cursor-grab text-xl text-[#8A6F78] active:cursor-grabbing"
+            className="cursor-grab text-xl text-muted active:cursor-grabbing"
           >
             ☰
           </span>
@@ -837,7 +837,7 @@ export default function AdminTeam() {
         hideOnMobile: true,
         render: (member) => (
           <>
-            <p className="font-medium text-[#3A2A2F]">
+            <p className="font-medium text-ink">
               {member.name}
             </p>
 
@@ -883,8 +883,8 @@ export default function AdminTeam() {
 
   const paginationFooter =
     members.length > 0 ? (
-      <div className="flex flex-col gap-4 rounded-3xl border-t border-[#E75480]/10 bg-white p-5 sm:flex-row sm:items-center sm:justify-between md:rounded-none">
-        <p className="text-sm text-[#8A6F78]">
+      <div className="flex flex-col gap-4 rounded-3xl border-t border-[#E75480]/10 bg-surface p-5 sm:flex-row sm:items-center sm:justify-between md:rounded-none">
+        <p className="text-sm text-muted">
           Showing{" "}
           {(page - 1) * pageSize + 1}
           {" - "}
@@ -909,7 +909,7 @@ export default function AdminTeam() {
             Previous
           </button>
 
-          <span className="px-3 text-sm text-[#8A6F78]">
+          <span className="px-3 text-sm text-muted">
             Page {page} of {totalPages}
           </span>
 
@@ -949,7 +949,7 @@ export default function AdminTeam() {
             Team
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Add, edit, organize and manage
             the team members displayed on
             the Nirjara Beauty website.
@@ -967,13 +967,13 @@ export default function AdminTeam() {
 
       {/* LIST TOOLBAR */}
 
-      <div className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-5 shadow-sm">
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-surface p-5 shadow-sm">
         <div>
-          <h2 className="font-serif text-2xl text-[#3A2A2F]">
+          <h2 className="font-serif text-2xl text-ink">
             Team Members
           </h2>
 
-          <p className="mt-1 text-sm text-[#8A6F78]">
+          <p className="mt-1 text-sm text-muted">
             {members.length}{" "}
             {members.length === 1
               ? "team member"
@@ -989,7 +989,7 @@ export default function AdminTeam() {
             </span>
           )}
 
-          <span className="text-xs text-[#8A6F78]">
+          <span className="text-xs text-muted">
             Show
           </span>
 
@@ -1004,7 +1004,7 @@ export default function AdminTeam() {
 
               setPage(1);
             }}
-            className="rounded-xl border border-[#E75480]/20 bg-[#FFF9FB] px-4 py-2 text-sm outline-none"
+            className="rounded-xl border border-[#E75480]/20 bg-softer px-4 py-2 text-sm outline-none"
           >
             <option value={5}>5</option>
 
@@ -1050,7 +1050,7 @@ export default function AdminTeam() {
           onDragEnd: handleDragEnd,
           className: `${
             dragOverId === member._id
-              ? "bg-[#FFF0F5]"
+              ? "bg-soft"
               : ""
           } ${
             draggedId === member._id
@@ -1125,7 +1125,7 @@ export default function AdminTeam() {
               onClick={() =>
                 fileInputRef.current?.click()
               }
-              className="relative flex aspect-[4/5] w-full max-w-[200px] overflow-hidden rounded-3xl border-2 border-dashed border-[#E75480]/30 bg-[#FFF5F8] transition hover:border-[#E75480]"
+              className="relative flex aspect-[4/5] w-full max-w-[200px] overflow-hidden rounded-3xl border-2 border-dashed border-[#E75480]/30 bg-soft transition hover:border-[#E75480]"
             >
               {displayPreview ? (
                 <img
@@ -1135,7 +1135,7 @@ export default function AdminTeam() {
                 />
               ) : (
                 <div className="flex h-full w-full flex-col items-center justify-center p-5 text-center">
-                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#FCE7EF] text-2xl text-[#E75480]">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blush text-2xl text-[#E75480]">
                     +
                   </div>
 
@@ -1143,11 +1143,11 @@ export default function AdminTeam() {
                     Upload Photo
                   </span>
 
-                  <span className="mt-2 text-xs text-[#8A6F78]">
+                  <span className="mt-2 text-xs text-muted">
                     JPG, PNG or WebP
                   </span>
 
-                  <span className="mt-1 text-xs text-[#8A6F78]">
+                  <span className="mt-1 text-xs text-muted">
                     Maximum 5 MB
                   </span>
                 </div>
@@ -1281,7 +1281,7 @@ export default function AdminTeam() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           The remaining members are
           renumbered so the website order
           stays correct.

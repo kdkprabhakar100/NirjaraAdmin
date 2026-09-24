@@ -84,7 +84,7 @@ export default function CustomerTable({
         header: "Customer",
         hideOnMobile: true,
         cellClassName:
-          "font-medium text-[#3A2A2F]",
+          "font-medium text-ink",
         render: (customer) =>
           customer.name,
       },

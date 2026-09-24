@@ -54,7 +54,7 @@ const statusClass = (status: string) => {
     return "bg-green-100 text-green-700";
   }
 
-  return "bg-[#FCE7EF] text-[#E75480]";
+  return "bg-blush text-[#E75480]";
 };
 
 export default function AdminOrders() {
@@ -324,7 +324,7 @@ export default function AdminOrders() {
       header: "Customer",
       hideOnMobile: true,
       cellClassName:
-        "font-medium text-[#3A2A2F]",
+        "font-medium text-ink",
       render: (order) =>
         order.customerName || "No name",
     },
@@ -381,7 +381,7 @@ export default function AdminOrders() {
           onClick={() =>
             setSelectedOrder(order)
           }
-          className="rounded-full bg-[#FFF5F8] px-4 py-2 text-xs text-[#E75480] transition hover:bg-[#FCE7EF]"
+          className="rounded-full bg-soft px-4 py-2 text-xs text-[#E75480] transition hover:bg-blush"
         >
           {itemCount(order)} item
           {itemCount(order) === 1
@@ -433,7 +433,7 @@ export default function AdminOrders() {
           Orders
         </h1>
 
-        <p className="mt-2 text-[#8A6F78]">
+        <p className="mt-2 text-muted">
           View and manage ecommerce customer
           orders.
         </p>
@@ -512,11 +512,11 @@ export default function AdminOrders() {
                   />
 
                   <div>
-                    <p className="font-medium text-[#3A2A2F]">
+                    <p className="font-medium text-ink">
                       {item.name}
                     </p>
 
-                    <p className="mt-1 text-sm text-[#8A6F78]">
+                    <p className="mt-1 text-sm text-muted">
                       Qty: {item.quantity}
                     </p>
 
@@ -528,9 +528,9 @@ export default function AdminOrders() {
               )
             )}
 
-            <div className="border-t border-[#E75480]/10 pt-5 text-sm text-[#8A6F78]">
+            <div className="border-t border-[#E75480]/10 pt-5 text-sm text-muted">
               <p>
-                <strong className="text-[#3A2A2F]">
+                <strong className="text-ink">
                   Address:
                 </strong>{" "}
                 {selectedOrder.address ||
@@ -538,7 +538,7 @@ export default function AdminOrders() {
               </p>
 
               <p className="mt-2">
-                <strong className="text-[#3A2A2F]">
+                <strong className="text-ink">
                   Phone:
                 </strong>{" "}
                 {selectedOrder.phone ||
@@ -546,7 +546,7 @@ export default function AdminOrders() {
               </p>
 
               <p className="mt-2 break-all">
-                <strong className="text-[#3A2A2F]">
+                <strong className="text-ink">
                   Email:
                 </strong>{" "}
                 {selectedOrder.email ||
@@ -583,7 +583,7 @@ export default function AdminOrders() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           The order history and its items
           will no longer be available here.
         </p>

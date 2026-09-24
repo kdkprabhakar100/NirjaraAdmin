@@ -72,7 +72,7 @@ const SEARCH_DELAY_MS = 350;
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function ServicesAdmin() {
   const navigate = useNavigate();
@@ -483,7 +483,7 @@ export default function ServicesAdmin() {
         className="h-14 w-14 rounded-xl object-cover"
       />
     ) : (
-      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-soft text-lg text-[#E75480]">
         {service.icon || "✦"}
       </div>
     );
@@ -533,7 +533,7 @@ export default function ServicesAdmin() {
       header: "Title",
       hideOnMobile: true,
       cellClassName:
-        "font-medium text-[#3A2A2F]",
+        "font-medium text-ink",
       render: (service) =>
         service.title,
     },
@@ -543,11 +543,11 @@ export default function ServicesAdmin() {
       hideOnMobile: true,
       render: (service) =>
         service.category ? (
-          <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+          <span className="inline-block rounded-full bg-blush px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
             {service.category.name}
           </span>
         ) : (
-          <span className="text-xs uppercase tracking-[1px] text-[#B59AA3]">
+          <span className="text-xs uppercase tracking-[1px] text-faint">
             No category
           </span>
         ),
@@ -602,7 +602,7 @@ export default function ServicesAdmin() {
             Services
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Create, edit, delete, and manage website services.
           </p>
         </div>
@@ -613,11 +613,11 @@ export default function ServicesAdmin() {
             onClick={() =>
               navigate(CATEGORIES_PATH)
             }
-            className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-[#FFF5F8]"
+            className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-soft"
           >
             Service Categories
             {categories.length > 0 && (
-              <span className="ml-2 rounded-full bg-[#FCE7EF] px-2 py-0.5 text-[10px]">
+              <span className="ml-2 rounded-full bg-blush px-2 py-0.5 text-[10px]">
                 {categories.length}
               </span>
             )}
@@ -635,8 +635,8 @@ export default function ServicesAdmin() {
 
       {/* SEARCH + CATEGORY FILTER */}
 
-      <div className="mt-8 flex flex-col gap-3 rounded-3xl bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-sm text-[#8A6F78]">
+      <div className="mt-8 flex flex-col gap-3 rounded-3xl bg-surface p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-sm text-muted">
           {services.length} service
           {services.length === 1
             ? ""
@@ -656,7 +656,7 @@ export default function ServicesAdmin() {
               )
             }
             placeholder="Search by service name or category..."
-            className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
+            className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
           />
 
           <select
@@ -666,7 +666,7 @@ export default function ServicesAdmin() {
                 event.target.value
               )
             }
-            className="rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm text-[#3A2A2F] outline-none focus:border-[#E75480]"
+            className="rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm text-ink outline-none focus:border-[#E75480]"
           >
             <option value="">
               All Categories
@@ -872,14 +872,14 @@ export default function ServicesAdmin() {
         </div>
 
         {uploading && (
-          <p className="mt-4 text-sm text-[#8A6F78]">
+          <p className="mt-4 text-sm text-muted">
             Uploading image...
           </p>
         )}
 
         {form.image && (
           <div className="mt-5">
-            <p className="mb-2 text-sm text-[#8A6F78]">
+            <p className="mb-2 text-sm text-muted">
               Image Preview
             </p>
 
@@ -915,7 +915,7 @@ export default function ServicesAdmin() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Customers will no longer see this
           service on the booking form.
         </p>

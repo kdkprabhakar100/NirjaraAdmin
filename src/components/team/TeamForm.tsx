@@ -93,16 +93,16 @@ export default function TeamForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-[28px] bg-white p-6 shadow-sm sm:p-8 lg:p-10"
+      className="rounded-[28px] bg-surface p-6 shadow-sm sm:p-8 lg:p-10"
     >
       <div className="mb-8">
-        <h2 className="font-serif text-3xl text-[#3A2A2F]">
+        <h2 className="font-serif text-3xl text-ink">
           {editingMember
             ? "Edit Team Member"
             : "Add Team Member"}
         </h2>
 
-        <p className="mt-2 text-sm text-[#8A6F78]">
+        <p className="mt-2 text-sm text-muted">
           Add the staff information that will appear on the
           Nirjara Beauty About Us page.
         </p>
@@ -112,12 +112,12 @@ export default function TeamForm({
 
         {/* IMAGE */}
         <div>
-          <p className="mb-3 text-sm font-medium text-[#3A2A2F]">
+          <p className="mb-3 text-sm font-medium text-ink">
             Profile Photo
           </p>
 
           <label className="group block cursor-pointer">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] border-2 border-dashed border-[#E75480]/30 bg-[#FFF5F8]">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] border-2 border-dashed border-[#E75480]/30 bg-soft">
 
               {preview ? (
                 <>
@@ -128,14 +128,14 @@ export default function TeamForm({
                   />
 
                   <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/30">
-                    <span className="rounded-full bg-white px-4 py-2 text-xs text-[#E75480] opacity-0 transition group-hover:opacity-100">
+                    <span className="rounded-full bg-surface px-4 py-2 text-xs text-[#E75480] opacity-0 transition group-hover:opacity-100">
                       Change Photo
                     </span>
                   </div>
                 </>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center px-5 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FCE7EF] text-2xl text-[#E75480]">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blush text-2xl text-[#E75480]">
                     +
                   </div>
 
@@ -143,7 +143,7 @@ export default function TeamForm({
                     Upload Photo
                   </p>
 
-                  <p className="mt-2 text-xs leading-5 text-[#8A6F78]">
+                  <p className="mt-2 text-xs leading-5 text-muted">
                     JPG, PNG or WebP
                   </p>
                 </div>
@@ -166,7 +166,7 @@ export default function TeamForm({
           <div className="grid gap-5 md:grid-cols-2">
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+              <label className="mb-2 block text-sm font-medium text-ink">
                 Full Name *
               </label>
 
@@ -180,12 +180,12 @@ export default function TeamForm({
                   })
                 }
                 placeholder="Enter full name"
-                className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
+                className="w-full rounded-2xl border border-[#E75480]/25 bg-softer px-5 py-4 outline-none transition focus:border-[#E75480]"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+              <label className="mb-2 block text-sm font-medium text-ink">
                 Designation / Role *
               </label>
 
@@ -199,14 +199,14 @@ export default function TeamForm({
                   })
                 }
                 placeholder="e.g. Founder & Director"
-                className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
+                className="w-full rounded-2xl border border-[#E75480]/25 bg-softer px-5 py-4 outline-none transition focus:border-[#E75480]"
               />
             </div>
 
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+            <label className="mb-2 block text-sm font-medium text-ink">
               Short Bio
             </label>
 
@@ -220,14 +220,14 @@ export default function TeamForm({
               }
               rows={5}
               placeholder="Write a short professional introduction..."
-              className="w-full resize-none rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
+              className="w-full resize-none rounded-2xl border border-[#E75480]/25 bg-softer px-5 py-4 outline-none transition focus:border-[#E75480]"
             />
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+              <label className="mb-2 block text-sm font-medium text-ink">
                 Display Order
               </label>
 
@@ -242,12 +242,12 @@ export default function TeamForm({
                       Number(event.target.value) || 1,
                   })
                 }
-                className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
+                className="w-full rounded-2xl border border-[#E75480]/25 bg-softer px-5 py-4 outline-none transition focus:border-[#E75480]"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-[#3A2A2F]">
+              <label className="mb-2 block text-sm font-medium text-ink">
                 Status
               </label>
 
@@ -260,7 +260,7 @@ export default function TeamForm({
                       event.target.value as TeamStatus,
                   })
                 }
-                className="w-full rounded-2xl border border-[#E75480]/25 bg-[#FFF9FB] px-5 py-4 outline-none transition focus:border-[#E75480]"
+                className="w-full rounded-2xl border border-[#E75480]/25 bg-softer px-5 py-4 outline-none transition focus:border-[#E75480]"
               >
                 <option value="Active">
                   Active

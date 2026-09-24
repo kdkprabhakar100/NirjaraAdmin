@@ -6,6 +6,8 @@
 // the sidebar shows as a dropdown.
 // ========================================
 
+import type { Permission } from "../services/auth/auth.types";
+
 export type NavLinkItem = {
   label: string;
   path: string;
@@ -13,6 +15,9 @@ export type NavLinkItem = {
   // not in the sidebar themselves; the
   // link stays highlighted on them.
   activeFor?: string[];
+  // Hidden from accounts without it. The
+  // API enforces the same permission.
+  permission?: Permission;
 };
 
 export type NavGroup = {
@@ -51,5 +56,49 @@ export const navigation: NavItem[] = [
   { label: "Orders", path: "/orders" },
   { label: "Products", path: "/products" },
   { label: "Customers", path: "/customers" },
+  {
+    label: "Users",
+    path: "/users",
+    permission: "users.manage",
+  },
   { label: "Settings", path: "/settings" },
+];
+
+// The sidebar for one account: links it
+// lacks the permission for are dropped,
+// and so is a group left empty.
+export const visibleNavigation = (
+  permissions: Permission[]
+): NavItem[] => {
+  const allowed = (link: NavLinkItem) =>
+    !link.permission ||
+    permissions.includes(link.permission);
+
+  return navigation.flatMap<NavItem>((item) => {
+    if (!isNavGroup(item)) {
+      return allowed(item) ? [item] : [];
+    }
+
+    const children =
+      item.children.filter(allowed);
+
+    return children.length
+      ? [{ ...item, children }]
+      : [];
+  });
+};
+
+// ========================================
+// QUICK LINKS
+//
+// The shortcuts in the top navbar: the
+// pages opened most in a working day.
+// Everything is still in the sidebar.
+// ========================================
+
+export const quickLinks: NavLinkItem[] = [
+  { label: "Dashboard", path: "/dashboard" },
+  { label: "Bookings", path: "/bookings" },
+  { label: "Orders", path: "/orders" },
+  { label: "Messages", path: "/messages" },
 ];

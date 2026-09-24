@@ -1,4 +1,8 @@
-import { useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   NavLink,
   useLocation,
@@ -6,10 +10,17 @@ import {
 } from "react-router-dom";
 import {
   isNavGroup,
-  navigation,
+  visibleNavigation,
   type NavGroup,
   type NavLinkItem,
 } from "../config/navigation";
+import {
+  getAdminSession,
+  logoutAdmin,
+  refreshAdminSession,
+} from "../services/auth/authService";
+import axios from "axios";
+import Topbar from "../components/Topbar";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -19,7 +30,7 @@ const linkClass = (isActive: boolean) =>
   `block rounded-xl px-4 py-3 text-sm transition ${
     isActive
       ? "bg-[#E75480] text-white"
-      : "text-[#8A6F78] hover:bg-[#FCE7EF] hover:text-[#E75480]"
+      : "text-muted hover:bg-blush hover:text-[#E75480]"
   }`;
 
 // ========================================
@@ -105,8 +116,8 @@ function SidebarGroup({
           // A closed group still shows that
           // the current page is inside it.
           hasActiveChild && !open
-            ? "bg-[#FCE7EF] text-[#E75480]"
-            : "text-[#8A6F78] hover:bg-[#FCE7EF] hover:text-[#E75480]"
+            ? "bg-blush text-[#E75480]"
+            : "text-muted hover:bg-blush hover:text-[#E75480]"
         }`}
       >
         {group.label}
@@ -149,60 +160,43 @@ export default function AdminLayout({
 }: AdminLayoutProps) {
   const navigate = useNavigate();
 
+  const [session, setSession] = useState(
+    getAdminSession
+  );
+
+  // Picks up a role changed since login,
+  // and signs out an account that was
+  // deleted.
+  useEffect(() => {
+    refreshAdminSession()
+      .then(setSession)
+      .catch((error: unknown) => {
+        if (
+          axios.isAxiosError(error) &&
+          error.response?.status === 401
+        ) {
+          logoutAdmin();
+          navigate("/login", {
+            replace: true,
+          });
+        }
+      });
+  }, [navigate]);
+
+  const navigation = visibleNavigation(
+    session?.permissions ?? []
+  );
+
   const logout = () => {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminEmail");
+    logoutAdmin();
     navigate("/login");
   };
 
   return (
-    <main className="min-h-screen bg-[#FFF5F8] text-[#3A2A2F]">
-      {/* MOBILE NAV */}
-      <nav className="flex items-center justify-between bg-white px-4 py-4 shadow-sm md:hidden">
-        <h1 className="font-serif text-xl text-[#E75480]">
-          Admin Panel
-        </h1>
-
-        <select
-          defaultValue=""
-          onChange={(e) => {
-            if (e.target.value) {
-              navigate(e.target.value);
-            }
-          }}
-          className="rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-3 py-2 text-sm outline-none"
-        >
-          <option value="" disabled>
-            Menu
-          </option>
-
-          {navigation.map((item) =>
-            isNavGroup(item) ? (
-              <optgroup
-                key={item.label}
-                label={item.label}
-              >
-                {item.children.map((link) => (
-                  <option
-                    key={link.path}
-                    value={link.path}
-                  >
-                    {link.label}
-                  </option>
-                ))}
-              </optgroup>
-            ) : (
-              <option key={item.path} value={item.path}>
-                {item.label}
-              </option>
-            )
-          )}
-        </select>
-      </nav>
-
+    <main className="min-h-screen bg-soft text-ink">
       <div className="flex min-h-screen">
         {/* DESKTOP SIDEBAR */}
-        <aside className="hidden w-64 shrink-0 border-r border-[#E75480]/10 bg-white p-6 md:block">
+        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto border-r border-[#E75480]/10 bg-surface p-6 md:block">
           <h1 className="font-serif text-2xl text-[#E75480]">
             Admin Panel
           </h1>
@@ -222,20 +216,62 @@ export default function AdminLayout({
               )
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={logout}
-            className="mt-10 w-full rounded-xl bg-[#FCE7EF] px-4 py-3 text-sm text-[#E75480]"
-          >
-            Logout
-          </button>
         </aside>
 
-        {/* PAGE */}
-        <section className="min-w-0 flex-1 p-4 md:p-8">
-          {children}
-        </section>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar
+            session={session}
+            onLogout={logout}
+          />
+
+          {/* MOBILE MENU: the sidebar's links, as a native picker */}
+          <div className="border-b border-[#E75480]/10 bg-surface px-4 py-3 md:hidden">
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  navigate(e.target.value);
+                }
+              }}
+              aria-label="Go to page"
+              className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-3 py-2 text-sm text-ink outline-none"
+            >
+              <option value="" disabled>
+                Menu
+              </option>
+
+              {navigation.map((item) =>
+                isNavGroup(item) ? (
+                  <optgroup
+                    key={item.label}
+                    label={item.label}
+                  >
+                    {item.children.map((link) => (
+                      <option
+                        key={link.path}
+                        value={link.path}
+                      >
+                        {link.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : (
+                  <option
+                    key={item.path}
+                    value={item.path}
+                  >
+                    {item.label}
+                  </option>
+                )
+              )}
+            </select>
+          </div>
+
+          {/* PAGE */}
+          <section className="min-w-0 flex-1 p-4 md:p-8">
+            {children}
+          </section>
+        </div>
       </div>
     </main>
   );

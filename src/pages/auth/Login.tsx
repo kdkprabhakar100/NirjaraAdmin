@@ -41,14 +41,14 @@ export default function Login() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#FFF5F8] px-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-lg">
+    <main className="flex min-h-screen items-center justify-center bg-soft px-4">
+      <div className="w-full max-w-md rounded-3xl bg-surface p-8 shadow-lg">
         <div className="text-center">
           <h1 className="font-serif text-4xl text-[#E75480]">
             Admin Login
           </h1>
 
-          <p className="mt-2 text-sm text-[#8A6F78]">
+          <p className="mt-2 text-sm text-muted">
             Sign in to manage your website.
           </p>
         </div>
@@ -71,7 +71,7 @@ export default function Login() {
               }
               placeholder="admin@example.com"
               required
-              className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 outline-none focus:border-[#E75480]"
+              className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 outline-none focus:border-[#E75480]"
             />
           </div>
 
@@ -89,7 +89,7 @@ export default function Login() {
               }
               placeholder="Enter password"
               required
-              className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 outline-none focus:border-[#E75480]"
+              className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 outline-none focus:border-[#E75480]"
             />
           </div>
 

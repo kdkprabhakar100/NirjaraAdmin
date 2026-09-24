@@ -33,9 +33,9 @@ export default function AdminLayout({
   };
 
   return (
-    <main className="min-h-screen bg-[#FFF5F8] text-[#3A2A2F]">
+    <main className="min-h-screen bg-soft text-ink">
       {/* MOBILE NAVBAR */}
-      <nav className="flex items-center justify-between bg-white px-4 py-4 shadow-sm md:hidden">
+      <nav className="flex items-center justify-between bg-surface px-4 py-4 shadow-sm md:hidden">
         <h1 className="font-serif text-xl text-[#E75480]">
           Nirjara Admin
         </h1>
@@ -46,7 +46,7 @@ export default function AdminLayout({
               navigate(e.target.value);
             }
           }}
-          className="rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-3 py-2 text-sm outline-none"
+          className="rounded-xl border border-[#E75480]/20 bg-soft px-3 py-2 text-sm outline-none"
           defaultValue=""
         >
           <option value="" disabled>
@@ -70,7 +70,7 @@ export default function AdminLayout({
 
       <div className="flex min-h-screen">
         {/* DESKTOP SIDEBAR */}
-        <aside className="hidden w-64 shrink-0 border-r border-[#E75480]/10 bg-white p-6 md:block">
+        <aside className="hidden w-64 shrink-0 border-r border-[#E75480]/10 bg-surface p-6 md:block">
           <h1 className="font-serif text-2xl text-[#E75480]">
             Nirjara Admin
           </h1>
@@ -84,7 +84,7 @@ export default function AdminLayout({
                   `block rounded-xl px-4 py-3 text-sm transition ${
                     isActive
                       ? "bg-[#E75480] text-white"
-                      : "text-[#8A6F78] hover:bg-[#FCE7EF] hover:text-[#E75480]"
+                      : "text-muted hover:bg-blush hover:text-[#E75480]"
                   }`
                 }
               >
@@ -104,7 +104,7 @@ export default function AdminLayout({
           <button
             type="button"
             onClick={logout}
-            className="mt-4 w-full rounded-xl bg-[#FCE7EF] px-4 py-3 text-sm text-[#E75480]"
+            className="mt-4 w-full rounded-xl bg-blush px-4 py-3 text-sm text-[#E75480]"
           >
             Logout
           </button>

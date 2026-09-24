@@ -53,7 +53,7 @@ const getAuthHeaders = () => ({
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 // Tiptap leaves these behind when the
 // editor is emptied.
@@ -346,7 +346,7 @@ export default function BlogAdmin() {
         className="h-14 w-20 rounded-xl object-cover"
       />
     ) : (
-      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-soft text-lg text-[#E75480]">
         ✎
       </div>
     );
@@ -392,7 +392,7 @@ export default function BlogAdmin() {
       header: "Title",
       hideOnMobile: true,
       cellClassName:
-        "font-medium text-[#3A2A2F]",
+        "font-medium text-ink",
       render: (blog) => blog.title,
     },
     {
@@ -400,7 +400,7 @@ export default function BlogAdmin() {
       header: "Category",
       hideOnMobile: true,
       render: (blog) => (
-        <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+        <span className="inline-block rounded-full bg-blush px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
           {blog.category}
         </span>
       ),
@@ -449,7 +449,7 @@ export default function BlogAdmin() {
             Blogs
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Add, edit, and delete blog posts.
           </p>
         </div>
@@ -619,7 +619,7 @@ export default function BlogAdmin() {
 
                 event.target.value = "";
               }}
-              className={`${inputClass} file:mr-3 file:rounded-full file:border-0 file:bg-[#FCE7EF] file:px-4 file:py-2 file:text-xs file:text-[#E75480] disabled:cursor-not-allowed disabled:opacity-60`}
+              className={`${inputClass} file:mr-3 file:rounded-full file:border-0 file:bg-blush file:px-4 file:py-2 file:text-xs file:text-[#E75480] disabled:cursor-not-allowed disabled:opacity-60`}
             />
 
             {isUploading && (
@@ -671,7 +671,7 @@ export default function BlogAdmin() {
 
         {form.image && (
           <div className="mt-5">
-            <p className="mb-2 text-sm text-[#8A6F78]">
+            <p className="mb-2 text-sm text-muted">
               Image Preview
             </p>
 
@@ -690,7 +690,7 @@ export default function BlogAdmin() {
                     image: "",
                   }))
                 }
-                className="absolute right-3 top-3 rounded-full bg-white px-4 py-2 text-xs font-medium text-[#E75480] shadow"
+                className="absolute right-3 top-3 rounded-full bg-surface px-4 py-2 text-xs font-medium text-[#E75480] shadow"
               >
                 Remove
               </button>
@@ -722,7 +722,7 @@ export default function BlogAdmin() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Readers will no longer see this
           post on the blog page.
         </p>

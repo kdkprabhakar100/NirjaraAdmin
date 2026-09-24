@@ -218,7 +218,7 @@ export default function ContactMessagesAdmin() {
       className={`inline-block rounded-full px-4 py-1 text-xs ${
         message.status === "Read"
           ? "bg-green-100 text-green-700"
-          : "bg-[#FCE7EF] text-[#E75480]"
+          : "bg-blush text-[#E75480]"
       }`}
     >
       {message.status}
@@ -275,7 +275,7 @@ export default function ContactMessagesAdmin() {
         header: "Subject",
         hideOnMobile: true,
         cellClassName:
-          "font-medium text-[#3A2A2F]",
+          "font-medium text-ink",
         render: (message) =>
           message.subject,
       },
@@ -335,7 +335,7 @@ export default function ContactMessagesAdmin() {
           Contact Messages
         </h1>
 
-        <p className="mt-2 text-[#8A6F78]">
+        <p className="mt-2 text-muted">
           View and manage messages sent from
           the contact page.
         </p>
@@ -384,27 +384,27 @@ export default function ContactMessagesAdmin() {
         {selectedMessage && (
           <div className="space-y-5 text-sm">
             <div>
-              <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+              <p className="text-xs uppercase tracking-[1px] text-muted">
                 From
               </p>
 
-              <p className="mt-1 text-[#3A2A2F]">
+              <p className="mt-1 text-ink">
                 {selectedMessage.name}
               </p>
             </div>
 
             <div>
-              <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+              <p className="text-xs uppercase tracking-[1px] text-muted">
                 Email
               </p>
 
-              <p className="mt-1 break-words text-[#3A2A2F]">
+              <p className="mt-1 break-words text-ink">
                 {selectedMessage.email}
               </p>
             </div>
 
             <div>
-              <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+              <p className="text-xs uppercase tracking-[1px] text-muted">
                 Status
               </p>
 
@@ -416,11 +416,11 @@ export default function ContactMessagesAdmin() {
             </div>
 
             <div>
-              <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+              <p className="text-xs uppercase tracking-[1px] text-muted">
                 Message
               </p>
 
-              <p className="mt-1 whitespace-pre-line leading-7 text-[#3A2A2F]">
+              <p className="mt-1 whitespace-pre-line leading-7 text-ink">
                 {
                   selectedMessage.message
                 }
@@ -453,7 +453,7 @@ export default function ContactMessagesAdmin() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           You will lose the customer's
           contact details along with the
           message.

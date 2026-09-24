@@ -56,7 +56,7 @@ const SEARCH_DELAY_MS = 350;
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function ServiceCategoriesAdmin() {
   const navigate = useNavigate();
@@ -345,7 +345,7 @@ export default function ServiceCategoriesAdmin() {
   const badge = (
     category: ServiceCategory
   ) => (
-    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-soft text-lg text-[#E75480]">
       {category.icon || "✦"}
     </div>
   );
@@ -405,9 +405,9 @@ export default function ServiceCategoriesAdmin() {
         header: "Name",
         hideOnMobile: true,
         cellClassName:
-          "font-medium text-[#3A2A2F]",
+          "font-medium text-ink",
         render: (category) => (
-          <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+          <span className="inline-block rounded-full bg-blush px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
             {category.name}
           </span>
         ),
@@ -434,7 +434,7 @@ export default function ServiceCategoriesAdmin() {
               {category.description}
             </p>
           ) : (
-            <span className="text-[#B59AA3]">
+            <span className="text-faint">
               —
             </span>
           ),
@@ -467,7 +467,7 @@ export default function ServiceCategoriesAdmin() {
             Service Categories
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Create, edit, delete, and manage the categories services are grouped by.
           </p>
         </div>
@@ -478,7 +478,7 @@ export default function ServiceCategoriesAdmin() {
             onClick={() =>
               navigate("/services")
             }
-            className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-[#FFF5F8]"
+            className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-soft"
           >
             Services
           </button>
@@ -495,8 +495,8 @@ export default function ServiceCategoriesAdmin() {
 
       {/* SEARCH */}
 
-      <div className="mt-8 flex flex-col gap-3 rounded-3xl bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-sm text-[#8A6F78]">
+      <div className="mt-8 flex flex-col gap-3 rounded-3xl bg-surface p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-sm text-muted">
           {categories.length} categor
           {categories.length === 1
             ? "y"
@@ -513,7 +513,7 @@ export default function ServiceCategoriesAdmin() {
             setSearch(event.target.value)
           }
           placeholder="Search by category name..."
-          className="w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
+          className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
         />
       </div>
 
@@ -639,7 +639,7 @@ export default function ServiceCategoriesAdmin() {
           </FormField>
         </div>
 
-        <p className="mt-4 text-sm text-[#8A6F78]">
+        <p className="mt-4 text-sm text-muted">
           The name shows on the website as a
           filter above the services, so keep
           it short.
@@ -669,7 +669,7 @@ export default function ServiceCategoriesAdmin() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           {categoryToDelete?.serviceCount
             ? `${categoryToDelete.serviceCount} service${
                 categoryToDelete.serviceCount ===

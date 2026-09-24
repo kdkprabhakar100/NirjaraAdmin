@@ -36,11 +36,11 @@ function Detail({
 }: DetailProps) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-[1px] text-[#8A6F78]">
+      <p className="text-xs uppercase tracking-[1px] text-muted">
         {label}
       </p>
 
-      <div className="mt-1 text-[#3A2A2F]">
+      <div className="mt-1 text-ink">
         {children}
       </div>
     </div>
@@ -68,7 +68,7 @@ export default function CustomerDetailsModal({
               onClick={() =>
                 onEdit(customer)
               }
-              className="rounded-full border border-[#E75480] px-6 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-[#FFF5F8]"
+              className="rounded-full border border-[#E75480] px-6 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-soft"
             >
               Edit Customer
             </button>
@@ -81,7 +81,7 @@ export default function CustomerDetailsModal({
                   "limited"
                 )
               }
-              className="rounded-full bg-[#FFF5F8] px-6 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-[#FCE7EF]"
+              className="rounded-full bg-soft px-6 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-blush"
             >
               Limited PDF
             </button>

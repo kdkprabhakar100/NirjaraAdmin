@@ -1,5 +1,60 @@
 @import "tailwindcss";
 
+/* ========================================
+   THEME
+   
+   Pages use these names (bg-surface,
+   text-ink …) instead of fixed hex
+   colours, so switching theme only flips
+   the variables below. The .dark class on
+   <html> is set by utils/theme.ts.
+
+   The brand pink (#E75480) and white text
+   on it read well in both themes, so they
+   stay fixed.
+   ======================================== */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --surface: #ffffff;
+  --soft: #fff5f8;
+  --softer: #fff9fb;
+  --blush: #fce7ef;
+  --ink: #3a2a2f;
+  --ink-soft: #6b4a55;
+  --muted: #8a6f78;
+  --faint: #b59aa3;
+
+  color-scheme: light;
+}
+
+.dark {
+  --surface: #221a1d;
+  --soft: #181214;
+  --softer: #1d1618;
+  --blush: #3d2630;
+  --ink: #f5e9ed;
+  --ink-soft: #dcc6ce;
+  --muted: #b89ca6;
+  --faint: #8d737c;
+
+  /* Native controls (date pickers, select
+     menus, scrollbars) follow along. */
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-soft: var(--soft);
+  --color-softer: var(--softer);
+  --color-blush: var(--blush);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+}
+
 html,
 body,
 #root {
@@ -8,4 +63,18 @@ body,
 
 body {
   margin: 0;
+  background: var(--soft);
+  color: var(--ink);
 }
+
+/* Light-only status pills, toned down on dark. */
+.dark .bg-green-100 { background-color: rgb(22 101 52 / 0.35); }
+.dark .text-green-700 { color: #86efac; }
+.dark .bg-gray-100 { background-color: rgb(255 255 255 / 0.08); }
+.dark .text-gray-600,
+.dark .text-gray-500 { color: var(--muted); }
+.dark .bg-red-50,
+.dark .bg-red-100,
+.dark .hover\:bg-red-50:hover,
+.dark .hover\:bg-\[\#FEE2E2\]:hover { background-color: rgb(220 38 38 / 0.18); }
+.dark .hover\:bg-green-50:hover { background-color: rgb(22 101 52 / 0.25); }

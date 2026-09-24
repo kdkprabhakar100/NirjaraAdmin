@@ -25,11 +25,11 @@ import type { ReactNode } from "react";
 
 const THEME = {
   label:
-    "mb-2 block text-sm font-medium text-[#3A2A2F]",
+    "mb-2 block text-sm font-medium text-ink",
 
   asterisk: "ml-0.5 text-[#DC2626]",
 
-  hint: "ml-1 text-xs font-normal text-[#8A6F78]",
+  hint: "ml-1 text-xs font-normal text-muted",
 };
 
 type LabelProps = {

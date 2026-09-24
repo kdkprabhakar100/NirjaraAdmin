@@ -46,7 +46,7 @@ const getAuthHeaders = () => ({
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function CoursesAdmin() {
   const [courses, setCourses] = useState<
@@ -297,7 +297,7 @@ export default function CoursesAdmin() {
         className="h-14 w-20 rounded-xl object-cover"
       />
     ) : (
-      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-soft text-lg text-[#E75480]">
         ✦
       </div>
     );
@@ -345,7 +345,7 @@ export default function CoursesAdmin() {
       header: "Title",
       hideOnMobile: true,
       cellClassName:
-        "font-medium text-[#3A2A2F]",
+        "font-medium text-ink",
       render: (course) => course.title,
     },
     {
@@ -406,7 +406,7 @@ export default function CoursesAdmin() {
             Courses
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Manage academy courses.
           </p>
         </div>
@@ -596,14 +596,14 @@ export default function CoursesAdmin() {
         </div>
 
         {uploading && (
-          <p className="mt-4 text-sm text-[#8A6F78]">
+          <p className="mt-4 text-sm text-muted">
             Uploading image...
           </p>
         )}
 
         {form.image && (
           <div className="mt-5">
-            <p className="mb-2 text-sm text-[#8A6F78]">
+            <p className="mb-2 text-sm text-muted">
               Image Preview
             </p>
 
@@ -639,7 +639,7 @@ export default function CoursesAdmin() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Students will no longer see this
           course on the academy page.
         </p>

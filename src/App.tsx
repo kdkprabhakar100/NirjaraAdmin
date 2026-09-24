@@ -29,6 +29,7 @@ import CustomersAdmin from "./pages/customers/CustomersAdmin";
 import AdminTeam from "./pages/cms/team/AdminTeam";
 import AdminSettings from "./pages/settings/AdminSettings";
 import BranchesAdmin from "./pages/branches/BranchesAdmin";
+import UsersAdmin from "./pages/users/UsersAdmin";
 
 function ProtectedPage({
   children,
@@ -220,6 +221,16 @@ export default function App() {
           element={
             <ProtectedPage>
               <AdminTeam />
+            </ProtectedPage>
+          }
+        />
+
+        {/* USERS */}
+        <Route
+          path="/users"
+          element={
+            <ProtectedPage>
+              <UsersAdmin />
             </ProtectedPage>
           }
         />

@@ -103,7 +103,7 @@ let nextDraftId = 0;
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function GalleryAdmin() {
   const [items, setItems] = useState<
@@ -528,7 +528,7 @@ export default function GalleryAdmin() {
         header: "Title",
         hideOnMobile: true,
         cellClassName:
-          "font-medium text-[#3A2A2F]",
+          "font-medium text-ink",
         render: (item) =>
           item.title || "Untitled",
       },
@@ -537,7 +537,7 @@ export default function GalleryAdmin() {
         header: "Description",
         hideOnMobile: true,
         cellClassName:
-          "text-sm text-[#8A6F78]",
+          "text-sm text-muted",
         render: (item) => (
           <span className="line-clamp-2">
             {item.description || "—"}
@@ -574,7 +574,7 @@ export default function GalleryAdmin() {
             Gallery
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Upload and manage gallery images.
           </p>
         </div>
@@ -665,7 +665,7 @@ export default function GalleryAdmin() {
             saving ||
             readyCount >= MAX_GALLERY_BATCH
           }
-          className="flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-[#E75480]/30 bg-[#FFF5F8] px-4 py-8 text-sm text-[#8A6F78] transition hover:border-[#E75480] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-[#E75480]/30 bg-soft px-4 py-8 text-sm text-muted transition hover:border-[#E75480] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="text-[#E75480]">
             {readyCount === 0
@@ -683,9 +683,9 @@ export default function GalleryAdmin() {
         {saving && (
           <div
             role="status"
-            className="mt-5 rounded-2xl bg-[#FFF5F8] p-4"
+            className="mt-5 rounded-2xl bg-soft p-4"
           >
-            <div className="flex items-center gap-3 text-sm text-[#3A2A2F]">
+            <div className="flex items-center gap-3 text-sm text-ink">
               <LoadingSpinner
                 size="sm"
                 className="text-[#E75480]"
@@ -759,7 +759,7 @@ export default function GalleryAdmin() {
                   {saving &&
                     !draft.status &&
                     !draft.imageUrl && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/60 text-xs text-[#8A6F78]">
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/60 text-xs text-muted">
                         Waiting...
                       </div>
                     )}
@@ -838,7 +838,7 @@ export default function GalleryAdmin() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Visitors will no longer see this
           image on the website gallery.
         </p>

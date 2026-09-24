@@ -14,14 +14,14 @@ export default function TeamTable({
   onToggleStatus,
 }: TeamTableProps) {
   return (
-    <div className="overflow-hidden rounded-[28px] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-[28px] bg-surface shadow-sm">
 
       <div className="border-b border-[#E75480]/10 px-6 py-6 sm:px-8">
-        <h2 className="font-serif text-3xl text-[#3A2A2F]">
+        <h2 className="font-serif text-3xl text-ink">
           Team Members
         </h2>
 
-        <p className="mt-1 text-sm text-[#8A6F78]">
+        <p className="mt-1 text-sm text-muted">
           {members.length} team member
           {members.length === 1 ? "" : "s"}
         </p>
@@ -31,7 +31,7 @@ export default function TeamTable({
 
         <table className="w-full min-w-[900px] border-collapse">
 
-          <thead className="bg-[#FCE7EF] text-left text-sm text-[#E75480]">
+          <thead className="bg-blush text-left text-sm text-[#E75480]">
             <tr>
               <th className="p-5">
                 Photo
@@ -68,7 +68,7 @@ export default function TeamTable({
               >
 
                 <td className="p-5">
-                  <div className="h-16 w-16 overflow-hidden rounded-2xl bg-[#FFF5F8]">
+                  <div className="h-16 w-16 overflow-hidden rounded-2xl bg-soft">
 
                     {member.image ? (
                       <img
@@ -86,22 +86,22 @@ export default function TeamTable({
                 </td>
 
                 <td className="p-5">
-                  <p className="font-medium text-[#3A2A2F]">
+                  <p className="font-medium text-ink">
                     {member.name}
                   </p>
 
                   {member.bio && (
-                    <p className="mt-1 max-w-[260px] truncate text-xs text-[#8A6F78]">
+                    <p className="mt-1 max-w-[260px] truncate text-xs text-muted">
                       {member.bio}
                     </p>
                   )}
                 </td>
 
-                <td className="p-5 text-sm text-[#8A6F78]">
+                <td className="p-5 text-sm text-muted">
                   {member.designation}
                 </td>
 
-                <td className="p-5 text-sm text-[#8A6F78]">
+                <td className="p-5 text-sm text-muted">
                   {member.displayOrder}
                 </td>
 
@@ -133,7 +133,7 @@ export default function TeamTable({
                       onClick={() =>
                         onToggleStatus(member)
                       }
-                      className="rounded-full bg-[#FFF5F8] px-4 py-2 text-xs text-[#E75480]"
+                      className="rounded-full bg-soft px-4 py-2 text-xs text-[#E75480]"
                     >
                       {member.status === "Active"
                         ? "Hide"
@@ -160,7 +160,7 @@ export default function TeamTable({
               <tr>
                 <td
                   colSpan={6}
-                  className="p-12 text-center text-[#8A6F78]"
+                  className="p-12 text-center text-muted"
                 >
                   No team members have been added yet.
                 </td>

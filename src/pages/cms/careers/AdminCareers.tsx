@@ -44,7 +44,7 @@ const emptyForm = {
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function AdminCareers() {
   const [careers, setCareers] = useState<
@@ -358,7 +358,7 @@ export default function AdminCareers() {
       header: "Job Title",
       hideOnMobile: true,
       cellClassName:
-        "font-medium text-[#3A2A2F]",
+        "font-medium text-ink",
       render: (career) => career.title,
     },
     {
@@ -425,7 +425,7 @@ export default function AdminCareers() {
             Careers
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Post and manage job openings
             shown on the careers page.
           </p>
@@ -596,7 +596,7 @@ export default function AdminCareers() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Applicants will no longer see
           this opening on the website.
         </p>

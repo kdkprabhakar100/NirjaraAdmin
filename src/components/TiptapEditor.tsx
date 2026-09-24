@@ -77,7 +77,7 @@ export default function TiptapEditor({
     editorProps: {
       attributes: {
         class:
-          "min-h-[350px] w-full bg-white px-5 py-5 text-sm leading-7 text-[#3A2A2F] outline-none md:text-base",
+          "min-h-[350px] w-full bg-surface px-5 py-5 text-sm leading-7 text-ink outline-none md:text-base",
       },
     },
 
@@ -176,7 +176,7 @@ export default function TiptapEditor({
 
   if (!editor) {
     return (
-      <div className="min-h-[350px] rounded-2xl border border-[#E75480]/20 bg-white p-5 text-sm text-[#8A6F78]">
+      <div className="min-h-[350px] rounded-2xl border border-[#E75480]/20 bg-surface p-5 text-sm text-muted">
         Loading editor...
       </div>
     );
@@ -190,7 +190,7 @@ export default function TiptapEditor({
       "rounded-lg border px-3 py-2 text-xs font-medium transition",
       active
         ? "border-[#E75480] bg-[#E75480] text-white"
-        : "border-[#E75480]/20 bg-white text-[#6B4A55] hover:border-[#E75480] hover:bg-[#FFF5F8]",
+        : "border-[#E75480]/20 bg-surface text-ink-soft hover:border-[#E75480] hover:bg-soft",
       disabled ? "cursor-not-allowed opacity-40" : "",
     ].join(" ");
 
@@ -198,8 +198,8 @@ export default function TiptapEditor({
   const canRedo = editor.can().chain().focus().redo().run();
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#E75480]/20 bg-white">
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#E75480]/20 bg-[#FFF5F8] p-3">
+    <div className="overflow-hidden rounded-2xl border border-[#E75480]/20 bg-surface">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#E75480]/20 bg-soft p-3">
         <button
           type="button"
           onClick={() =>
@@ -318,7 +318,7 @@ export default function TiptapEditor({
 
         <label
           title="Text colour"
-          className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#E75480]/20 bg-white px-3 py-2 text-xs text-[#6B4A55]"
+          className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#E75480]/20 bg-surface px-3 py-2 text-xs text-ink-soft"
         >
           Colour
 

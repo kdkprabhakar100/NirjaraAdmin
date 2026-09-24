@@ -11,24 +11,33 @@ import FormField from "../../components/FormField";
 
 import RowActionsMenu from "../../components/RowActionsMenu";
 
+import {
+  getAdminSession,
+  hasPermission,
+} from "../../services/auth/authService";
+
+import type { AdminRole } from "../../services/auth/auth.types";
+
 import { getApiErrorMessage } from "../../services/base/api";
 
 import {
-  createBranch,
-  deleteBranch,
-  getBranches,
-  updateBranch,
-} from "../../services/branch/branchService";
-
-import type {
-  Branch,
-  BranchPayload,
-} from "../../services/branch/branch.types";
+  createAdminUser,
+  deleteAdminUser,
+  getAdminUsers,
+  updateAdminUser,
+} from "../../services/adminUser/adminUserService";
 
 import {
-  phone,
+  ADMIN_ROLES,
+  type AdminUser,
+  type AdminUserPayload,
+} from "../../services/adminUser/adminUser.types";
+
+import {
+  email,
+  maxLength,
+  minLength,
   required,
-  url,
   validate,
 } from "../../utils/validation";
 
@@ -36,13 +45,11 @@ import {
 // FORM DEFAULTS
 // ========================================
 
-const EMPTY_FORM: BranchPayload = {
+const EMPTY_FORM: AdminUserPayload = {
   name: "",
-  label: "",
-  address: "",
-  phone: "",
-  openingHours: "",
-  mapUrl: "",
+  email: "",
+  role: "staff",
+  password: "",
 };
 
 // ========================================
@@ -50,69 +57,90 @@ const EMPTY_FORM: BranchPayload = {
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480] disabled:cursor-not-allowed disabled:opacity-60";
 
-export default function BranchesAdmin() {
-  const [branches, setBranches] = useState<
-    Branch[]
+const roleLabel = (role: AdminRole) =>
+  ADMIN_ROLES.find(
+    (item) => item.value === role
+  )?.label ?? role;
+
+export default function UsersAdmin() {
+  // Staff reach this page only by typing
+  // the URL; the API would refuse them
+  // anyway, so say so instead of showing
+  // a failed load.
+  const canManage =
+    hasPermission("users.manage");
+
+  const currentUserId =
+    getAdminSession()?.id;
+
+  const [users, setUsers] = useState<
+    AdminUser[]
   >([]);
 
   const [loading, setLoading] =
-    useState(true);
+    useState(canManage);
 
   const [form, setForm] =
-    useState<BranchPayload>(EMPTY_FORM);
+    useState<AdminUserPayload>(EMPTY_FORM);
 
   const [formOpen, setFormOpen] =
     useState(false);
 
-  // Null while adding a new branch.
+  // Null while adding a new user.
   const [editingId, setEditingId] =
     useState<string | null>(null);
 
   const [saving, setSaving] =
     useState(false);
 
-  // The branch awaiting delete
+  // The user awaiting delete
   // confirmation. Null means the dialog
   // is closed.
-  const [branchToDelete, setBranchToDelete] =
-    useState<Branch | null>(null);
+  const [userToDelete, setUserToDelete] =
+    useState<AdminUser | null>(null);
 
   const [deleting, setDeleting] =
     useState(false);
+
+  const editingSelf =
+    editingId !== null &&
+    editingId === currentUserId;
 
   // ============================
   // FETCH
   // ============================
 
-  const fetchBranches = async () => {
+  const fetchUsers = async () => {
     try {
       setLoading(true);
 
-      setBranches(await getBranches());
+      setUsers(await getAdminUsers());
     } catch (error) {
       console.error(
-        "Fetch branches error:",
+        "Fetch users error:",
         error
       );
 
       toast.error(
         getApiErrorMessage(
           error,
-          "Failed to load branches"
+          "Failed to load users"
         )
       );
 
-      setBranches([]);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBranches();
-  }, []);
+    if (canManage) {
+      fetchUsers();
+    }
+  }, [canManage]);
 
   // ============================
   // FORM
@@ -124,17 +152,15 @@ export default function BranchesAdmin() {
     setFormOpen(true);
   };
 
-  const openEditForm = (branch: Branch) => {
+  const openEditForm = (user: AdminUser) => {
     setForm({
-      name: branch.name,
-      label: branch.label,
-      address: branch.address,
-      phone: branch.phone,
-      openingHours: branch.openingHours,
-      mapUrl: branch.mapUrl,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      password: "",
     });
 
-    setEditingId(branch._id);
+    setEditingId(user._id);
     setFormOpen(true);
   };
 
@@ -144,9 +170,11 @@ export default function BranchesAdmin() {
     setEditingId(null);
   };
 
-  const updateField = (
-    field: keyof BranchPayload,
-    value: string
+  const updateField = <
+    K extends keyof AdminUserPayload,
+  >(
+    field: K,
+    value: AdminUserPayload[K]
   ) => {
     setForm((previous) => ({
       ...previous,
@@ -160,9 +188,18 @@ export default function BranchesAdmin() {
 
   const handleSubmit = async () => {
     const error = validate(form, {
-      name: ["Branch name", [required()]],
-      phone: ["Phone", [phone()]],
-      mapUrl: ["Google Maps URL", [url()]],
+      name: ["Name", [required()]],
+      email: ["Email", [required(), email()]],
+      // Blank keeps the current password
+      // when editing.
+      password: [
+        "Password",
+        [
+          ...(editingId ? [] : [required()]),
+          minLength(8),
+          maxLength(128),
+        ],
+      ],
     });
 
     if (error) {
@@ -171,48 +208,45 @@ export default function BranchesAdmin() {
       return;
     }
 
-    const payload: BranchPayload = {
+    const payload: AdminUserPayload = {
+      ...form,
       name: form.name.trim(),
-      label: form.label.trim(),
-      address: form.address.trim(),
-      phone: form.phone.trim(),
-      openingHours: form.openingHours.trim(),
-      mapUrl: form.mapUrl.trim(),
+      email: form.email.trim(),
     };
 
     try {
       setSaving(true);
 
       if (editingId) {
-        await updateBranch(
+        await updateAdminUser(
           editingId,
           payload
         );
 
         toast.success(
-          "Branch updated successfully!"
+          "User updated successfully!"
         );
       } else {
-        await createBranch(payload);
+        await createAdminUser(payload);
 
         toast.success(
-          "Branch added successfully!"
+          "User added successfully!"
         );
       }
 
       closeForm();
 
-      await fetchBranches();
+      await fetchUsers();
     } catch (error) {
       console.error(
-        "Save branch error:",
+        "Save user error:",
         error
       );
 
       toast.error(
         getApiErrorMessage(
           error,
-          "Unable to save the branch"
+          "Unable to save the user"
         )
       );
     } finally {
@@ -228,34 +262,34 @@ export default function BranchesAdmin() {
   // ============================
 
   const confirmDelete = async () => {
-    if (!branchToDelete) {
+    if (!userToDelete) {
       return;
     }
 
     try {
       setDeleting(true);
 
-      await deleteBranch(
-        branchToDelete._id
+      await deleteAdminUser(
+        userToDelete._id
       );
 
       toast.success(
-        "Branch deleted successfully!"
+        "User deleted successfully!"
       );
 
-      setBranchToDelete(null);
+      setUserToDelete(null);
 
-      await fetchBranches();
+      await fetchUsers();
     } catch (error) {
       console.error(
-        "Delete branch error:",
+        "Delete user error:",
         error
       );
 
       toast.error(
         getApiErrorMessage(
           error,
-          "Unable to delete the branch"
+          "Unable to delete the user"
         )
       );
 
@@ -270,91 +304,97 @@ export default function BranchesAdmin() {
   // ROW PIECES
   // ============================
 
-  const renderActions = (branch: Branch) => (
+  const roleBadge = (user: AdminUser) => (
+    <span
+      className={`inline-block rounded-full px-4 py-1 text-xs uppercase tracking-[1px] ${
+        user.role === "admin"
+          ? "bg-blush text-[#E75480]"
+          : "bg-gray-100 text-gray-600"
+      }`}
+    >
+      {roleLabel(user.role)}
+    </span>
+  );
+
+  const nameCell = (user: AdminUser) => (
+    <span className="font-medium text-ink">
+      {user.name}
+
+      {user._id === currentUserId && (
+        <span className="ml-2 text-xs font-normal text-muted">
+          (you)
+        </span>
+      )}
+    </span>
+  );
+
+  const renderActions = (user: AdminUser) => (
     <RowActionsMenu
-      label={`Actions for ${branch.name}`}
+      label={`Actions for ${user.name}`}
       actions={[
         {
           key: "edit",
           label: "Edit",
           icon: "✎",
           onSelect: () =>
-            openEditForm(branch),
+            openEditForm(user),
         },
-        ...(branch.mapUrl
-          ? [
+        // The API refuses deleting
+        // yourself; hiding it saves the
+        // round trip.
+        ...(user._id === currentUserId
+          ? []
+          : [
               {
-                key: "map",
-                label: "Open map",
-                icon: "⌖",
+                key: "delete",
+                label: "Delete",
+                icon: "🗑",
+                tone: "danger" as const,
+                dividerBefore: true,
                 onSelect: () =>
-                  window.open(
-                    branch.mapUrl,
-                    "_blank",
-                    "noopener"
-                  ),
+                  setUserToDelete(user),
               },
-            ]
-          : []),
-        {
-          key: "delete",
-          label: "Delete",
-          icon: "🗑",
-          tone: "danger",
-          onSelect: () =>
-            setBranchToDelete(branch),
-        },
+            ]),
       ]}
     />
-  );
-
-  const nameCell = (branch: Branch) => (
-    <div>
-      <p className="font-medium text-ink">
-        {branch.name}
-      </p>
-
-      {branch.label && (
-        <p className="mt-1 text-xs text-[#E75480]">
-          {branch.label}
-        </p>
-      )}
-    </div>
   );
 
   // ============================
   // COLUMNS
   // ============================
 
-  const columns: TableColumn<Branch>[] = [
+  const columns: TableColumn<AdminUser>[] = [
     {
       key: "name",
-      header: "Branch",
+      header: "Name",
       hideOnMobile: true,
       render: nameCell,
     },
     {
-      key: "address",
-      header: "Address",
-      cellClassName:
-        "text-sm text-muted",
-      render: (branch) =>
-        branch.address || "—",
+      key: "email",
+      header: "Email",
+      cellClassName: "break-all",
+      render: (user) => user.email,
     },
     {
-      key: "phone",
-      header: "Phone",
-      width: "160px",
-      render: (branch) =>
-        branch.phone || "—",
+      key: "role",
+      header: "Role",
+      width: "130px",
+      hideOnMobile: true,
+      render: roleBadge,
     },
     {
-      key: "hours",
-      header: "Opening Hours",
+      key: "created",
+      header: "Added",
+      width: "140px",
       cellClassName:
-        "text-sm text-muted",
-      render: (branch) =>
-        branch.openingHours || "—",
+        "whitespace-nowrap text-sm text-muted",
+      render: (user) =>
+        user.createdAt
+          ? new Date(
+              user.createdAt
+            ).toLocaleDateString()
+          : "—",
     },
     {
       key: "actions",
@@ -370,6 +410,21 @@ export default function BranchesAdmin() {
   // UI
   // ============================
 
+  if (!canManage) {
+    return (
+      <div className="rounded-3xl bg-surface px-6 py-14 text-center shadow-sm">
+        <p className="font-medium text-ink">
+          Admins only
+        </p>
+
+        <p className="mt-2 text-sm text-muted">
+          Ask an admin if you need an account
+          added or changed.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* HEADER */}
@@ -381,12 +436,12 @@ export default function BranchesAdmin() {
           </p>
 
           <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
-            Branches
+            Users
           </h1>
 
           <p className="mt-2 text-muted">
-            Manage salon locations and contact
-            details shown on the website.
+            People who can sign in to this admin
+            panel.
           </p>
         </div>
 
@@ -395,7 +450,7 @@ export default function BranchesAdmin() {
           onClick={openAddForm}
           className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
         >
-          Add Branch
+          Add User
         </button>
       </div>
 
@@ -404,15 +459,16 @@ export default function BranchesAdmin() {
       <CustomTable
         className="mt-10"
         columns={columns}
-        rows={branches}
-        rowKey={(branch) => branch._id}
+        rows={users}
+        rowKey={(user) => user._id}
         loading={loading}
-        loadingMessage="Loading branches..."
-        emptyIcon="⌂"
-        emptyTitle="No branches yet"
-        emptyMessage="Add your first branch using the button above."
-        minWidth="800px"
+        loadingMessage="Loading users..."
+        emptyIcon="☺"
+        emptyTitle="No users yet"
+        emptyMessage="Add your first user using the button above."
+        minWidth="760px"
         mobileTitle={nameCell}
+        mobileBadge={roleBadge}
         mobileActions={renderActions}
       />
 
@@ -425,9 +481,7 @@ export default function BranchesAdmin() {
         onClose={closeForm}
         eyebrow="Management"
         title={
-          editingId
-            ? "Edit Branch"
-            : "Add Branch"
+          editingId ? "Edit User" : "Add User"
         }
         size="lg"
         onSubmit={handleSubmit}
@@ -439,21 +493,17 @@ export default function BranchesAdmin() {
         }
         confirmLabel={
           editingId
-            ? "Update Branch"
-            : "Add Branch"
+            ? "Update User"
+            : "Add User"
         }
         // A half filled form should not
         // vanish on a stray click.
         closeOnBackdrop={false}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField
-            label="Branch Name"
-            required
-          >
+          <FormField label="Name" required>
             <input
               required
-              placeholder="e.g. Rabibhawan Branch"
               value={form.name}
               onChange={(e) =>
                 updateField(
@@ -465,13 +515,14 @@ export default function BranchesAdmin() {
             />
           </FormField>
 
-          <FormField label="Label">
+          <FormField label="Email" required>
             <input
-              placeholder="e.g. Main Branch · Est. 2013"
-              value={form.label}
+              required
+              type="email"
+              value={form.email}
               onChange={(e) =>
                 updateField(
-                  "label",
+                  "email",
                   e.target.value
                 )
               }
@@ -480,61 +531,57 @@ export default function BranchesAdmin() {
           </FormField>
 
           <FormField
-            label="Address"
-            className="md:col-span-2"
+            label="Role"
+            required
+            hint={
+              editingSelf
+                ? "you cannot change your own role"
+                : undefined
+            }
           >
-            <input
-              value={form.address}
+            <select
+              required
+              value={form.role}
+              disabled={editingSelf}
               onChange={(e) =>
                 updateField(
-                  "address",
-                  e.target.value
+                  "role",
+                  e.target.value as AdminRole
                 )
               }
               className={inputClass}
-            />
-          </FormField>
-
-          <FormField label="Phone">
-            <input
-              type="tel"
-              placeholder="e.g. +977 9851097472"
-              value={form.phone}
-              onChange={(e) =>
-                updateField(
-                  "phone",
-                  e.target.value
-                )
-              }
-              className={inputClass}
-            />
-          </FormField>
-
-          <FormField label="Opening Hours">
-            <input
-              placeholder="e.g. 8:30 AM – 10:00 PM · Open Daily"
-              value={form.openingHours}
-              onChange={(e) =>
-                updateField(
-                  "openingHours",
-                  e.target.value
-                )
-              }
-              className={inputClass}
-            />
+            >
+              {ADMIN_ROLES.map((role) => (
+                <option
+                  key={role.value}
+                  value={role.value}
+                >
+                  {role.label} —{" "}
+                  {role.description}
+                </option>
+              ))}
+            </select>
           </FormField>
 
           <FormField
-            label="Google Maps URL"
-            className="md:col-span-2"
+            label="Password"
+            required={!editingId}
+            hint={
+              editingId
+                ? "leave blank to keep the current one"
+                : "at least 8 characters"
+            }
           >
             <input
-              type="url"
-              placeholder="https://maps.google.com/..."
-              value={form.mapUrl}
+              required={!editingId}
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              value={form.password}
               onChange={(e) =>
                 updateField(
-                  "mapUrl",
+                  "password",
                   e.target.value
                 )
               }
@@ -549,15 +596,15 @@ export default function BranchesAdmin() {
       {/* ============================ */}
 
       <DialogBox
-        open={Boolean(branchToDelete)}
+        open={Boolean(userToDelete)}
         onClose={() =>
-          setBranchToDelete(null)
+          setUserToDelete(null)
         }
         eyebrow="Confirm"
-        title="Delete branch?"
+        title="Delete user?"
         description={
-          branchToDelete
-            ? `"${branchToDelete.name}" will be removed from the website. This cannot be undone.`
+          userToDelete
+            ? `${userToDelete.name} will no longer be able to sign in. This cannot be undone.`
             : undefined
         }
         size="sm"
@@ -568,8 +615,8 @@ export default function BranchesAdmin() {
         onConfirm={confirmDelete}
       >
         <p className="text-sm text-muted">
-          Visitors will no longer see this
-          branch on the website.
+          They are signed out on their next
+          request.
         </p>
       </DialogBox>
     </div>

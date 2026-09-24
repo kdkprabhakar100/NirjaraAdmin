@@ -31,20 +31,20 @@ import LoadingSpinner from "./LoadingSpinner";
 
 const THEME = {
   shell:
-    "overflow-hidden rounded-3xl bg-white shadow-sm",
+    "overflow-hidden rounded-3xl bg-surface shadow-sm",
 
-  head: "bg-[#FCE7EF] text-[#E75480]",
+  head: "bg-blush text-[#E75480]",
 
   headCell:
     "px-5 py-4 text-sm font-semibold",
 
-  row: "border-t border-[#E75480]/10 transition hover:bg-[#FFF9FB]",
+  row: "border-t border-[#E75480]/10 transition hover:bg-softer",
 
-  cell: "px-5 py-5 text-sm text-[#8A6F78]",
+  cell: "px-5 py-5 text-sm text-muted",
 
-  muted: "text-[#8A6F78]",
+  muted: "text-muted",
 
-  strong: "text-[#3A2A2F]",
+  strong: "text-ink",
 };
 
 // ========================================
@@ -250,7 +250,7 @@ function StateMessage({
   return (
     <div className="px-6 py-14 text-center">
       {icon && (
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF5F8] text-xl text-[#E75480]">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-soft text-xl text-[#E75480]">
           {icon}
         </div>
       )}
@@ -375,7 +375,7 @@ export default function CustomTable<T>({
                 : undefined
             }
             {...extra}
-            className={`rounded-3xl bg-white p-5 shadow-sm ${
+            className={`rounded-3xl bg-surface p-5 shadow-sm ${
               onRowClick
                 ? "cursor-pointer"
                 : ""

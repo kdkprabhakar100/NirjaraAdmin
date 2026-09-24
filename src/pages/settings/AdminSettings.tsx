@@ -145,11 +145,11 @@ export default function AdminSettings() {
   };
 
   const inputStyle =
-    "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 outline-none focus:border-[#E75480]";
+    "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 outline-none focus:border-[#E75480]";
 
   if (loading) {
     return (
-      <div className="text-[#8A6F78]">
+      <div className="text-muted">
         Loading website settings...
       </div>
     );
@@ -161,7 +161,7 @@ export default function AdminSettings() {
         Site Settings
       </h1>
 
-      <p className="mt-2 text-[#8A6F78]">
+      <p className="mt-2 text-muted">
         Manage contact information and social media
         displayed across the website. Branches have
         their own page.
@@ -173,8 +173,8 @@ export default function AdminSettings() {
       >
         {/* BUSINESS */}
 
-        <section className="rounded-3xl bg-white p-6 shadow-sm">
-          <h2 className="font-serif text-2xl text-[#3A2A2F]">
+        <section className="rounded-3xl bg-surface p-6 shadow-sm">
+          <h2 className="font-serif text-2xl text-ink">
             Business Information
           </h2>
 
@@ -230,8 +230,8 @@ export default function AdminSettings() {
 
         {/* SOCIAL MEDIA */}
 
-        <section className="rounded-3xl bg-white p-6 shadow-sm">
-          <h2 className="font-serif text-2xl text-[#3A2A2F]">
+        <section className="rounded-3xl bg-surface p-6 shadow-sm">
+          <h2 className="font-serif text-2xl text-ink">
             Social Media
           </h2>
 

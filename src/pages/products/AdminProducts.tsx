@@ -53,7 +53,7 @@ const emptyForm = {
 // ========================================
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-[#FFF5F8] px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function AdminProducts() {
   const [products, setProducts] =
@@ -244,7 +244,7 @@ export default function AdminProducts() {
         className="h-14 w-20 rounded-xl object-cover"
       />
     ) : (
-      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-[#FFF5F8] text-lg text-[#E75480]">
+      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-soft text-lg text-[#E75480]">
         🛍
       </div>
     );
@@ -285,7 +285,7 @@ export default function AdminProducts() {
         header: "Product",
         hideOnMobile: true,
         cellClassName:
-          "font-medium text-[#3A2A2F]",
+          "font-medium text-ink",
         render: (product) =>
           product.name,
       },
@@ -294,7 +294,7 @@ export default function AdminProducts() {
         header: "Category",
         hideOnMobile: true,
         render: (product) => (
-          <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+          <span className="inline-block rounded-full bg-blush px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
             {product.category}
           </span>
         ),
@@ -359,7 +359,7 @@ export default function AdminProducts() {
             Products
           </h1>
 
-          <p className="mt-2 text-[#8A6F78]">
+          <p className="mt-2 text-muted">
             Manage ecommerce products.
           </p>
         </div>
@@ -556,7 +556,7 @@ export default function AdminProducts() {
 
         {form.image && (
           <div className="mt-5">
-            <p className="mb-2 text-sm text-[#8A6F78]">
+            <p className="mb-2 text-sm text-muted">
               Image Preview
             </p>
 
@@ -592,7 +592,7 @@ export default function AdminProducts() {
         submitting={deleting}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Customers will no longer be able
           to order this product.
         </p>

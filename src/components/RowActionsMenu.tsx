@@ -86,7 +86,7 @@ const TONE: Record<
   string
 > = {
   default:
-    "text-[#3A2A2F] hover:bg-[#FFF5F8]",
+    "text-ink hover:bg-soft",
 
   success:
     "text-green-700 hover:bg-green-50",
@@ -308,8 +308,8 @@ export default function RowActionsMenu({
         }
         className={`flex h-9 w-9 items-center justify-center rounded-full border text-[#E75480] transition disabled:cursor-not-allowed disabled:opacity-50 ${
           open
-            ? "border-[#E75480] bg-[#FCE7EF]"
-            : "border-[#E75480]/20 bg-[#FFF5F8] hover:border-[#E75480] hover:bg-[#FCE7EF]"
+            ? "border-[#E75480] bg-blush"
+            : "border-[#E75480]/20 bg-soft hover:border-[#E75480] hover:bg-blush"
         } ${busy ? "animate-pulse" : ""}`}
       >
         <svg
@@ -350,7 +350,7 @@ export default function RowActionsMenu({
                 ? "visible"
                 : "hidden",
             }}
-            className="fixed z-[60] w-44 overflow-hidden rounded-2xl border border-[#E75480]/10 bg-white py-2 shadow-xl"
+            className="fixed z-[60] w-44 overflow-hidden rounded-2xl border border-[#E75480]/10 bg-surface py-2 shadow-xl"
           >
             {actions.map((action) => (
               <div key={action.key}>

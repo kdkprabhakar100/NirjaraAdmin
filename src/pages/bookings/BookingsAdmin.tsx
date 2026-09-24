@@ -194,7 +194,7 @@ export default function BookingsAdmin() {
       return "bg-red-100 text-red-700";
     }
 
-    return "bg-[#FCE7EF] text-[#E75480]";
+    return "bg-blush text-[#E75480]";
   };
 
   const statusBadge = (
@@ -285,7 +285,7 @@ export default function BookingsAdmin() {
       header: "Customer",
       hideOnMobile: true,
       cellClassName:
-        "font-medium text-[#3A2A2F]",
+        "font-medium text-ink",
       render: (booking) => booking.name,
     },
     {
@@ -364,7 +364,7 @@ export default function BookingsAdmin() {
           Bookings
         </h1>
 
-        <p className="mt-2 text-[#8A6F78]">
+        <p className="mt-2 text-muted">
           View, confirm, cancel, or delete customer bookings.
         </p>
       </div>
@@ -418,7 +418,7 @@ export default function BookingsAdmin() {
         )}
         onConfirm={confirmDelete}
       >
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Cancelling the booking instead
           keeps the record and lets the
           customer be notified.
