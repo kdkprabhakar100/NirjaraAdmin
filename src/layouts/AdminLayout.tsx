@@ -8,6 +8,7 @@ import {
   isNavGroup,
   navigation,
   type NavGroup,
+  type NavLinkItem,
 } from "../config/navigation";
 
 type AdminLayoutProps = {
@@ -20,6 +21,35 @@ const linkClass = (isActive: boolean) =>
       ? "bg-[#E75480] text-white"
       : "text-[#8A6F78] hover:bg-[#FCE7EF] hover:text-[#E75480]"
   }`;
+
+// ========================================
+// SIDEBAR LINK
+// ========================================
+
+function SidebarLink({
+  link,
+}: {
+  link: NavLinkItem;
+}) {
+  const { pathname } = useLocation();
+
+  const activeElsewhere =
+    link.activeFor?.includes(pathname) ??
+    false;
+
+  return (
+    <NavLink
+      to={link.path}
+      className={({ isActive }) =>
+        linkClass(
+          isActive || activeElsewhere
+        )
+      }
+    >
+      {link.label}
+    </NavLink>
+  );
+}
 
 // ========================================
 // SIDEBAR GROUP
@@ -103,15 +133,10 @@ function SidebarGroup({
           className="mt-2 ml-3 space-y-2 border-l border-[#E75480]/15 pl-3"
         >
           {group.children.map((link) => (
-            <NavLink
+            <SidebarLink
               key={link.path}
-              to={link.path}
-              className={({ isActive }) =>
-                linkClass(isActive)
-              }
-            >
-              {link.label}
-            </NavLink>
+              link={link}
+            />
           ))}
         </div>
       )}
@@ -190,15 +215,10 @@ export default function AdminLayout({
                   group={item}
                 />
               ) : (
-                <NavLink
+                <SidebarLink
                   key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    linkClass(isActive)
-                  }
-                >
-                  {item.label}
-                </NavLink>
+                  link={item}
+                />
               )
             )}
           </div>

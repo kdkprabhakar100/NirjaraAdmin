@@ -9,6 +9,10 @@
 export type NavLinkItem = {
   label: string;
   path: string;
+  // Pages reached from this one that are
+  // not in the sidebar themselves; the
+  // link stays highlighted on them.
+  activeFor?: string[];
 };
 
 export type NavGroup = {
@@ -25,8 +29,11 @@ export const isNavGroup = (
 export const navigation: NavItem[] = [
   { label: "Dashboard", path: "/dashboard" },
   { label: "Bookings", path: "/bookings" },
-  { label: "Services", path: "/services" },
-  { label: "Service Categories", path: "/service-categories" },
+  {
+    label: "Services",
+    path: "/services",
+    activeFor: ["/service-categories"],
+  },
   { label: "Courses", path: "/courses" },
   { label: "Messages", path: "/messages" },
   {
