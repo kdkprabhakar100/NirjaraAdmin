@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 import DialogBox from "../../components/DialogBox";
@@ -25,6 +25,15 @@ import {
   validate,
 } from "../../utils/validation";
 
+import { getApiErrorMessage } from "../../services/base/api";
+
+import {
+  createCustomer,
+  deleteCustomer,
+  getCustomers,
+  updateCustomer,
+} from "../../services/customer/customerService";
+
 const emptyForm: CustomerFormData = {
   name: "",
   email: "",
@@ -34,47 +43,18 @@ const emptyForm: CustomerFormData = {
   status: "Active",
 };
 
-const mockCustomers: Customer[] = [
-  {
-    _id: "1",
-    name: "Aarati Sharma",
-    email: "aarati@example.com",
-    phone: "+977 9800000001",
-    address: "Kathmandu, Nepal",
-    notes:
-      "Regular bridal makeup customer.",
-    status: "Active",
-    createdAt:
-      "2026-09-01T10:00:00.000Z",
-  },
-  {
-    _id: "2",
-    name: "Sujata Karki",
-    email: "sujata@example.com",
-    phone: "+977 9800000002",
-    address: "Lalitpur, Nepal",
-    notes:
-      "Interested in beauty academy courses.",
-    status: "Active",
-    createdAt:
-      "2026-09-02T10:00:00.000Z",
-  },
-  {
-    _id: "3",
-    name: "Priya Thapa",
-    email: "priya@example.com",
-    phone: "+977 9800000003",
-    address: "Bhaktapur, Nepal",
-    notes: "",
-    status: "Inactive",
-    createdAt:
-      "2026-09-03T10:00:00.000Z",
-  },
-];
-
 export default function CustomersAdmin() {
   const [customers, setCustomers] =
-    useState<Customer[]>(mockCustomers);
+    useState<Customer[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [deleting, setDeleting] =
+    useState(false);
 
   const [form, setForm] =
     useState<CustomerFormData>(
@@ -107,6 +87,38 @@ export default function CustomersAdmin() {
     useState<
       "All" | "Active" | "Inactive"
     >("All");
+
+  // ============================
+  // FETCH
+  // ============================
+
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+
+      setCustomers(await getCustomers());
+    } catch (error) {
+      console.error(
+        "Fetch customers error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Failed to load customers"
+        )
+      );
+
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   // ============================
   // FORM
@@ -154,7 +166,7 @@ export default function CustomersAdmin() {
   // ADD / UPDATE CUSTOMER
   // ============================
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const error = validate(form, {
       name: ["Name", [required()]],
       email: ["Email", [required(), email()]],
@@ -167,44 +179,53 @@ export default function CustomersAdmin() {
       return;
     }
 
-    if (editingId) {
-      setCustomers((previous) =>
-        previous.map((customer) =>
-          customer._id === editingId
-            ? {
-                ...customer,
-                ...form,
-              }
-            : customer
-        )
-      );
+    const payload: CustomerFormData = {
+      ...form,
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      address: form.address.trim(),
+      notes: form.notes.trim(),
+    };
 
-      toast.success(
-        "Customer updated successfully!"
-      );
+    try {
+      setSaving(true);
+
+      if (editingId) {
+        await updateCustomer(
+          editingId,
+          payload
+        );
+
+        toast.success(
+          "Customer updated successfully!"
+        );
+      } else {
+        await createCustomer(payload);
+
+        toast.success(
+          "Customer added successfully!"
+        );
+      }
 
       closeForm();
 
-      return;
+      await fetchCustomers();
+    } catch (error) {
+      console.error(
+        "Save customer error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to save the customer"
+        )
+      );
+    } finally {
+      setSaving(false);
     }
-
-    const newCustomer: Customer = {
-      _id: crypto.randomUUID(),
-      ...form,
-      createdAt:
-        new Date().toISOString(),
-    };
-
-    setCustomers((previous) => [
-      newCustomer,
-      ...previous,
-    ]);
-
-    toast.success(
-      "Customer added successfully!"
-    );
-
-    closeForm();
   };
 
   // ============================
@@ -214,33 +235,56 @@ export default function CustomersAdmin() {
   // only runs once the admin confirms.
   // ============================
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!customerToDelete) {
       return;
     }
 
     const id = customerToDelete._id;
 
-    setCustomers((previous) =>
-      previous.filter(
-        (customer) =>
-          customer._id !== id
-      )
-    );
+    try {
+      setDeleting(true);
 
-    if (editingId === id) {
-      closeForm();
+      await deleteCustomer(id);
+
+      setCustomers((previous) =>
+        previous.filter(
+          (customer) =>
+            customer._id !== id
+        )
+      );
+
+      if (editingId === id) {
+        closeForm();
+      }
+
+      if (selectedCustomer?._id === id) {
+        setSelectedCustomer(null);
+      }
+
+      toast.success(
+        "Customer deleted successfully!"
+      );
+
+      setCustomerToDelete(null);
+    } catch (error) {
+      console.error(
+        "Delete customer error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to delete the customer"
+        )
+      );
+
+      // Dialog stays open so the admin can
+      // retry.
+    } finally {
+      setDeleting(false);
     }
-
-    if (selectedCustomer?._id === id) {
-      setSelectedCustomer(null);
-    }
-
-    toast.success(
-      "Customer deleted successfully!"
-    );
-
-    setCustomerToDelete(null);
   };
 
   // ============================
@@ -473,6 +517,7 @@ export default function CustomersAdmin() {
 
       <CustomerTable
         customers={filteredCustomers}
+        loading={loading}
         onEdit={openEditForm}
         onDelete={setCustomerToDelete}
         onView={setSelectedCustomer}
@@ -493,6 +538,12 @@ export default function CustomersAdmin() {
         }
         size="lg"
         onSubmit={handleSubmit}
+        submitting={saving}
+        submittingLabel={
+          editingId
+            ? "Updating..."
+            : "Adding..."
+        }
         confirmLabel={
           editingId
             ? "Update Customer"
@@ -546,6 +597,8 @@ export default function CustomersAdmin() {
         size="sm"
         destructive
         confirmLabel="Delete"
+        submittingLabel="Deleting..."
+        submitting={deleting}
         onConfirm={confirmDelete}
       >
         <p className="text-sm text-[#8A6F78]">
