@@ -18,6 +18,13 @@ import type {
   CustomerFormData,
 } from "../types/customer";
 
+import {
+  email,
+  phone,
+  required,
+  validate,
+} from "../utils/validation";
+
 const emptyForm: CustomerFormData = {
   name: "",
   email: "",
@@ -148,14 +155,14 @@ export default function CustomersAdmin() {
   // ============================
 
   const handleSubmit = () => {
-    if (
-      !form.name.trim() ||
-      !form.email.trim() ||
-      !form.phone.trim()
-    ) {
-      toast.error(
-        "Please fill name, email, and phone."
-      );
+    const error = validate(form, {
+      name: ["Name", [required()]],
+      email: ["Email", [required(), email()]],
+      phone: ["Phone", [required(), phone()]],
+    });
+
+    if (error) {
+      toast.error(error);
 
       return;
     }

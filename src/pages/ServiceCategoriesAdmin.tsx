@@ -19,6 +19,11 @@ import RowActionsMenu from "../components/RowActionsMenu";
 import { getApiErrorMessage } from "../services/base/api";
 
 import {
+  required,
+  validate,
+} from "../utils/validation";
+
+import {
   createServiceCategory,
   deleteServiceCategory,
   getServiceCategories,
@@ -224,10 +229,12 @@ export default function ServiceCategoriesAdmin() {
   const handleSubmit = async () => {
     const name = form.name.trim();
 
-    if (!name) {
-      toast.error(
-        "Please enter a category name."
-      );
+    const error = validate(form, {
+      name: ["Category name", [required()]],
+    });
+
+    if (error) {
+      toast.error(error);
 
       return;
     }

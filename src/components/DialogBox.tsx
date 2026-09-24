@@ -46,7 +46,7 @@ const THEME = {
   description: "mt-2 text-sm text-[#8A6F78]",
 
   closeButton:
-    "rounded-full bg-[#FFF5F8] px-4 py-2 text-sm text-[#E75480] transition hover:bg-[#FCE7EF]",
+    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF5F8] text-[#E75480] transition hover:bg-[#FCE7EF] disabled:cursor-not-allowed disabled:opacity-50",
 
   primaryButton:
     "rounded-full bg-[#E75480] px-6 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873] disabled:cursor-not-allowed disabled:opacity-50",
@@ -361,7 +361,17 @@ export default function DialogBox({
           aria-label="Close dialog"
           className={THEME.closeButton}
         >
-          Close
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            aria-hidden="true"
+            className="h-5 w-5"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
         </button>
       </div>
 

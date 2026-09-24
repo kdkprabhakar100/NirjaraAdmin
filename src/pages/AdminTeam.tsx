@@ -29,6 +29,13 @@ import type {
   TeamStatus,
 } from "../services/team/team.types";
 
+import {
+  validImage,
+  required,
+  validate,
+  validateField,
+} from "../utils/validation";
+
 import { uploadImage } from "../services/upload/uploadService";
 
 // ========================================
@@ -50,18 +57,6 @@ const EMPTY_FORM: TeamFormState = {
   image: "",
   status: "Active",
 };
-
-// ========================================
-// IMAGE SETTINGS
-// ========================================
-
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-
-const ACCEPTED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-];
 
 // ========================================
 // SHARED INPUT STYLE
@@ -251,24 +246,14 @@ export default function AdminTeam() {
       return;
     }
 
-    if (
-      !ACCEPTED_IMAGE_TYPES.includes(
-        file.type
-      )
-    ) {
-      toast.error(
-        "Please upload a JPG, PNG or WebP image."
-      );
+    const fileError = validateField(
+      file,
+      "Profile photo",
+      [validImage()]
+    );
 
-      event.target.value = "";
-
-      return;
-    }
-
-    if (file.size > MAX_IMAGE_SIZE) {
-      toast.error(
-        "Image must be smaller than 5 MB."
-      );
+    if (fileError) {
+      toast.error(fileError);
 
       event.target.value = "";
 
@@ -353,18 +338,16 @@ export default function AdminTeam() {
     const designation =
       form.designation.trim();
 
-    if (!name) {
-      toast.error(
-        "Please enter the team member's name."
-      );
+    const error = validate(form, {
+      name: ["Name", [required()]],
+      designation: [
+        "Designation",
+        [required()],
+      ],
+    });
 
-      return;
-    }
-
-    if (!designation) {
-      toast.error(
-        "Please enter a designation or role."
-      );
+    if (error) {
+      toast.error(error);
 
       return;
     }

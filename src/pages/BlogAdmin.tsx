@@ -13,6 +13,11 @@ import TiptapEditor from "../components/TiptapEditor";
 
 import { uploadImage } from "../services/upload/uploadService";
 
+import {
+  required,
+  validate,
+} from "../utils/validation";
+
 // ========================================
 // TYPES
 // ========================================
@@ -188,14 +193,17 @@ export default function BlogAdmin() {
   };
 
   const handleSubmit = async () => {
-    if (
-      !form.title.trim() ||
-      !form.category.trim() ||
-      !form.description.trim()
-    ) {
-      toast.error(
-        "Please fill title, category, and description."
-      );
+    const error = validate(form, {
+      title: ["Title", [required()]],
+      category: ["Category", [required()]],
+      description: [
+        "Description",
+        [required()],
+      ],
+    });
+
+    if (error) {
+      toast.error(error);
 
       return;
     }

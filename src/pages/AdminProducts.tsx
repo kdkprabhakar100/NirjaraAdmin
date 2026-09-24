@@ -9,6 +9,13 @@ import DialogBox from "../components/DialogBox";
 
 import RowActionsMenu from "../components/RowActionsMenu";
 
+import {
+  number,
+  required,
+  url,
+  validate,
+} from "../utils/validation";
+
 import api, {
   getApiErrorMessage,
 } from "../services/base/api";
@@ -119,6 +126,25 @@ export default function AdminProducts() {
   };
 
   const handleSubmit = async () => {
+    const error = validate(form, {
+      name: ["Product name", [required()]],
+      category: ["Category", [required()]],
+      price: ["Price", [required(), number({ min: 0 })]],
+      stock: [
+        "Stock",
+        [required(), number({ min: 0, integer: true })],
+      ],
+      brand: ["Brand", [required()]],
+      image: ["Image URL", [required(), url()]],
+      description: ["Description", [required()]],
+    });
+
+    if (error) {
+      toast.error(error);
+
+      return;
+    }
+
     try {
       setSaving(true);
 
