@@ -11,23 +11,23 @@ import "react-toastify/dist/ReactToastify.css";
 import AdminLayout from "./layouts/AdminLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import BookingsAdmin from "./pages/BookingsAdmin";
-import ServicesAdmin from "./pages/ServicesAdmin";
-import ServiceCategoriesAdmin from "./pages/ServiceCategoriesAdmin";
-import GalleryAdmin from "./pages/GalleryAdmin";
-import CoursesAdmin from "./pages/CoursesAdmin";
-import ContactMessagesAdmin from "./pages/ContactMessagesAdmin";
-import BlogAdmin from "./pages/BlogAdmin";
-import AdminOrders from "./pages/AdminOrders";
-import AdminProducts from "./pages/AdminProducts";
-import AdminPopup from "./pages/AdminPopup";
-import AdminEvents from "./pages/AdminEvents";
-import AdminCareers from "./pages/AdminCareers";
-import CustomersAdmin from "./pages/CustomersAdmin";
-import AdminTeam from "./pages/AdminTeam";
-import AdminSettings from "./pages/AdminSettings";
+import Login from "./pages/auth/Login";
+import Dashboard from "./pages/dashboard/Dashboard";
+import BookingsAdmin from "./pages/bookings/BookingsAdmin";
+import ServicesAdmin from "./pages/services/ServicesAdmin";
+import ServiceCategoriesAdmin from "./pages/serviceCategories/ServiceCategoriesAdmin";
+import GalleryAdmin from "./pages/cms/gallery/GalleryAdmin";
+import CoursesAdmin from "./pages/courses/CoursesAdmin";
+import ContactMessagesAdmin from "./pages/messages/ContactMessagesAdmin";
+import BlogAdmin from "./pages/cms/blogs/BlogAdmin";
+import AdminOrders from "./pages/orders/AdminOrders";
+import AdminProducts from "./pages/products/AdminProducts";
+import AdminPopup from "./pages/cms/popups/AdminPopup";
+import AdminEvents from "./pages/cms/events/AdminEvents";
+import AdminCareers from "./pages/cms/careers/AdminCareers";
+import CustomersAdmin from "./pages/customers/CustomersAdmin";
+import AdminTeam from "./pages/cms/team/AdminTeam";
+import AdminSettings from "./pages/settings/AdminSettings";
 
 function ProtectedPage({
   children,

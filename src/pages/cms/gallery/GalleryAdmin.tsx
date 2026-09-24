@@ -3,13 +3,13 @@ import { toast } from "react-toastify";
 
 import CustomTable, {
   type TableColumn,
-} from "../components/CustomTable";
+} from "../../../components/CustomTable";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../../components/DialogBox";
 
-import RowActionsMenu from "../components/RowActionsMenu";
+import RowActionsMenu from "../../../components/RowActionsMenu";
 
-import { uploadImage } from "../services/upload/uploadService";
+import { uploadImage } from "../../../services/upload/uploadService";
 
 // ========================================
 // TYPES

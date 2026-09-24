@@ -3,20 +3,20 @@ import { toast } from "react-toastify";
 
 import CustomTable, {
   type TableColumn,
-} from "../components/CustomTable";
+} from "../../../components/CustomTable";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../../components/DialogBox";
 
-import RowActionsMenu from "../components/RowActionsMenu";
+import RowActionsMenu from "../../../components/RowActionsMenu";
 
-import TiptapEditor from "../components/TiptapEditor";
+import TiptapEditor from "../../../components/TiptapEditor";
 
-import { uploadImage } from "../services/upload/uploadService";
+import { uploadImage } from "../../../services/upload/uploadService";
 
 import {
   required,
   validate,
-} from "../utils/validation";
+} from "../../../utils/validation";
 
 // ========================================
 // TYPES

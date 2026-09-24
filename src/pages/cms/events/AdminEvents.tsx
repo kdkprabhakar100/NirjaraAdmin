@@ -6,17 +6,17 @@ import type { Area } from "react-easy-crop";
 
 import CustomTable, {
   type TableColumn,
-} from "../components/CustomTable";
+} from "../../../components/CustomTable";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../../components/DialogBox";
 
-import RowActionsMenu from "../components/RowActionsMenu";
+import RowActionsMenu from "../../../components/RowActionsMenu";
 
-import api from "../services/base/api";
+import api from "../../../services/base/api";
 
-import getCroppedImg from "../utils/cropImage";
+import getCroppedImg from "../../../utils/cropImage";
 
-import { uploadImage as uploadImageToServer } from "../services/upload/uploadService";
+import { uploadImage as uploadImageToServer } from "../../../services/upload/uploadService";
 
 // ========================================
 // TYPES

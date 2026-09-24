@@ -13,31 +13,31 @@ import { toast } from "react-toastify";
 
 import CustomTable, {
   type TableColumn,
-} from "../components/CustomTable";
+} from "../../components/CustomTable";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../components/DialogBox";
 
-import RowActionsMenu from "../components/RowActionsMenu";
+import RowActionsMenu from "../../components/RowActionsMenu";
 
-import { getApiErrorMessage } from "../services/base/api";
+import { getApiErrorMessage } from "../../services/base/api";
 
-import { uploadImage } from "../services/upload/uploadService";
+import { uploadImage } from "../../services/upload/uploadService";
 
 import {
   createService,
   deleteService,
   getServices,
   updateService,
-} from "../services/service/serviceService";
+} from "../../services/service/serviceService";
 
-import { getServiceCategories } from "../services/serviceCategory/serviceCategoryService";
+import { getServiceCategories } from "../../services/serviceCategory/serviceCategoryService";
 
 import type {
   Service,
   ServicePayload,
-} from "../services/service/service.types";
+} from "../../services/service/service.types";
 
-import type { ServiceCategory } from "../services/serviceCategory/serviceCategory.types";
+import type { ServiceCategory } from "../../services/serviceCategory/serviceCategory.types";
 
 // ========================================
 // FORM DEFAULTS

@@ -10,30 +10,30 @@ import { toast } from "react-toastify";
 
 import CustomTable, {
   type TableColumn,
-} from "../components/CustomTable";
+} from "../../components/CustomTable";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../components/DialogBox";
 
-import RowActionsMenu from "../components/RowActionsMenu";
+import RowActionsMenu from "../../components/RowActionsMenu";
 
-import { getApiErrorMessage } from "../services/base/api";
+import { getApiErrorMessage } from "../../services/base/api";
 
 import {
   required,
   validate,
-} from "../utils/validation";
+} from "../../utils/validation";
 
 import {
   createServiceCategory,
   deleteServiceCategory,
   getServiceCategories,
   updateServiceCategory,
-} from "../services/serviceCategory/serviceCategoryService";
+} from "../../services/serviceCategory/serviceCategoryService";
 
 import type {
   ServiceCategory,
   ServiceCategoryPayload,
-} from "../services/serviceCategory/serviceCategory.types";
+} from "../../services/serviceCategory/serviceCategory.types";
 
 // ========================================
 // FORM DEFAULTS

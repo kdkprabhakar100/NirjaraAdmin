@@ -1,29 +1,29 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../components/DialogBox";
 
-import CustomerForm from "../components/customers/CustomerForm";
-import CustomerTable from "../components/customers/CustomerTable";
-import CustomerDetailsModal from "../components/customers/CustomerDetailsModal";
+import CustomerForm from "../../components/customers/CustomerForm";
+import CustomerTable from "../../components/customers/CustomerTable";
+import CustomerDetailsModal from "../../components/customers/CustomerDetailsModal";
 
 import {
   downloadCustomerPdf,
   downloadCustomerListPdf,
   type CustomerPdfMode,
-} from "../utils/customerPdf";
+} from "../../utils/customerPdf";
 
 import type {
   Customer,
   CustomerFormData,
-} from "../types/customer";
+} from "../../types/customer";
 
 import {
   email,
   phone,
   required,
   validate,
-} from "../utils/validation";
+} from "../../utils/validation";
 
 const emptyForm: CustomerFormData = {
   name: "",

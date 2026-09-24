@@ -9,11 +9,11 @@ import { toast } from "react-toastify";
 
 import CustomTable, {
   type TableColumn,
-} from "../components/CustomTable";
+} from "../../../components/CustomTable";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../../components/DialogBox";
 
-import RowActionsMenu from "../components/RowActionsMenu";
+import RowActionsMenu from "../../../components/RowActionsMenu";
 
 import {
   createTeamMember,
@@ -21,22 +21,22 @@ import {
   getTeamMembers,
   reorderTeamMembers,
   updateTeamMember,
-} from "../services/team/teamService";
+} from "../../../services/team/teamService";
 
 import type {
   TeamMember,
   TeamMemberPayload,
   TeamStatus,
-} from "../services/team/team.types";
+} from "../../../services/team/team.types";
 
 import {
   validImage,
   required,
   validate,
   validateField,
-} from "../utils/validation";
+} from "../../../utils/validation";
 
-import { uploadImage } from "../services/upload/uploadService";
+import { uploadImage } from "../../../services/upload/uploadService";
 
 // ========================================
 // FORM TYPE

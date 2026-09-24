@@ -3,21 +3,21 @@ import { toast } from "react-toastify";
 
 import CustomTable, {
   type TableColumn,
-} from "../components/CustomTable";
+} from "../../components/CustomTable";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../components/DialogBox";
 
-import RowActionsMenu from "../components/RowActionsMenu";
+import RowActionsMenu from "../../components/RowActionsMenu";
 
-import { getApiErrorMessage } from "../services/base/api";
+import { getApiErrorMessage } from "../../services/base/api";
 
 import {
   deleteBooking as deleteBookingRequest,
   getBookings,
   updateBookingStatus,
-} from "../services/booking/bookingService";
+} from "../../services/booking/bookingService";
 
-import type { Booking } from "../services/booking/booking.types";
+import type { Booking } from "../../services/booking/booking.types";
 
 export default function BookingsAdmin() {
   const [bookings, setBookings] = useState<Booking[]>([]);

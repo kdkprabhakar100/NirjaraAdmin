@@ -3,22 +3,22 @@ import { toast } from "react-toastify";
 
 import CustomTable, {
   type TableColumn,
-} from "../components/CustomTable";
+} from "../../components/CustomTable";
 
-import DialogBox from "../components/DialogBox";
+import DialogBox from "../../components/DialogBox";
 
-import RowActionsMenu from "../components/RowActionsMenu";
+import RowActionsMenu from "../../components/RowActionsMenu";
 
 import {
   number,
   required,
   url,
   validate,
-} from "../utils/validation";
+} from "../../utils/validation";
 
 import api, {
   getApiErrorMessage,
-} from "../services/base/api";
+} from "../../services/base/api";
 
 // ========================================
 // TYPES
