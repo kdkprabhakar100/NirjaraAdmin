@@ -3,6 +3,8 @@ import type {
   ReactNode,
 } from "react";
 
+import LoadingSpinner from "./LoadingSpinner";
+
 // ========================================
 // CUSTOM TABLE
 //
@@ -316,9 +318,21 @@ export default function CustomTable<T>({
         className={`${THEME.shell} ${className}`}
       >
         {loading ? (
-          <StateMessage
-            message={loadingMessage}
-          />
+          <div
+            role="status"
+            className="flex flex-col items-center gap-4 px-6 py-14 text-center"
+          >
+            <LoadingSpinner
+              size="lg"
+              className="text-[#E75480]"
+            />
+
+            <p
+              className={`text-sm ${THEME.muted}`}
+            >
+              {loadingMessage}
+            </p>
+          </div>
         ) : (
           <StateMessage
             icon={emptyIcon}

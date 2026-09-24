@@ -1,4 +1,9 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { toast } from "react-toastify";
 
 import CustomTable, {
@@ -7,25 +12,44 @@ import CustomTable, {
 
 import DialogBox from "../../../components/DialogBox";
 
+import LoadingSpinner from "../../../components/LoadingSpinner";
+
 import RowActionsMenu from "../../../components/RowActionsMenu";
 
+import { getApiErrorMessage } from "../../../services/base/api";
+
+import { createGalleryItems } from "../../../services/gallery/galleryService";
+
+import {
+  MAX_GALLERY_BATCH,
+  type GalleryItem,
+} from "../../../services/gallery/gallery.types";
+
 import { uploadImage } from "../../../services/upload/uploadService";
+
+import {
+  validImage,
+  validateField,
+} from "../../../utils/validation";
 
 // ========================================
 // TYPES
 // ========================================
 
-type ImageItem = {
-  _id?: string;
+// One picked file in the Add dialog.
+// `imageUrl` is filled once the file is
+// uploaded, so a retry after a failed
+// save does not upload it twice.
+type DraftImage = {
+  id: string;
+  file: File;
+  preview: string;
   title: string;
-  category: string;
-  image: string;
-};
-
-const emptyItem: ImageItem = {
-  title: "",
-  category: "Salon",
-  image: "",
+  description: string;
+  imageUrl?: string;
+  // Unset while waiting or once done;
+  // `imageUrl` tells those two apart.
+  status?: "uploading" | "failed";
 };
 
 // ========================================
@@ -60,6 +84,21 @@ const getImageUrl = (image?: string) => {
 };
 
 // ========================================
+// UPLOAD SETTINGS
+//
+// A few uploads at a time keeps a large
+// batch from flooding the server, which
+// holds each file in memory while it
+// streams to Cloudinary.
+// ========================================
+
+const UPLOAD_CONCURRENCY = 3;
+
+// Keys the picked files; only needs to be
+// unique within this browser tab.
+let nextDraftId = 0;
+
+// ========================================
 // SHARED INPUT STYLE
 // ========================================
 
@@ -68,29 +107,35 @@ const inputClass =
 
 export default function GalleryAdmin() {
   const [items, setItems] = useState<
-    ImageItem[]
+    GalleryItem[]
   >([]);
 
   const [loading, setLoading] =
     useState(true);
 
-  const [form, setForm] =
-    useState<ImageItem>(emptyItem);
+  const [drafts, setDrafts] = useState<
+    DraftImage[]
+  >([]);
 
   const [formOpen, setFormOpen] =
-    useState(false);
-
-  const [uploading, setUploading] =
     useState(false);
 
   const [saving, setSaving] =
     useState(false);
 
+  // How many of the batch have finished
+  // uploading, for the progress line.
+  const [uploadedCount, setUploadedCount] =
+    useState(0);
+
+  const fileInputRef =
+    useRef<HTMLInputElement | null>(null);
+
   // The image awaiting delete
   // confirmation. Null means the dialog
   // is closed.
   const [itemToDelete, setItemToDelete] =
-    useState<ImageItem | null>(null);
+    useState<GalleryItem | null>(null);
 
   const [deleting, setDeleting] =
     useState(false);
@@ -137,76 +182,238 @@ export default function GalleryAdmin() {
   // ============================
 
   const openAddForm = () => {
-    setForm(emptyItem);
+    setDrafts([]);
+    setUploadedCount(0);
     setFormOpen(true);
   };
 
   const closeForm = () => {
+    drafts.forEach((draft) =>
+      URL.revokeObjectURL(draft.preview)
+    );
+
+    setDrafts([]);
     setFormOpen(false);
-    setForm(emptyItem);
   };
 
-  const handleUpload = async (
-    file: File
+  // ============================
+  // PICK FILES
+  //
+  // Adds to the current batch, so the
+  // admin can pick from more than one
+  // folder. Bad files are skipped with a
+  // message; the rest are still added.
+  // ============================
+
+  const handleFilesPicked = (
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    try {
-      setUploading(true);
+    const picked = Array.from(
+      event.target.files ?? []
+    );
 
-      const imageUrl =
-        await uploadImage(file);
+    // Lets the same file be picked again
+    // after it was removed.
+    event.target.value = "";
 
-      setForm((previous) => ({
-        ...previous,
-        image: imageUrl,
-      }));
-    } catch (error) {
-      console.error(
-        "Upload error:",
-        error
+    const accepted: DraftImage[] = [];
+
+    for (const file of picked) {
+      const error = validateField(
+        file,
+        "Image",
+        [validImage()]
       );
 
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Upload failed"
-      );
-    } finally {
-      setUploading(false);
+      if (error) {
+        toast.error(
+          `${file.name}: ${error}`
+        );
+
+        continue;
+      }
+
+      accepted.push({
+        id: `${Date.now()}-${nextDraftId++}`,
+        file,
+        preview:
+          URL.createObjectURL(file),
+        title: "",
+        description: "",
+      });
     }
+
+    const room =
+      MAX_GALLERY_BATCH - drafts.length;
+
+    if (accepted.length > room) {
+      toast.error(
+        `You can upload at most ${MAX_GALLERY_BATCH} images at a time.`
+      );
+
+      accepted
+        .slice(room)
+        .forEach((draft) =>
+          URL.revokeObjectURL(
+            draft.preview
+          )
+        );
+    }
+
+    setDrafts((previous) => [
+      ...previous,
+      ...accepted.slice(0, room),
+    ]);
   };
+
+  const updateDraft = (
+    id: string,
+    changes: Partial<DraftImage>
+  ) => {
+    setDrafts((previous) =>
+      previous.map((draft) =>
+        draft.id === id
+          ? { ...draft, ...changes }
+          : draft
+      )
+    );
+  };
+
+  const removeDraft = (id: string) => {
+    setDrafts((previous) => {
+      const draft = previous.find(
+        (item) => item.id === id
+      );
+
+      if (draft) {
+        URL.revokeObjectURL(
+          draft.preview
+        );
+      }
+
+      return previous.filter(
+        (item) => item.id !== id
+      );
+    });
+  };
+
+  // ============================
+  // SAVE
+  //
+  // Uploads every image that is not
+  // uploaded yet, then creates all the
+  // gallery items in one request. If any
+  // upload fails nothing is saved, and
+  // the finished uploads are kept for
+  // the retry.
+  // ============================
 
   const handleSubmit = async () => {
-    if (!form.image) {
+    if (drafts.length === 0) {
       toast.error(
-        "Please upload an image."
+        "Please choose at least one image."
       );
 
       return;
     }
 
-    try {
-      setSaving(true);
+    setSaving(true);
 
-      await fetch(
-        `${import.meta.env.VITE_API_URL}/api/gallery`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-            ...getAuthHeaders(),
-          },
-          body: JSON.stringify(form),
+    const urls = new Map<string, string>();
+
+    drafts.forEach((draft) => {
+      if (draft.imageUrl) {
+        urls.set(draft.id, draft.imageUrl);
+      }
+    });
+
+    setUploadedCount(urls.size);
+
+    const pending = drafts.filter(
+      (draft) => !draft.imageUrl
+    );
+
+    const failures: string[] = [];
+
+    const worker = async () => {
+      for (
+        let draft = pending.shift();
+        draft;
+        draft = pending.shift()
+      ) {
+        updateDraft(draft.id, {
+          status: "uploading",
+        });
+
+        try {
+          const imageUrl =
+            await uploadImage(draft.file);
+
+          urls.set(draft.id, imageUrl);
+
+          updateDraft(draft.id, {
+            imageUrl,
+            status: undefined,
+          });
+
+          setUploadedCount(urls.size);
+        } catch (error) {
+          updateDraft(draft.id, {
+            status: "failed",
+          });
+
+          failures.push(
+            `${draft.file.name}: ${
+              error instanceof Error
+                ? error.message
+                : "Upload failed"
+            }`
+          );
         }
+      }
+    };
+
+    await Promise.all(
+      Array.from(
+        { length: UPLOAD_CONCURRENCY },
+        worker
+      )
+    );
+
+    if (failures.length > 0) {
+      failures.forEach((message) =>
+        toast.error(message)
       );
 
-      await fetchItems();
+      toast.error(
+        "Nothing was saved. Remove or retry the failed images."
+      );
+
+      setSaving(false);
+
+      return;
+    }
+
+    try {
+      const created =
+        await createGalleryItems(
+          drafts.map((draft) => ({
+            image: urls.get(draft.id)!,
+            title: draft.title.trim(),
+            description:
+              draft.description.trim(),
+          }))
+        );
 
       toast.success(
-        "Image added successfully!"
+        created.length === 1
+          ? "Image added successfully!"
+          : `${created.length} images added successfully!`
       );
 
       closeForm();
+
+      await fetchItems();
     } catch (error) {
       console.error(
         "Save gallery error:",
@@ -214,7 +421,10 @@ export default function GalleryAdmin() {
       );
 
       toast.error(
-        "Unable to save the image"
+        getApiErrorMessage(
+          error,
+          "Unable to save the images"
+        )
       );
     } finally {
       setSaving(false);
@@ -273,7 +483,7 @@ export default function GalleryAdmin() {
   // ============================
 
   const thumbnail = (
-    item: ImageItem
+    item: GalleryItem
   ) => (
     <img
       src={getImageUrl(item.image)}
@@ -283,7 +493,7 @@ export default function GalleryAdmin() {
   );
 
   const renderActions = (
-    item: ImageItem
+    item: GalleryItem
   ) => (
     <RowActionsMenu
       label={`Actions for ${item.title || "image"}`}
@@ -304,7 +514,7 @@ export default function GalleryAdmin() {
   // COLUMNS
   // ============================
 
-  const columns: TableColumn<ImageItem>[] =
+  const columns: TableColumn<GalleryItem>[] =
     [
       {
         key: "image",
@@ -323,12 +533,14 @@ export default function GalleryAdmin() {
           item.title || "Untitled",
       },
       {
-        key: "category",
-        header: "Category",
+        key: "description",
+        header: "Description",
         hideOnMobile: true,
+        cellClassName:
+          "text-sm text-[#8A6F78]",
         render: (item) => (
-          <span className="inline-block rounded-full bg-[#FCE7EF] px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
-            {item.category}
+          <span className="line-clamp-2">
+            {item.description || "—"}
           </span>
         ),
       },
@@ -345,6 +557,8 @@ export default function GalleryAdmin() {
   // ============================
   // UI
   // ============================
+
+  const readyCount = drafts.length;
 
   return (
     <div>
@@ -370,7 +584,7 @@ export default function GalleryAdmin() {
           onClick={openAddForm}
           className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
         >
-          Add Image
+          Add Images
         </button>
       </div>
 
@@ -387,7 +601,7 @@ export default function GalleryAdmin() {
         loadingMessage="Loading gallery..."
         emptyIcon="✦"
         emptyTitle="No images uploaded"
-        emptyMessage="Add your first image using the button above."
+        emptyMessage="Add your first images using the button above."
         minWidth="700px"
         mobileTitle={(item) => (
           <span className="flex items-center gap-3">
@@ -399,7 +613,7 @@ export default function GalleryAdmin() {
           </span>
         )}
         mobileSubtitle={(item) =>
-          item.category
+          item.description
         }
         mobileActions={renderActions}
       />
@@ -412,81 +626,192 @@ export default function GalleryAdmin() {
         open={formOpen}
         onClose={closeForm}
         eyebrow="Management"
-        title="Add Image"
+        title="Add Images"
+        description={`Pick up to ${MAX_GALLERY_BATCH} images. Title and description are optional.`}
         size="lg"
         onSubmit={handleSubmit}
         submitting={saving}
-        submittingLabel="Adding..."
-        confirmLabel="Upload Image"
-        confirmDisabled={uploading}
+        submittingLabel={
+          uploadedCount < readyCount
+            ? `Uploading ${uploadedCount} of ${readyCount}...`
+            : "Saving..."
+        }
+        confirmLabel={
+          readyCount > 1
+            ? `Upload ${readyCount} Images`
+            : "Upload Image"
+        }
+        confirmDisabled={readyCount === 0}
         // A half filled form should not
         // vanish on a stray click.
         closeOnBackdrop={false}
+        closeOnEscape={!saving}
       >
-        <div className="grid gap-4 md:grid-cols-2">
-          <input
-            placeholder="Title"
-            value={form.title}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                title:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/png, image/jpeg, image/webp"
+          onChange={handleFilesPicked}
+          className="hidden"
+        />
 
-          <input
-            placeholder="Category"
-            value={form.category}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                category:
-                  event.target.value,
-              })
-            }
-            className={inputClass}
-          />
+        <button
+          type="button"
+          onClick={() =>
+            fileInputRef.current?.click()
+          }
+          disabled={
+            saving ||
+            readyCount >= MAX_GALLERY_BATCH
+          }
+          className="flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-[#E75480]/30 bg-[#FFF5F8] px-4 py-8 text-sm text-[#8A6F78] transition hover:border-[#E75480] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className="text-[#E75480]">
+            {readyCount === 0
+              ? "Choose images"
+              : "Add more images"}
+          </span>
 
-          <input
-            type="file"
-            accept="image/png, image/jpeg, image/jpg, image/webp"
-            onChange={(event) => {
-              const file =
-                event.target.files?.[0];
+          <span className="text-xs">
+            JPG, PNG or WebP, up to 5 MB each
+          </span>
+        </button>
 
-              if (!file) {
-                return;
-              }
+        {/* PROGRESS */}
 
-              handleUpload(file);
-            }}
-            className={`${inputClass} md:col-span-2`}
-          />
-        </div>
+        {saving && (
+          <div
+            role="status"
+            className="mt-5 rounded-2xl bg-[#FFF5F8] p-4"
+          >
+            <div className="flex items-center gap-3 text-sm text-[#3A2A2F]">
+              <LoadingSpinner
+                size="sm"
+                className="text-[#E75480]"
+              />
 
-        {uploading && (
-          <p className="mt-4 text-sm text-[#8A6F78]">
-            Uploading image...
-          </p>
+              {uploadedCount < readyCount
+                ? `Uploading ${uploadedCount} of ${readyCount} images...`
+                : "Saving to the gallery..."}
+            </div>
+
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E75480]/15">
+              <div
+                className="h-full rounded-full bg-[#E75480] transition-all duration-300"
+                style={{
+                  width: `${
+                    readyCount
+                      ? (uploadedCount /
+                          readyCount) *
+                        100
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
         )}
 
-        {form.image && (
-          <div className="mt-5">
-            <p className="mb-2 text-sm text-[#8A6F78]">
-              Image Preview
-            </p>
+        {drafts.length > 0 && (
+          <ul className="mt-5 space-y-4">
+            {drafts.map((draft, index) => (
+              <li
+                key={draft.id}
+                className="flex flex-col gap-4 rounded-2xl border border-[#E75480]/10 p-4 sm:flex-row"
+              >
+                <div className="relative h-32 w-full shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-36">
+                  <img
+                    src={draft.preview}
+                    alt={`Selected image ${index + 1}`}
+                    className="h-full w-full object-cover"
+                  />
 
-            <img
-              src={getImageUrl(
-                form.image
-              )}
-              alt="Preview"
-              className="h-44 w-full rounded-2xl object-cover md:max-w-md"
-            />
-          </div>
+                  {draft.status ===
+                    "uploading" && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/70 text-[#E75480]">
+                      <LoadingSpinner
+                        label={`Uploading image ${index + 1}`}
+                      />
+
+                      <span className="text-xs">
+                        Uploading...
+                      </span>
+                    </div>
+                  )}
+
+                  {draft.status ===
+                    "failed" && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#DC2626]/70 text-xs font-medium uppercase tracking-[1px] text-white">
+                      Failed
+                    </div>
+                  )}
+
+                  {draft.imageUrl && (
+                    <span
+                      aria-label="Uploaded"
+                      className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#16A34A] text-xs text-white"
+                    >
+                      ✓
+                    </span>
+                  )}
+
+                  {saving &&
+                    !draft.status &&
+                    !draft.imageUrl && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/60 text-xs text-[#8A6F78]">
+                        Waiting...
+                      </div>
+                    )}
+                </div>
+
+                <div className="flex-1 space-y-3">
+                  <input
+                    placeholder="Title (optional)"
+                    aria-label={`Title for image ${index + 1}`}
+                    maxLength={200}
+                    value={draft.title}
+                    disabled={saving}
+                    onChange={(event) =>
+                      updateDraft(draft.id, {
+                        title:
+                          event.target.value,
+                      })
+                    }
+                    className={inputClass}
+                  />
+
+                  <textarea
+                    placeholder="Description (optional)"
+                    aria-label={`Description for image ${index + 1}`}
+                    maxLength={1000}
+                    rows={2}
+                    value={draft.description}
+                    disabled={saving}
+                    onChange={(event) =>
+                      updateDraft(draft.id, {
+                        description:
+                          event.target.value,
+                      })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    removeDraft(draft.id)
+                  }
+                  disabled={saving}
+                  aria-label={`Remove image ${index + 1}`}
+                  className="self-start rounded-full px-3 py-1 text-xs uppercase tracking-[1px] text-[#DC2626] transition hover:bg-[#FEE2E2] disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </DialogBox>
 

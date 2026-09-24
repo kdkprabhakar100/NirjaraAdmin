@@ -6,6 +6,8 @@ import {
   type ReactNode,
 } from "react";
 
+import LoadingSpinner from "./LoadingSpinner";
+
 // ========================================
 // DIALOG BOX
 //
@@ -308,9 +310,15 @@ export default function DialogBox({
               : THEME.primaryButton
           }
         >
-          {submitting
-            ? submittingLabel
-            : confirmLabel}
+          {submitting ? (
+            <span className="flex items-center gap-2">
+              <LoadingSpinner size="sm" />
+
+              {submittingLabel}
+            </span>
+          ) : (
+            confirmLabel
+          )}
         </button>
       )}
     </div>
