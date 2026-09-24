@@ -1,10 +1,123 @@
-import type { ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { navigation } from "../config/navigation";
+import { useState, type ReactNode } from "react";
+import {
+  NavLink,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import {
+  isNavGroup,
+  navigation,
+  type NavGroup,
+} from "../config/navigation";
 
 type AdminLayoutProps = {
   children: ReactNode;
 };
+
+const linkClass = (isActive: boolean) =>
+  `block rounded-xl px-4 py-3 text-sm transition ${
+    isActive
+      ? "bg-[#E75480] text-white"
+      : "text-[#8A6F78] hover:bg-[#FCE7EF] hover:text-[#E75480]"
+  }`;
+
+// ========================================
+// SIDEBAR GROUP
+//
+// A dropdown of links, e.g. CMS. Starts
+// open when the current page is inside
+// it, and opens itself when the admin
+// lands on one of its pages from
+// elsewhere.
+// ========================================
+
+function SidebarGroup({
+  group,
+}: {
+  group: NavGroup;
+}) {
+  const { pathname } = useLocation();
+
+  const hasActiveChild =
+    group.children.some(
+      (link) => link.path === pathname
+    );
+
+  const [open, setOpen] =
+    useState(hasActiveChild);
+
+  // Adjusting state during render rather
+  // than in an effect, so the group never
+  // flashes closed.
+  const [lastPath, setLastPath] =
+    useState(pathname);
+
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
+
+    if (hasActiveChild) {
+      setOpen(true);
+    }
+  }
+
+  const panelId = `nav-group-${group.label}`;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() =>
+          setOpen((previous) => !previous)
+        }
+        aria-expanded={open}
+        aria-controls={panelId}
+        className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition ${
+          // A closed group still shows that
+          // the current page is inside it.
+          hasActiveChild && !open
+            ? "bg-[#FCE7EF] text-[#E75480]"
+            : "text-[#8A6F78] hover:bg-[#FCE7EF] hover:text-[#E75480]"
+        }`}
+      >
+        {group.label}
+
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          className={`h-4 w-4 transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          id={panelId}
+          className="mt-2 ml-3 space-y-2 border-l border-[#E75480]/15 pl-3"
+        >
+          {group.children.map((link) => (
+            <NavLink
+              key={link.path}
+              to={link.path}
+              className={({ isActive }) =>
+                linkClass(isActive)
+              }
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -38,11 +151,27 @@ export default function AdminLayout({
             Menu
           </option>
 
-          {navigation.map((link) => (
-            <option key={link.path} value={link.path}>
-              {link.label}
-            </option>
-          ))}
+          {navigation.map((item) =>
+            isNavGroup(item) ? (
+              <optgroup
+                key={item.label}
+                label={item.label}
+              >
+                {item.children.map((link) => (
+                  <option
+                    key={link.path}
+                    value={link.path}
+                  >
+                    {link.label}
+                  </option>
+                ))}
+              </optgroup>
+            ) : (
+              <option key={item.path} value={item.path}>
+                {item.label}
+              </option>
+            )
+          )}
         </select>
       </nav>
 
@@ -54,21 +183,24 @@ export default function AdminLayout({
           </h1>
 
           <div className="mt-10 space-y-3">
-            {navigation.map((link) => (
-              <NavLink
-                key={link.path}
-                to={link.path}
-                className={({ isActive }) =>
-                  `block rounded-xl px-4 py-3 text-sm transition ${
-                    isActive
-                      ? "bg-[#E75480] text-white"
-                      : "text-[#8A6F78] hover:bg-[#FCE7EF] hover:text-[#E75480]"
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
+            {navigation.map((item) =>
+              isNavGroup(item) ? (
+                <SidebarGroup
+                  key={item.label}
+                  group={item}
+                />
+              ) : (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    linkClass(isActive)
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              )
+            )}
           </div>
 
           <button
