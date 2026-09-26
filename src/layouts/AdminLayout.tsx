@@ -15,10 +15,10 @@ import {
   type NavLinkItem,
 } from "../config/navigation";
 import {
-  getAdminSession,
   logoutAdmin,
   refreshAdminSession,
 } from "../services/auth/authService";
+import { useAdminSession } from "../hooks/useAuth";
 import axios from "axios";
 import Topbar from "../components/Topbar";
 
@@ -160,16 +160,13 @@ export default function AdminLayout({
 }: AdminLayoutProps) {
   const navigate = useNavigate();
 
-  const [session, setSession] = useState(
-    getAdminSession
-  );
+  const session = useAdminSession();
 
-  // Picks up a role changed since login,
-  // and signs out an account that was
-  // deleted.
+  // Picks up a role or permissions changed
+  // since login, and signs out an account
+  // that was deleted.
   useEffect(() => {
     refreshAdminSession()
-      .then(setSession)
       .catch((error: unknown) => {
         if (
           axios.isAxiosError(error) &&

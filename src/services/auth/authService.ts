@@ -5,18 +5,38 @@ import type {
   AdminSummary,
   LoginPayload,
   Permission,
+  PermissionAction,
 } from "./auth.types";
 
 const TOKEN_KEY = "adminToken";
 const EMAIL_KEY = "adminEmail";
 const SESSION_KEY = "adminSession";
 
+// Components reading the session through
+// useAdminSession re-render when it
+// changes.
+const listeners = new Set<() => void>();
+
+const notify = () =>
+  listeners.forEach((listener) => listener());
+
+export function subscribeAdminSession(
+  listener: () => void
+) {
+  listeners.add(listener);
+
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 // ========================================
 // LOGIN
 //
 // POST /api/auth/login
 //
-// Admins and staff can sign in.
+// Any account with an admin panel role
+// can sign in.
 // ========================================
 
 export async function loginAdmin(
@@ -48,6 +68,8 @@ export function logoutAdmin() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(EMAIL_KEY);
   localStorage.removeItem(SESSION_KEY);
+
+  notify();
 }
 
 export function isAdminLoggedIn() {
@@ -75,19 +97,36 @@ function saveSession(admin: AdminSummary) {
     EMAIL_KEY,
     admin.email
   );
+
+  notify();
 }
 
-export function getAdminSession(): AdminSummary | null {
-  try {
-    const raw =
-      localStorage.getItem(SESSION_KEY);
+// Parsed once per change, so every read
+// between changes returns the same object
+// (useSyncExternalStore needs that).
+let cachedRaw: string | null = null;
+let cachedSession: AdminSummary | null =
+  null;
 
-    return raw
+export function getAdminSession(): AdminSummary | null {
+  const raw =
+    localStorage.getItem(SESSION_KEY);
+
+  if (raw === cachedRaw) {
+    return cachedSession;
+  }
+
+  cachedRaw = raw;
+
+  try {
+    cachedSession = raw
       ? (JSON.parse(raw) as AdminSummary)
       : null;
   } catch {
-    return null;
+    cachedSession = null;
   }
+
+  return cachedSession;
 }
 
 export function hasPermission(
@@ -100,14 +139,26 @@ export function hasPermission(
   );
 }
 
+// can("blogs", "delete") reads better at
+// a call site than the raw string.
+export function can(
+  resource: string,
+  action: PermissionAction
+) {
+  return hasPermission(
+    `${resource}.${action}`
+  );
+}
+
 // ========================================
 // REFRESH SESSION
 //
 // GET /api/auth/me
 //
-// Picks up a role another admin changed
-// since this login. Throws on 401, e.g.
-// when the account was deleted.
+// Picks up a role or permissions another
+// admin changed since this login. Throws
+// on 401, e.g. when the account was
+// deleted.
 // ========================================
 
 export async function refreshAdminSession(): Promise<AdminSummary> {

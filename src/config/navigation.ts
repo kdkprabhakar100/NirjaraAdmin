@@ -32,36 +32,102 @@ export const isNavGroup = (
 ): item is NavGroup => "children" in item;
 
 export const navigation: NavItem[] = [
-  { label: "Dashboard", path: "/dashboard" },
-  { label: "Branches", path: "/branches" },
-  { label: "Bookings", path: "/bookings" },
+  {
+    label: "Dashboard",
+    path: "/dashboard",
+    permission: "dashboard.view",
+  },
+  {
+    label: "Branches",
+    path: "/branches",
+    permission: "branches.view",
+  },
+  {
+    label: "Bookings",
+    path: "/bookings",
+    permission: "bookings.view",
+  },
   {
     label: "Services",
     path: "/services",
     activeFor: ["/service-categories"],
+    permission: "services.view",
   },
-  { label: "Courses", path: "/courses" },
-  { label: "Messages", path: "/messages" },
+  {
+    label: "Courses",
+    path: "/courses",
+    permission: "courses.view",
+  },
+  {
+    label: "Messages",
+    path: "/messages",
+    permission: "messages.view",
+  },
   {
     label: "CMS",
     children: [
-      { label: "Blogs", path: "/blogs" },
-      { label: "Gallery", path: "/gallery" },
-      { label: "Popups", path: "/popups" },
-      { label: "Events", path: "/events" },
-      { label: "Careers", path: "/careers" },
-      { label: "Team", path: "/team" },
+      {
+        label: "Blogs",
+        path: "/blogs",
+        permission: "blogs.view",
+      },
+      {
+        label: "Gallery",
+        path: "/gallery",
+        permission: "gallery.view",
+      },
+      {
+        label: "Popups",
+        path: "/popups",
+        permission: "popups.view",
+      },
+      {
+        label: "Events",
+        path: "/events",
+        permission: "events.view",
+      },
+      {
+        label: "Careers",
+        path: "/careers",
+        permission: "careers.view",
+      },
+      {
+        label: "Team",
+        path: "/team",
+        permission: "team.view",
+      },
     ],
   },
-  { label: "Orders", path: "/orders" },
-  { label: "Products", path: "/products" },
-  { label: "Customers", path: "/customers" },
+  {
+    label: "Orders",
+    path: "/orders",
+    permission: "orders.view",
+  },
+  {
+    label: "Products",
+    path: "/products",
+    permission: "products.view",
+  },
+  {
+    label: "Customers",
+    path: "/customers",
+    permission: "customers.view",
+  },
   {
     label: "Admin Users",
     path: "/users",
-    permission: "users.manage",
+    permission: "adminUsers.view",
   },
-  { label: "Settings", path: "/settings" },
+  {
+    label: "Roles & Permissions",
+    path: "/roles",
+    permission: "roles.view",
+  },
+  {
+    label: "Settings",
+    path: "/settings",
+    permission: "settings.view",
+  },
 ];
 
 // The sidebar for one account: links it
@@ -97,8 +163,58 @@ export const visibleNavigation = (
 // ========================================
 
 export const quickLinks: NavLinkItem[] = [
-  { label: "Dashboard", path: "/dashboard" },
-  { label: "Bookings", path: "/bookings" },
-  { label: "Orders", path: "/orders" },
-  { label: "Messages", path: "/messages" },
+  {
+    label: "Dashboard",
+    path: "/dashboard",
+    permission: "dashboard.view",
+  },
+  {
+    label: "Bookings",
+    path: "/bookings",
+    permission: "bookings.view",
+  },
+  {
+    label: "Orders",
+    path: "/orders",
+    permission: "orders.view",
+  },
+  {
+    label: "Messages",
+    path: "/messages",
+    permission: "messages.view",
+  },
 ];
+
+export const visibleQuickLinks = (
+  permissions: Permission[]
+): NavLinkItem[] =>
+  quickLinks.filter(
+    (link) =>
+      !link.permission ||
+      permissions.includes(link.permission)
+  );
+
+// ========================================
+// HOME
+//
+// Where "/" and unknown URLs land: the
+// first sidebar page the account can
+// open, so an account without the
+// dashboard does not start on a
+// "no access" screen.
+// ========================================
+
+export const homePath = (
+  permissions: Permission[]
+): string => {
+  const [first] =
+    visibleNavigation(permissions);
+
+  if (!first) {
+    return "/dashboard";
+  }
+
+  return isNavGroup(first)
+    ? first.children[0].path
+    : first.path;
+};

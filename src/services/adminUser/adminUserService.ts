@@ -8,8 +8,10 @@ import type {
 // ========================================
 // API CONFIGURATION
 //
-// Every route is admins-only; staff get a
-// 403.
+// Each route needs the matching
+// adminUsers.* permission. Only a super
+// admin can create, change or delete a
+// super admin.
 // ========================================
 
 const ADMIN_USER_API = "/api/admin-users";
@@ -59,7 +61,7 @@ export const createAdminUser = async (
 // PUT /api/admin-users/:id
 //
 // Refused for your own role and for
-// demoting the last admin.
+// demoting the last super admin.
 // ========================================
 
 export const updateAdminUser = async (
@@ -80,7 +82,8 @@ export const updateAdminUser = async (
 //
 // DELETE /api/admin-users/:id
 //
-// Refused for yourself and the last admin.
+// Refused for yourself and the last
+// super admin.
 // ========================================
 
 export const deleteAdminUser = async (

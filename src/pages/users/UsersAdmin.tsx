@@ -12,11 +12,14 @@ import FormField from "../../components/FormField";
 import RowActionsMenu from "../../components/RowActionsMenu";
 
 import {
-  getAdminSession,
-  hasPermission,
-} from "../../services/auth/authService";
+  useAdminSession,
+  usePermissions,
+} from "../../hooks/useAuth";
 
-import type { AdminRole } from "../../services/auth/auth.types";
+import {
+  SUPER_ADMIN_ROLE,
+  type AdminRole,
+} from "../../services/auth/auth.types";
 
 import { getApiErrorMessage } from "../../services/base/api";
 
@@ -27,11 +30,14 @@ import {
   updateAdminUser,
 } from "../../services/adminUser/adminUserService";
 
-import {
-  ADMIN_ROLES,
-  type AdminUser,
-  type AdminUserPayload,
+import type {
+  AdminUser,
+  AdminUserPayload,
 } from "../../services/adminUser/adminUser.types";
+
+import { getRoles } from "../../services/role/roleService";
+
+import type { Role } from "../../services/role/role.types";
 
 import {
   email,
@@ -59,21 +65,24 @@ const EMPTY_FORM: AdminUserPayload = {
 const inputClass =
   "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480] disabled:cursor-not-allowed disabled:opacity-60";
 
-const roleLabel = (role: AdminRole) =>
-  ADMIN_ROLES.find(
-    (item) => item.value === role
-  )?.label ?? role;
-
 export default function UsersAdmin() {
-  // Staff reach this page only by typing
-  // the URL; the API would refuse them
-  // anyway, so say so instead of showing
-  // a failed load.
-  const canManage =
-    hasPermission("users.manage");
+  const session = useAdminSession();
 
-  const currentUserId =
-    getAdminSession()?.id;
+  const allowed =
+    usePermissions("adminUsers");
+
+  const canManage = allowed.view;
+
+  const currentUserId = session?.id;
+
+  const isSuperAdmin =
+    session?.role === SUPER_ADMIN_ROLE;
+
+  // Every role, for the role picker and
+  // the badges.
+  const [roles, setRoles] = useState<
+    Role[]
+  >([]);
 
   const [users, setUsers] = useState<
     AdminUser[]
@@ -108,6 +117,47 @@ export default function UsersAdmin() {
     editingId !== null &&
     editingId === currentUserId;
 
+  const roleName = (key: AdminRole) =>
+    roles.find((role) => role.key === key)
+      ?.name ?? key;
+
+  // Only a super admin hands out Super
+  // Admin, and nobody hands out a role
+  // with more access than their own. The
+  // API refuses both; this keeps them out
+  // of the picker.
+  const assignableRoles = roles.filter(
+    (role) =>
+      isSuperAdmin ||
+      (!role.locked &&
+        role.permissions.every((permission) =>
+          session?.permissions.includes(
+            permission
+          )
+        ))
+  );
+
+  // The role being edited stays listed even
+  // when it is not assignable, so the
+  // picker never shows a blank.
+  const roleOptions =
+    assignableRoles.some(
+      (role) => role.key === form.role
+    ) || !form.role
+      ? assignableRoles
+      : [
+          ...roles.filter(
+            (role) => role.key === form.role
+          ),
+          ...assignableRoles,
+        ];
+
+  // Super admin accounts are managed by
+  // super admins only.
+  const canTouch = (user: AdminUser) =>
+    isSuperAdmin ||
+    user.role !== SUPER_ADMIN_ROLE;
+
   // ============================
   // FETCH
   // ============================
@@ -116,7 +166,14 @@ export default function UsersAdmin() {
     try {
       setLoading(true);
 
-      setUsers(await getAdminUsers());
+      const [userList, roleList] =
+        await Promise.all([
+          getAdminUsers(),
+          getRoles(),
+        ]);
+
+      setUsers(userList);
+      setRoles(roleList);
     } catch (error) {
       console.error(
         "Fetch users error:",
@@ -147,7 +204,19 @@ export default function UsersAdmin() {
   // ============================
 
   const openAddForm = () => {
-    setForm(EMPTY_FORM);
+    // Staff when the picker has it,
+    // otherwise its first role.
+    const defaultRole =
+      assignableRoles.find(
+        (role) => role.key === "staff"
+      )?.key ??
+      assignableRoles[0]?.key ??
+      "";
+
+    setForm({
+      ...EMPTY_FORM,
+      role: defaultRole,
+    });
     setEditingId(null);
     setFormOpen(true);
   };
@@ -190,6 +259,7 @@ export default function UsersAdmin() {
     const error = validate(form, {
       name: ["Name", [required()]],
       email: ["Email", [required(), email()]],
+      role: ["Role", [required()]],
       // Blank keeps the current password
       // when editing.
       password: [
@@ -307,12 +377,14 @@ export default function UsersAdmin() {
   const roleBadge = (user: AdminUser) => (
     <span
       className={`inline-block rounded-full px-4 py-1 text-xs uppercase tracking-[1px] ${
-        user.role === "admin"
-          ? "bg-blush text-[#E75480]"
-          : "bg-gray-100 text-gray-600"
+        user.role === SUPER_ADMIN_ROLE
+          ? "bg-[#E75480] text-white"
+          : user.role === "admin"
+            ? "bg-blush text-[#E75480]"
+            : "bg-soft text-muted"
       }`}
     >
-      {roleLabel(user.role)}
+      {roleName(user.role)}
     </span>
   );
 
@@ -332,17 +404,23 @@ export default function UsersAdmin() {
     <RowActionsMenu
       label={`Actions for ${user.name}`}
       actions={[
-        {
-          key: "edit",
-          label: "Edit",
-          icon: "✎",
-          onSelect: () =>
-            openEditForm(user),
-        },
+        ...(allowed.update && canTouch(user)
+          ? [
+              {
+                key: "edit",
+                label: "Edit",
+                icon: "✎",
+                onSelect: () =>
+                  openEditForm(user),
+              },
+            ]
+          : []),
         // The API refuses deleting
         // yourself; hiding it saves the
         // round trip.
-        ...(user._id === currentUserId
+        ...(!allowed.delete ||
+        !canTouch(user) ||
+        user._id === currentUserId
           ? []
           : [
               {
@@ -414,12 +492,12 @@ export default function UsersAdmin() {
     return (
       <div className="rounded-3xl bg-surface px-6 py-14 text-center shadow-sm">
         <p className="font-medium text-ink">
-          Admins only
+          You cannot manage admin users
         </p>
 
         <p className="mt-2 text-sm text-muted">
-          Ask an admin if you need an account
-          added or changed.
+          Ask a super admin if you need an
+          account added or changed.
         </p>
       </div>
     );
@@ -445,13 +523,15 @@ export default function UsersAdmin() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openAddForm}
-          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
-        >
-          Add Admin User
-        </button>
+        {allowed.create && (
+          <button
+            type="button"
+            onClick={openAddForm}
+            className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+          >
+            Add Admin User
+          </button>
+        )}
       </div>
 
       {/* TABLE */}
@@ -551,13 +631,21 @@ export default function UsersAdmin() {
               }
               className={inputClass}
             >
-              {ADMIN_ROLES.map((role) => (
+              {roleOptions.length === 0 && (
+                <option value="">
+                  No roles you can assign
+                </option>
+              )}
+
+              {roleOptions.map((role) => (
                 <option
-                  key={role.value}
-                  value={role.value}
+                  key={role.key}
+                  value={role.key}
                 >
-                  {role.label} —{" "}
-                  {role.description}
+                  {role.name}
+                  {role.description
+                    ? ` — ${role.description}`
+                    : ""}
                 </option>
               ))}
             </select>

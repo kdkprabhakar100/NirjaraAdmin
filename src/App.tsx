@@ -1,6 +1,5 @@
 import {
   BrowserRouter,
-  Navigate,
   Route,
   Routes,
 } from "react-router-dom";
@@ -10,6 +9,10 @@ import "react-toastify/dist/ReactToastify.css";
 
 import AdminLayout from "./layouts/AdminLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import RequirePermission, {
+  HomeRedirect,
+} from "./components/RequirePermission";
+import type { Permission } from "./services/auth/auth.types";
 
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -30,16 +33,26 @@ import AdminTeam from "./pages/cms/team/AdminTeam";
 import AdminSettings from "./pages/settings/AdminSettings";
 import BranchesAdmin from "./pages/branches/BranchesAdmin";
 import UsersAdmin from "./pages/users/UsersAdmin";
+import RolesAdmin from "./pages/roles/RolesAdmin";
 
+// A page inside the admin layout. With
+// `permission`, accounts whose role lacks
+// it see a "no access" note instead.
 function ProtectedPage({
+  permission,
   children,
 }: {
+  permission?: Permission;
   children: React.ReactNode;
 }) {
   return (
     <ProtectedRoute>
       <AdminLayout>
-        {children}
+        <RequirePermission
+          permission={permission}
+        >
+          {children}
+        </RequirePermission>
       </AdminLayout>
     </ProtectedRoute>
   );
@@ -69,7 +82,7 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="dashboard.view">
               <Dashboard />
             </ProtectedPage>
           }
@@ -79,7 +92,7 @@ export default function App() {
         <Route
           path="/branches"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="branches.view">
               <BranchesAdmin />
             </ProtectedPage>
           }
@@ -89,7 +102,7 @@ export default function App() {
         <Route
           path="/bookings"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="bookings.view">
               <BookingsAdmin />
             </ProtectedPage>
           }
@@ -99,7 +112,7 @@ export default function App() {
         <Route
           path="/services"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="services.view">
               <ServicesAdmin />
             </ProtectedPage>
           }
@@ -109,7 +122,7 @@ export default function App() {
         <Route
           path="/service-categories"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="serviceCategories.view">
               <ServiceCategoriesAdmin />
             </ProtectedPage>
           }
@@ -119,7 +132,7 @@ export default function App() {
         <Route
           path="/gallery"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="gallery.view">
               <GalleryAdmin />
             </ProtectedPage>
           }
@@ -129,7 +142,7 @@ export default function App() {
         <Route
           path="/courses"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="courses.view">
               <CoursesAdmin />
             </ProtectedPage>
           }
@@ -139,7 +152,7 @@ export default function App() {
         <Route
           path="/messages"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="messages.view">
               <ContactMessagesAdmin />
             </ProtectedPage>
           }
@@ -149,7 +162,7 @@ export default function App() {
         <Route
           path="/blogs"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="blogs.view">
               <BlogAdmin />
             </ProtectedPage>
           }
@@ -159,7 +172,7 @@ export default function App() {
         <Route
           path="/orders"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="orders.view">
               <AdminOrders />
             </ProtectedPage>
           }
@@ -169,7 +182,7 @@ export default function App() {
         <Route
           path="/products"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="products.view">
               <AdminProducts />
             </ProtectedPage>
           }
@@ -179,7 +192,7 @@ export default function App() {
         <Route
           path="/popups"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="popups.view">
               <AdminPopup />
             </ProtectedPage>
           }
@@ -189,7 +202,7 @@ export default function App() {
         <Route
           path="/events"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="events.view">
               <AdminEvents />
             </ProtectedPage>
           }
@@ -199,7 +212,7 @@ export default function App() {
         <Route
           path="/careers"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="careers.view">
               <AdminCareers />
             </ProtectedPage>
           }
@@ -209,7 +222,7 @@ export default function App() {
         <Route
           path="/customers"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="customers.view">
               <CustomersAdmin />
             </ProtectedPage>
           }
@@ -219,7 +232,7 @@ export default function App() {
         <Route
           path="/team"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="team.view">
               <AdminTeam />
             </ProtectedPage>
           }
@@ -229,8 +242,18 @@ export default function App() {
         <Route
           path="/users"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="adminUsers.view">
               <UsersAdmin />
+            </ProtectedPage>
+          }
+        />
+
+        {/* ROLES & PERMISSIONS */}
+        <Route
+          path="/roles"
+          element={
+            <ProtectedPage permission="roles.view">
+              <RolesAdmin />
             </ProtectedPage>
           }
         />
@@ -239,7 +262,7 @@ export default function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedPage>
+            <ProtectedPage permission="settings.view">
               <AdminSettings />
             </ProtectedPage>
           }
@@ -248,23 +271,13 @@ export default function App() {
         {/* ROOT */}
         <Route
           path="/"
-          element={
-            <Navigate
-              to="/dashboard"
-              replace
-            />
-          }
+          element={<HomeRedirect />}
         />
 
         {/* 404 */}
         <Route
           path="*"
-          element={
-            <Navigate
-              to="/dashboard"
-              replace
-            />
-          }
+          element={<HomeRedirect />}
         />
       </Routes>
     </BrowserRouter>

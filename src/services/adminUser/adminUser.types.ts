@@ -15,6 +15,8 @@ export type AdminUser = {
 
   email: string;
 
+  // A role key; the Roles page defines
+  // what each one may do.
   role: AdminRole;
 
   createdAt?: string;
@@ -39,22 +41,3 @@ export type AdminUserPayload = {
 
   password: string;
 };
-
-export const ADMIN_ROLES: {
-  value: AdminRole;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: "admin",
-    label: "Admin",
-    description:
-      "Full access, including managing users.",
-  },
-  {
-    value: "staff",
-    label: "Staff",
-    description:
-      "Everything except managing users.",
-  },
-];

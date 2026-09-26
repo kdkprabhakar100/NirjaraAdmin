@@ -27,7 +27,9 @@ export default function Login() {
         password,
       });
 
-      navigate("/dashboard");
+      // "/" sends each role to the first
+      // page it can open.
+      navigate("/");
     } catch (error: any) {
       console.error(error);
 

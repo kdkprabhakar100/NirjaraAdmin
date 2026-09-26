@@ -7,15 +7,27 @@ export type LoginPayload = {
   password: string;
 };
 
-// Mirrors the backend's user.permissions.ts.
-// The API enforces these; the panel only
-// uses them to hide what an account
-// cannot use.
-export type Permission =
-  | "panel.access"
-  | "users.manage";
+// `<resource>.<action>`, e.g.
+// "bookings.update". The list lives on
+// the backend (role.permissions.ts) and
+// reaches the panel through
+// GET /api/roles/permissions. The API
+// enforces these; the panel only uses
+// them to hide what an account cannot
+// use.
+export type Permission = string;
 
-export type AdminRole = "admin" | "staff";
+export type PermissionAction =
+  | "view"
+  | "create"
+  | "update"
+  | "delete";
+
+// A role key: "super_admin", "admin",
+// "staff", or one made on the Roles page.
+export type AdminRole = string;
+
+export const SUPER_ADMIN_ROLE = "super_admin";
 
 // ========================================
 // ADMIN SESSION
@@ -29,6 +41,10 @@ export type AdminSummary = {
   name: string;
   email: string;
   role: AdminRole;
+  // Display name, e.g. "Super Admin".
+  // Missing from sessions saved before
+  // roles moved to the database.
+  roleName?: string;
   permissions: Permission[];
 };
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-import { quickLinks } from "../config/navigation";
+import { visibleQuickLinks } from "../config/navigation";
 
 import type { AdminSummary } from "../services/auth/auth.types";
 
@@ -162,9 +162,9 @@ function ProfileMenu({
     navigate(path);
   };
 
-  const canManageUsers =
+  const allowed = (permission: string) =>
     session?.permissions.includes(
-      "users.manage"
+      permission
     ) ?? false;
 
   const itemClass =
@@ -195,7 +195,7 @@ function ProfileMenu({
 
           {session && (
             <span className="block text-[11px] uppercase tracking-[1px] text-[#E75480]">
-              {session.role}
+              {session.roleName ?? session.role}
             </span>
           )}
         </span>
@@ -217,13 +217,13 @@ function ProfileMenu({
               </p>
 
               <span className="mt-2 inline-block rounded-full bg-blush px-3 py-0.5 text-[11px] uppercase tracking-[1px] text-[#E75480]">
-                {session.role}
+                {session.roleName ?? session.role}
               </span>
             </div>
           )}
 
           <div className="py-1">
-            {canManageUsers && (
+            {allowed("adminUsers.view") && (
               <button
                 type="button"
                 role="menuitem"
@@ -234,14 +234,27 @@ function ProfileMenu({
               </button>
             )}
 
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => go("/settings")}
-              className={itemClass}
-            >
-              Site Settings
-            </button>
+            {allowed("roles.view") && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => go("/roles")}
+                className={itemClass}
+              >
+                Roles & Permissions
+              </button>
+            )}
+
+            {allowed("settings.view") && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => go("/settings")}
+                className={itemClass}
+              >
+                Site Settings
+              </button>
+            )}
           </div>
 
           <div className="border-t border-[#E75480]/10 pt-1">
@@ -283,7 +296,9 @@ export default function Topbar({
         aria-label="Shortcuts"
         className="hidden items-center gap-1 md:flex"
       >
-        {quickLinks.map((link) => (
+        {visibleQuickLinks(
+          session?.permissions ?? []
+        ).map((link) => (
           <NavLink
             key={link.path}
             to={link.path}
