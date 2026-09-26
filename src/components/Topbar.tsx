@@ -230,7 +230,7 @@ function ProfileMenu({
                 onClick={() => go("/users")}
                 className={itemClass}
               >
-                Users
+                Admin Users
               </button>
             )}
 

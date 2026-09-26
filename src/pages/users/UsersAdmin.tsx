@@ -126,7 +126,7 @@ export default function UsersAdmin() {
       toast.error(
         getApiErrorMessage(
           error,
-          "Failed to load users"
+          "Failed to load admin users"
         )
       );
 
@@ -224,13 +224,13 @@ export default function UsersAdmin() {
         );
 
         toast.success(
-          "User updated successfully!"
+          "Admin user updated successfully!"
         );
       } else {
         await createAdminUser(payload);
 
         toast.success(
-          "User added successfully!"
+          "Admin user added successfully!"
         );
       }
 
@@ -246,7 +246,7 @@ export default function UsersAdmin() {
       toast.error(
         getApiErrorMessage(
           error,
-          "Unable to save the user"
+          "Unable to save the admin user"
         )
       );
     } finally {
@@ -274,7 +274,7 @@ export default function UsersAdmin() {
       );
 
       toast.success(
-        "User deleted successfully!"
+        "Admin user deleted successfully!"
       );
 
       setUserToDelete(null);
@@ -289,7 +289,7 @@ export default function UsersAdmin() {
       toast.error(
         getApiErrorMessage(
           error,
-          "Unable to delete the user"
+          "Unable to delete the admin user"
         )
       );
 
@@ -436,7 +436,7 @@ export default function UsersAdmin() {
           </p>
 
           <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
-            Users
+            Admin Users
           </h1>
 
           <p className="mt-2 text-muted">
@@ -450,7 +450,7 @@ export default function UsersAdmin() {
           onClick={openAddForm}
           className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
         >
-          Add User
+          Add Admin User
         </button>
       </div>
 
@@ -464,8 +464,8 @@ export default function UsersAdmin() {
         loading={loading}
         loadingMessage="Loading users..."
         emptyIcon="☺"
-        emptyTitle="No users yet"
-        emptyMessage="Add your first user using the button above."
+        emptyTitle="No admin users yet"
+        emptyMessage="Add your first admin user using the button above."
         minWidth="760px"
         mobileTitle={nameCell}
         mobileBadge={roleBadge}
@@ -481,7 +481,7 @@ export default function UsersAdmin() {
         onClose={closeForm}
         eyebrow="Management"
         title={
-          editingId ? "Edit User" : "Add User"
+          editingId ? "Edit Admin User" : "Add Admin User"
         }
         size="lg"
         onSubmit={handleSubmit}
@@ -493,8 +493,8 @@ export default function UsersAdmin() {
         }
         confirmLabel={
           editingId
-            ? "Update User"
-            : "Add User"
+            ? "Update Admin User"
+            : "Add Admin User"
         }
         // A half filled form should not
         // vanish on a stray click.
@@ -601,7 +601,7 @@ export default function UsersAdmin() {
           setUserToDelete(null)
         }
         eyebrow="Confirm"
-        title="Delete user?"
+        title="Delete admin user?"
         description={
           userToDelete
             ? `${userToDelete.name} will no longer be able to sign in. This cannot be undone.`

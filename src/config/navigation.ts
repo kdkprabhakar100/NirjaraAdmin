@@ -57,7 +57,7 @@ export const navigation: NavItem[] = [
   { label: "Products", path: "/products" },
   { label: "Customers", path: "/customers" },
   {
-    label: "Users",
+    label: "Admin Users",
     path: "/users",
     permission: "users.manage",
   },
