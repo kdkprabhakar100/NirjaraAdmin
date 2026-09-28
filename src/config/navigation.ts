@@ -124,6 +124,11 @@ export const navigation: NavItem[] = [
     permission: "roles.view",
   },
   {
+    label: "Activity Logs",
+    path: "/activity-logs",
+    permission: "activityLogs.view",
+  },
+  {
     label: "Settings",
     path: "/settings",
     permission: "settings.view",

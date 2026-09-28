@@ -245,6 +245,17 @@ function ProfileMenu({
               </button>
             )}
 
+            {allowed("activityLogs.view") && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => go("/activity-logs")}
+                className={itemClass}
+              >
+                Activity Logs
+              </button>
+            )}
+
             {allowed("settings.view") && (
               <button
                 type="button"

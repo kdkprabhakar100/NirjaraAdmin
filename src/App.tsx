@@ -34,6 +34,7 @@ import AdminSettings from "./pages/settings/AdminSettings";
 import BranchesAdmin from "./pages/branches/BranchesAdmin";
 import UsersAdmin from "./pages/users/UsersAdmin";
 import RolesAdmin from "./pages/roles/RolesAdmin";
+import ActivityLogsAdmin from "./pages/activityLogs/ActivityLogsAdmin";
 
 // A page inside the admin layout. With
 // `permission`, accounts whose role lacks
@@ -254,6 +255,16 @@ export default function App() {
           element={
             <ProtectedPage permission="roles.view">
               <RolesAdmin />
+            </ProtectedPage>
+          }
+        />
+
+        {/* ACTIVITY LOGS */}
+        <Route
+          path="/activity-logs"
+          element={
+            <ProtectedPage permission="activityLogs.view">
+              <ActivityLogsAdmin />
             </ProtectedPage>
           }
         />
