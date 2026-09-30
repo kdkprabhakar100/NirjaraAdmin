@@ -41,6 +41,13 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [testEmailTo, setTestEmailTo] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+
   const API_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -141,6 +148,62 @@ export default function AdminSettings() {
       alert("Unable to update website information.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    const to = testEmailTo.trim() || settings.email;
+
+    if (!to) {
+      setTestResult({
+        ok: false,
+        message: "Enter an email address to send the test to.",
+      });
+      return;
+    }
+
+    try {
+      setSendingTest(true);
+      setTestResult(null);
+
+      const response = await fetch(
+        `${API_URL}/api/site-settings/test-email`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+
+            Authorization: `Bearer ${localStorage.getItem(
+              "adminToken"
+            )}`,
+          },
+
+          body: JSON.stringify({ to }),
+        }
+      );
+
+      // The server explains failures (not configured,
+      // wrong password …) in `message`.
+      const data = await response.json().catch(() => ({}));
+
+      setTestResult({
+        ok: response.ok,
+        message:
+          data.message ??
+          (response.ok
+            ? "Test email sent."
+            : "Unable to send test email."),
+      });
+    } catch (error) {
+      console.error(error);
+
+      setTestResult({
+        ok: false,
+        message: "Unable to reach the server.",
+      });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -282,6 +345,57 @@ export default function AdminSettings() {
           {saving ? "Saving..." : "Save Settings"}
         </button>
       </form>
+
+      {/* EMAIL TEST — outside the form so it
+          never submits the settings */}
+
+      <section className="mt-8 rounded-3xl bg-surface p-6 shadow-sm">
+        <h2 className="font-serif text-2xl text-ink">
+          Email
+        </h2>
+
+        <p className="mt-2 text-muted">
+          Send a test email to check that booking
+          emails can be delivered.
+        </p>
+
+        <div className="mt-6 flex flex-col gap-4 md:flex-row">
+          <input
+            className={inputStyle}
+            type="email"
+            placeholder={
+              settings.email || "Recipient email"
+            }
+            value={testEmailTo}
+            onChange={(e) =>
+              setTestEmailTo(e.target.value)
+            }
+          />
+
+          <button
+            type="button"
+            onClick={sendTestEmail}
+            disabled={sendingTest}
+            className="shrink-0 rounded-full border border-[#E75480] px-8 py-3 text-sm font-medium uppercase tracking-[2px] text-[#E75480] disabled:opacity-50"
+          >
+            {sendingTest
+              ? "Sending..."
+              : "Send Test Email"}
+          </button>
+        </div>
+
+        {testResult && (
+          <p
+            className={`mt-4 text-sm ${
+              testResult.ok
+                ? "text-green-600"
+                : "text-red-600"
+            }`}
+          >
+            {testResult.message}
+          </p>
+        )}
+      </section>
     </div>
   );
 }
