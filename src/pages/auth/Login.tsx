@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { loginAdmin } from "../../services/auth/authService";
 
 import { FormLabel } from "../../components/FormField";
+import PasswordInput from "../../components/PasswordInput";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -83,15 +84,14 @@ export default function Login() {
               required
             />
 
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) =>
                 setPassword(e.target.value)
               }
               placeholder="Enter password"
               required
-              className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 outline-none focus:border-[#E75480]"
+              className="w-full rounded-xl border border-[#E75480]/20 bg-soft py-3 pl-4 pr-12 outline-none focus:border-[#E75480]"
             />
           </div>
 

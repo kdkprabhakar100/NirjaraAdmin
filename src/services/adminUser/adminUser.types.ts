@@ -27,9 +27,10 @@ export type AdminUser = {
 // ========================================
 // CREATE / UPDATE PAYLOAD
 //
-// Password is required on create. On
-// update a blank password keeps the
-// current one.
+// The password is set on create only.
+// Changing it later goes through
+// changeAdminUserPassword, which needs
+// the adminPasswords.update permission.
 // ========================================
 
 export type AdminUserPayload = {
@@ -41,3 +42,8 @@ export type AdminUserPayload = {
 
   password: string;
 };
+
+export type AdminUserUpdatePayload = Omit<
+  AdminUserPayload,
+  "password"
+>;

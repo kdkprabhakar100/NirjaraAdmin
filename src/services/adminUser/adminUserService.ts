@@ -3,6 +3,7 @@ import api from "../base/api";
 import type {
   AdminUser,
   AdminUserPayload,
+  AdminUserUpdatePayload,
 } from "./adminUser.types";
 
 // ========================================
@@ -66,7 +67,7 @@ export const createAdminUser = async (
 
 export const updateAdminUser = async (
   id: string,
-  data: AdminUserPayload
+  data: AdminUserUpdatePayload
 ): Promise<AdminUser> => {
   const response =
     await api.put<AdminUser>(
@@ -76,6 +77,27 @@ export const updateAdminUser = async (
 
   return response.data;
 };
+
+// ========================================
+// CHANGE PASSWORD
+//
+// PATCH /api/admin-users/:id/password
+//
+// Needs adminPasswords.update. Only a
+// super admin can change a super admin's
+// password.
+// ========================================
+
+export const changeAdminUserPassword =
+  async (
+    id: string,
+    password: string
+  ): Promise<void> => {
+    await api.patch(
+      `${ADMIN_USER_API}/${id}/password`,
+      { password }
+    );
+  };
 
 // ========================================
 // DELETE ADMIN USER

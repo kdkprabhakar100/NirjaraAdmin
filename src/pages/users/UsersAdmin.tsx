@@ -9,6 +9,8 @@ import DialogBox from "../../components/DialogBox";
 
 import FormField from "../../components/FormField";
 
+import PasswordInput from "../../components/PasswordInput";
+
 import RowActionsMenu from "../../components/RowActionsMenu";
 
 import {
@@ -24,6 +26,7 @@ import {
 import { getApiErrorMessage } from "../../services/base/api";
 
 import {
+  changeAdminUserPassword,
   createAdminUser,
   deleteAdminUser,
   getAdminUsers,
@@ -73,6 +76,11 @@ export default function UsersAdmin() {
 
   const canManage = allowed.view;
 
+  // Its own permission, apart from
+  // adminUsers.update.
+  const canChangePassword =
+    usePermissions("adminPasswords").update;
+
   const currentUserId = session?.id;
 
   const isSuperAdmin =
@@ -112,6 +120,27 @@ export default function UsersAdmin() {
 
   const [deleting, setDeleting] =
     useState(false);
+
+  // The user whose password is being
+  // changed. Null means the dialog is
+  // closed.
+  const [
+    userForPassword,
+    setUserForPassword,
+  ] = useState<AdminUser | null>(null);
+
+  const [newPassword, setNewPassword] =
+    useState("");
+
+  const [
+    confirmPassword,
+    setConfirmPassword,
+  ] = useState("");
+
+  const [
+    changingPassword,
+    setChangingPassword,
+  ] = useState(false);
 
   const editingSelf =
     editingId !== null &&
@@ -260,16 +289,20 @@ export default function UsersAdmin() {
       name: ["Name", [required()]],
       email: ["Email", [required(), email()]],
       role: ["Role", [required()]],
-      // Blank keeps the current password
-      // when editing.
-      password: [
-        "Password",
-        [
-          ...(editingId ? [] : [required()]),
-          minLength(8),
-          maxLength(128),
-        ],
-      ],
+      // Set on create only; editing has
+      // its own Change Password action.
+      ...(editingId
+        ? {}
+        : {
+            password: [
+              "Password",
+              [
+                required(),
+                minLength(8),
+                maxLength(128),
+              ],
+            ],
+          }),
     });
 
     if (error) {
@@ -288,9 +321,12 @@ export default function UsersAdmin() {
       setSaving(true);
 
       if (editingId) {
+        const { password: _password, ...changes } =
+          payload;
+
         await updateAdminUser(
           editingId,
-          payload
+          changes
         );
 
         toast.success(
@@ -371,6 +407,85 @@ export default function UsersAdmin() {
   };
 
   // ============================
+  // CHANGE PASSWORD
+  // ============================
+
+  const openPasswordForm = (
+    user: AdminUser
+  ) => {
+    setNewPassword("");
+    setConfirmPassword("");
+    setUserForPassword(user);
+  };
+
+  const closePasswordForm = () => {
+    setUserForPassword(null);
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
+  const submitPasswordChange = async () => {
+    if (!userForPassword) {
+      return;
+    }
+
+    const error = validate(
+      { password: newPassword },
+      {
+        password: [
+          "Password",
+          [
+            required(),
+            minLength(8),
+            maxLength(128),
+          ],
+        ],
+      }
+    );
+
+    if (error) {
+      toast.error(error);
+
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+
+      await changeAdminUserPassword(
+        userForPassword._id,
+        newPassword
+      );
+
+      toast.success(
+        `Password changed for ${userForPassword.name}`
+      );
+
+      closePasswordForm();
+    } catch (error) {
+      console.error(
+        "Change password error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to change the password"
+        )
+      );
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  // ============================
   // ROW PIECES
   // ============================
 
@@ -412,6 +527,17 @@ export default function UsersAdmin() {
                 icon: "✎",
                 onSelect: () =>
                   openEditForm(user),
+              },
+            ]
+          : []),
+        ...(canChangePassword && canTouch(user)
+          ? [
+              {
+                key: "password",
+                label: "Change Password",
+                icon: "🔑",
+                onSelect: () =>
+                  openPasswordForm(user),
               },
             ]
           : []),
@@ -651,29 +777,88 @@ export default function UsersAdmin() {
             </select>
           </FormField>
 
+          {/* Editing changes the password
+              through Change Password. */}
+          {!editingId && (
+            <FormField
+              label="Password"
+              required
+              hint="at least 8 characters"
+            >
+              <PasswordInput
+                required
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={128}
+                value={form.password}
+                onChange={(e) =>
+                  updateField(
+                    "password",
+                    e.target.value
+                  )
+                }
+                className={`${inputClass} pr-12`}
+              />
+            </FormField>
+          )}
+        </div>
+      </DialogBox>
+
+      {/* ============================ */}
+      {/* CHANGE PASSWORD              */}
+      {/* ============================ */}
+
+      <DialogBox
+        open={Boolean(userForPassword)}
+        onClose={closePasswordForm}
+        eyebrow="Management"
+        title="Change Password"
+        description={
+          userForPassword
+            ? `Set a new password for ${userForPassword.name} (${userForPassword.email}).`
+            : undefined
+        }
+        size="md"
+        onSubmit={submitPasswordChange}
+        submitting={changingPassword}
+        submittingLabel="Saving..."
+        confirmLabel="Change Password"
+        closeOnBackdrop={false}
+      >
+        <div className="grid gap-4">
           <FormField
-            label="Password"
-            required={!editingId}
-            hint={
-              editingId
-                ? "leave blank to keep the current one"
-                : "at least 8 characters"
-            }
+            label="New Password"
+            required
+            hint="at least 8 characters"
           >
-            <input
-              required={!editingId}
-              type="password"
+            <PasswordInput
+              required
               autoComplete="new-password"
               minLength={8}
               maxLength={128}
-              value={form.password}
+              value={newPassword}
               onChange={(e) =>
-                updateField(
-                  "password",
+                setNewPassword(e.target.value)
+              }
+              className={`${inputClass} pr-12`}
+            />
+          </FormField>
+
+          <FormField
+            label="Confirm Password"
+            required
+          >
+            <PasswordInput
+              required
+              autoComplete="new-password"
+              maxLength={128}
+              value={confirmPassword}
+              onChange={(e) =>
+                setConfirmPassword(
                   e.target.value
                 )
               }
-              className={inputClass}
+              className={`${inputClass} pr-12`}
             />
           </FormField>
         </div>
