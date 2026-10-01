@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "react-toastify";
 
 import CustomTable, {
@@ -17,12 +21,43 @@ import {
   updateBookingStatus,
 } from "../../services/booking/bookingService";
 
-import type { Booking } from "../../services/booking/booking.types";
+import type {
+  Booking,
+  BookingType,
+} from "../../services/booking/booking.types";
+
+// How long typing must pause before a
+// search request goes out.
+const SEARCH_DELAY_MS = 350;
 
 export default function BookingsAdmin() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+
+  // Only the first load blanks the table.
+  // Later loads (a search, a filter) swap
+  // the rows in place.
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // ---- Search + filter ----
+  //
+  // `search` follows the keyboard;
+  // `appliedSearch` is what was actually
+  // sent, so the server is not hit on every
+  // keystroke.
+
+  const [search, setSearch] =
+    useState("");
+
+  const [appliedSearch, setAppliedSearch] =
+    useState("");
+
+  const [typeFilter, setTypeFilter] =
+    useState<BookingType | "">("");
+
+  // Counts the booking requests, so a slow
+  // one cannot overwrite a fresher list.
+  const latestRequest = useRef(0);
 
   // The booking awaiting delete confirmation.
   // Null means the dialog is closed.
@@ -31,13 +66,30 @@ export default function BookingsAdmin() {
 
   // ============================
   // FETCH BOOKINGS
+  //
+  // Filtering happens on the server, so the
+  // search box matches every booking, not
+  // only the ones already on screen.
   // ============================
 
   const fetchBookings = async () => {
-    try {
-      setLoading(true);
+    // Typing fires one request per pause,
+    // so an older answer must not land on
+    // top of a newer one.
+    const requestId = ++latestRequest.current;
 
-      const data = await getBookings();
+    try {
+      const data = await getBookings({
+        search: appliedSearch,
+        type: typeFilter,
+      });
+
+      if (
+        requestId !==
+        latestRequest.current
+      ) {
+        return;
+      }
 
       setBookings(data);
     } catch (error) {
@@ -45,6 +97,13 @@ export default function BookingsAdmin() {
         "Fetch bookings error:",
         error
       );
+
+      if (
+        requestId !==
+        latestRequest.current
+      ) {
+        return;
+      }
 
       toast.error(
         getApiErrorMessage(
@@ -55,13 +114,28 @@ export default function BookingsAdmin() {
 
       setBookings([]);
     } finally {
-      setLoading(false);
+      if (
+        requestId ===
+        latestRequest.current
+      ) {
+        setLoading(false);
+      }
     }
   };
 
+  // ---- Debounce the search box ----
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedSearch(search.trim());
+    }, SEARCH_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [appliedSearch, typeFilter]);
 
   // ============================
   // UPDATE STATUS
@@ -353,6 +427,10 @@ export default function BookingsAdmin() {
   // UI
   // ============================
 
+  const filtersActive = Boolean(
+    appliedSearch || typeFilter
+  );
+
   return (
     <div>
       <div>
@@ -369,8 +447,60 @@ export default function BookingsAdmin() {
         </p>
       </div>
 
+      {/* SEARCH + TYPE FILTER */}
+
+      <div className="mt-8 flex flex-col gap-3 rounded-3xl bg-surface p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-sm text-muted">
+          {bookings.length} booking
+          {bookings.length === 1
+            ? ""
+            : "s"}{" "}
+          {filtersActive
+            ? "found"
+            : "in total"}
+        </p>
+
+        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) =>
+              setSearch(
+                event.target.value
+              )
+            }
+            placeholder="Search name, phone, email, service or branch..."
+            className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
+          />
+
+          <select
+            value={typeFilter}
+            onChange={(event) =>
+              setTypeFilter(
+                event.target.value as
+                  | BookingType
+                  | ""
+              )
+            }
+            className="rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm text-ink outline-none focus:border-[#E75480]"
+          >
+            <option value="">
+              All Types
+            </option>
+
+            <option value="service">
+              Service
+            </option>
+
+            <option value="course">
+              Course
+            </option>
+          </select>
+        </div>
+      </div>
+
       <CustomTable
-        className="mt-10"
+        className="mt-6"
         columns={columns}
         rows={bookings}
         rowKey={(booking) =>
@@ -378,8 +508,16 @@ export default function BookingsAdmin() {
         }
         loading={loading}
         loadingMessage="Loading bookings..."
-        emptyTitle="No bookings available"
-        emptyMessage="New bookings from customers will show up here."
+        emptyTitle={
+          filtersActive
+            ? "No matching bookings"
+            : "No bookings available"
+        }
+        emptyMessage={
+          filtersActive
+            ? "Try a different search, or pick another type."
+            : "New bookings from customers will show up here."
+        }
         minWidth="1100px"
         mobileTitle={(booking) =>
           booking.name

@@ -27,6 +27,7 @@ import {
   createService,
   deleteService,
   getServices,
+  setServiceAvailability,
   updateService,
 } from "../../services/service/serviceService";
 
@@ -56,7 +57,13 @@ const emptyForm: ServicePayload = {
   price: "",
   category: "",
   image: "",
+  available: true,
 };
+
+// Services saved before the switch existed
+// have no `available` and count as on.
+const isAvailable = (service: Service) =>
+  service.available !== false;
 
 // Categories are managed on their own
 // page; this one only reads them.
@@ -299,6 +306,7 @@ export default function ServicesAdmin() {
       category:
         service.category?._id ?? "",
       image: service.image || "",
+      available: isAvailable(service),
     });
 
     setEditingId(service._id || null);
@@ -470,6 +478,71 @@ export default function ServicesAdmin() {
   };
 
   // ============================
+  // AVAILABILITY
+  //
+  // A quick switch from the table, without
+  // opening the form. The row updates in
+  // place from the server's answer.
+  // ============================
+
+  const toggleAvailability = async (
+    service: Service
+  ) => {
+    if (!service._id) {
+      return;
+    }
+
+    const next = !isAvailable(service);
+
+    try {
+      const updated =
+        await setServiceAvailability(
+          service._id,
+          next
+        );
+
+      setServices((previous) =>
+        previous.map((one) =>
+          one._id === updated._id
+            ? updated
+            : one
+        )
+      );
+
+      toast.success(
+        next
+          ? `"${service.title}" can be booked again.`
+          : `"${service.title}" is now shown as not available.`
+      );
+    } catch (error) {
+      console.error(
+        "Availability error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to change availability"
+        )
+      );
+    }
+  };
+
+  const availabilityBadge = (
+    service: Service
+  ) =>
+    isAvailable(service) ? (
+      <span className="inline-block whitespace-nowrap rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+        Available
+      </span>
+    ) : (
+      <span className="inline-block whitespace-nowrap rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-600">
+        Not available
+      </span>
+    );
+
+  // ============================
   // ROW PIECES
   // ============================
 
@@ -500,6 +573,17 @@ export default function ServicesAdmin() {
           icon: "✎",
           onSelect: () =>
             openEditForm(service),
+        },
+        {
+          key: "availability",
+          label: isAvailable(service)
+            ? "Mark not available"
+            : "Mark available",
+          icon: isAvailable(service)
+            ? "⏸"
+            : "▶",
+          onSelect: () =>
+            toggleAvailability(service),
         },
         {
           key: "delete",
@@ -559,6 +643,11 @@ export default function ServicesAdmin() {
         "whitespace-nowrap font-medium text-[#E75480]",
       render: (service) =>
         service.price,
+    },
+    {
+      key: "booking",
+      header: "Booking",
+      render: availabilityBadge,
     },
     {
       key: "description",
@@ -869,6 +958,34 @@ export default function ServicesAdmin() {
               className={inputClass}
             />
           </FormField>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 md:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.available !== false}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  available:
+                    event.target.checked,
+                })
+              }
+              className="mt-1 h-4 w-4 accent-[#E75480]"
+            />
+
+            <span>
+              <span className="block text-sm font-medium text-ink">
+                Available for booking
+              </span>
+
+              <span className="block text-xs text-muted">
+                When off, the website shows
+                "Currently not available" on
+                this service and customers
+                cannot book it.
+              </span>
+            </span>
+          </label>
         </div>
 
         {uploading && (

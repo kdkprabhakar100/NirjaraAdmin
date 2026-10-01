@@ -19,6 +19,7 @@ import {
   refreshAdminSession,
 } from "../services/auth/authService";
 import { useAdminSession } from "../hooks/useAuth";
+import { usePendingBookingCount } from "../hooks/usePendingBookingCount";
 import axios from "axios";
 import Topbar from "../components/Topbar";
 
@@ -33,14 +34,20 @@ const linkClass = (isActive: boolean) =>
       : "text-muted hover:bg-blush hover:text-[#E75480]"
   }`;
 
+// A count shown beside a link, keyed by
+// its path, e.g. pending bookings.
+type Badges = Record<string, number>;
+
 // ========================================
 // SIDEBAR LINK
 // ========================================
 
 function SidebarLink({
   link,
+  badge = 0,
 }: {
   link: NavLinkItem;
+  badge?: number;
 }) {
   const { pathname } = useLocation();
 
@@ -52,12 +59,29 @@ function SidebarLink({
     <NavLink
       to={link.path}
       className={({ isActive }) =>
-        linkClass(
+        `${linkClass(
           isActive || activeElsewhere
-        )
+        )} flex items-center justify-between gap-2`
       }
     >
-      {link.label}
+      {({ isActive }) => (
+        <>
+          {link.label}
+
+          {badge > 0 && (
+            <span
+              aria-label={`${badge} pending`}
+              className={`min-w-6 rounded-full px-2 py-0.5 text-center text-xs font-semibold ${
+                isActive || activeElsewhere
+                  ? "bg-white text-[#E75480]"
+                  : "bg-[#E75480] text-white"
+              }`}
+            >
+              {badge > 99 ? "99+" : badge}
+            </span>
+          )}
+        </>
+      )}
     </NavLink>
   );
 }
@@ -74,8 +98,10 @@ function SidebarLink({
 
 function SidebarGroup({
   group,
+  badges,
 }: {
   group: NavGroup;
+  badges: Badges;
 }) {
   const { pathname } = useLocation();
 
@@ -147,6 +173,7 @@ function SidebarGroup({
             <SidebarLink
               key={link.path}
               link={link}
+              badge={badges[link.path]}
             />
           ))}
         </div>
@@ -184,6 +211,23 @@ export default function AdminLayout({
     session?.permissions ?? []
   );
 
+  const pendingBookings =
+    usePendingBookingCount(
+      session?.permissions.includes(
+        "bookings.view"
+      ) ?? false
+    );
+
+  const badges: Badges = {
+    "/bookings": pendingBookings,
+  };
+
+  // "Bookings (3)" in the mobile picker.
+  const withBadge = (link: NavLinkItem) =>
+    badges[link.path]
+      ? `${link.label} (${badges[link.path]})`
+      : link.label;
+
   const logout = () => {
     logoutAdmin();
     navigate("/login");
@@ -204,11 +248,13 @@ export default function AdminLayout({
                 <SidebarGroup
                   key={item.label}
                   group={item}
+                  badges={badges}
                 />
               ) : (
                 <SidebarLink
                   key={item.path}
                   link={item}
+                  badge={badges[item.path]}
                 />
               )
             )}
@@ -248,7 +294,7 @@ export default function AdminLayout({
                         key={link.path}
                         value={link.path}
                       >
-                        {link.label}
+                        {withBadge(link)}
                       </option>
                     ))}
                   </optgroup>
@@ -257,7 +303,7 @@ export default function AdminLayout({
                     key={item.path}
                     value={item.path}
                   >
-                    {item.label}
+                    {withBadge(item)}
                   </option>
                 )
               )}

@@ -11,6 +11,14 @@ export type BookingType =
   | "service"
   | "course";
 
+// Query for GET /api/bookings. An empty
+// type means "all types".
+export type BookingFilters = {
+  search?: string;
+
+  type?: BookingType | "";
+};
+
 export type Booking = {
   _id: string;
 

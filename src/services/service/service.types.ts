@@ -28,6 +28,12 @@ export type Service = {
 
   image?: string;
 
+  // Off: the website shows "Currently not
+  // available" and refuses bookings for it.
+  // Missing on services saved before the
+  // switch existed, which count as on.
+  available?: boolean;
+
   createdAt?: string;
 
   updatedAt?: string;

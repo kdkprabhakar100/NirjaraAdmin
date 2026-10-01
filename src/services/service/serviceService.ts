@@ -96,6 +96,29 @@ export const updateService = async (
 };
 
 // ========================================
+// SET AVAILABILITY
+//
+// PUT /api/services/:id
+//
+// Flips only the booking switch; the
+// server leaves the other fields alone.
+// ========================================
+
+export const setServiceAvailability =
+  async (
+    id: string,
+    available: boolean
+  ): Promise<Service> => {
+    const response =
+      await api.put<Service>(
+        `${SERVICE_API}/${id}`,
+        { available }
+      );
+
+    return response.data;
+  };
+
+// ========================================
 // DELETE SERVICE
 //
 // DELETE /api/services/:id

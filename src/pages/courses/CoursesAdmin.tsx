@@ -13,6 +13,10 @@ import { uploadImage } from "../../services/upload/uploadService";
 
 import FormField from "../../components/FormField";
 
+import api, {
+  getApiErrorMessage,
+} from "../../services/base/api";
+
 // ========================================
 // TYPES
 // ========================================
@@ -25,6 +29,11 @@ type Course = {
   fee: string;
   certificate: string;
   image?: string;
+  // Off: the website shows "Currently not
+  // available" and refuses enrollments.
+  // Missing on courses saved before the
+  // switch existed, which count as on.
+  available?: boolean;
 };
 
 const emptyCourse: Course = {
@@ -34,7 +43,11 @@ const emptyCourse: Course = {
   fee: "",
   certificate: "",
   image: "",
+  available: true,
 };
+
+const isAvailable = (course: Course) =>
+  course.available !== false;
 
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",
@@ -141,6 +154,7 @@ export default function CoursesAdmin() {
       certificate:
         course.certificate || "",
       image: course.image || "",
+      available: isAvailable(course),
     });
 
     setEditingId(course._id || null);
@@ -286,6 +300,71 @@ export default function CoursesAdmin() {
   };
 
   // ============================
+  // AVAILABILITY
+  //
+  // A quick switch from the table, without
+  // opening the form. The row updates in
+  // place from the server's answer.
+  // ============================
+
+  const toggleAvailability = async (
+    course: Course
+  ) => {
+    if (!course._id) {
+      return;
+    }
+
+    const next = !isAvailable(course);
+
+    try {
+      const { data: updated } =
+        await api.put<Course>(
+          `/api/courses/${course._id}`,
+          { available: next }
+        );
+
+      setCourses((previous) =>
+        previous.map((one) =>
+          one._id === updated._id
+            ? updated
+            : one
+        )
+      );
+
+      toast.success(
+        next
+          ? `"${course.title}" is open for enrollment again.`
+          : `"${course.title}" is now shown as not available.`
+      );
+    } catch (error) {
+      console.error(
+        "Availability error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to change availability"
+        )
+      );
+    }
+  };
+
+  const availabilityBadge = (
+    course: Course
+  ) =>
+    isAvailable(course) ? (
+      <span className="inline-block whitespace-nowrap rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+        Available
+      </span>
+    ) : (
+      <span className="inline-block whitespace-nowrap rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-600">
+        Not available
+      </span>
+    );
+
+  // ============================
   // ROW PIECES
   // ============================
 
@@ -314,6 +393,17 @@ export default function CoursesAdmin() {
           icon: "✎",
           onSelect: () =>
             openEditForm(course),
+        },
+        {
+          key: "availability",
+          label: isAvailable(course)
+            ? "Mark not available"
+            : "Mark available",
+          icon: isAvailable(course)
+            ? "⏸"
+            : "▶",
+          onSelect: () =>
+            toggleAvailability(course),
         },
         {
           key: "delete",
@@ -361,6 +451,11 @@ export default function CoursesAdmin() {
       cellClassName:
         "whitespace-nowrap font-medium text-[#E75480]",
       render: (course) => course.fee,
+    },
+    {
+      key: "enrollment",
+      header: "Enrollment",
+      render: availabilityBadge,
     },
     {
       key: "certificate",
@@ -593,6 +688,34 @@ export default function CoursesAdmin() {
               className={inputClass}
             />
           </FormField>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 md:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.available !== false}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  available:
+                    event.target.checked,
+                })
+              }
+              className="mt-1 h-4 w-4 accent-[#E75480]"
+            />
+
+            <span>
+              <span className="block text-sm font-medium text-ink">
+                Available for enrollment
+              </span>
+
+              <span className="block text-xs text-muted">
+                When off, the website shows
+                "Currently not available" on
+                this course and students cannot
+                enroll in it.
+              </span>
+            </span>
+          </label>
         </div>
 
         {uploading && (
