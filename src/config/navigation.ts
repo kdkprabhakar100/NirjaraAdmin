@@ -96,6 +96,11 @@ export const navigation: NavItem[] = [
         path: "/team",
         permission: "team.view",
       },
+      {
+        label: "Legal Pages", 
+        path: "/legal-pages",
+        permission: "legalPages.view",  
+      }
     ],
   },
   {
@@ -129,6 +134,7 @@ export const navigation: NavItem[] = [
     path: "/activity-logs",
     permission: "activityLogs.view",
   },
+
   {
     label: "Settings",
     path: "/settings",

@@ -36,7 +36,7 @@ import BranchesAdmin from "./pages/branches/BranchesAdmin";
 import UsersAdmin from "./pages/users/UsersAdmin";
 import RolesAdmin from "./pages/roles/RolesAdmin";
 import ActivityLogsAdmin from "./pages/activityLogs/ActivityLogsAdmin";
-
+import LegalPagesAdmin from "./pages/legalPages/LegalPagesAdmin";
 // A page inside the admin layout. With
 // `permission`, accounts whose role lacks
 // it see a "no access" note instead.
@@ -289,6 +289,16 @@ export default function App() {
             </ProtectedPage>
           }
         />
+        {/* LEGAL PAGES */}
+<Route
+  path="/legal-pages"
+  element={
+    <ProtectedPage permission="legalPages.view">
+      <LegalPagesAdmin />
+    </ProtectedPage>
+  }
+/>
+        
 
         {/* ROOT */}
         <Route

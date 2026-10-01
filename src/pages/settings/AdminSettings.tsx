@@ -1,29 +1,44 @@
 import { useEffect, useState } from "react";
 
+type SocialLinks = {
+  facebook: string;
+  instagram: string;
+  tiktok: string;
+  youtube: string;
+};
+
+type FooterSettings = {
+  showSocialLinks: boolean;
+  showAdminLogin: boolean;
+  showBookAppointment: boolean;
+
+  copyrightText: string;
+
+  developerName: string;
+  developerUrl: string;
+};
+
 type SiteSettings = {
   salonName: string;
   description: string;
+
   email: string;
   phone: string;
   whatsapp: string;
 
-  socialLinks: {
-    facebook: string;
-    instagram: string;
-    tiktok: string;
-    youtube: string;
-  };
+  socialLinks: SocialLinks;
+
+  footer: FooterSettings;
 };
 
 const initialSettings: SiteSettings = {
   salonName: "Nirjara Beauty",
 
-  description: "",
+  description:
+    "A professional beauty salon and academy offering salon services, beauty training, and customer-focused care in Kathmandu.",
 
   email: "",
-
   phone: "",
-
   whatsapp: "",
 
   socialLinks: {
@@ -32,50 +47,138 @@ const initialSettings: SiteSettings = {
     tiktok: "",
     youtube: "",
   },
+
+  footer: {
+    showSocialLinks: true,
+    showAdminLogin: true,
+    showBookAppointment: true,
+
+    copyrightText:
+      "© 2026 Nirjara Beauty. All rights reserved.",
+
+    developerName: "Prabhakar Khadka",
+    developerUrl: "",
+  },
 };
 
 export default function AdminSettings() {
   const [settings, setSettings] =
     useState<SiteSettings>(initialSettings);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [testEmailTo, setTestEmailTo] = useState("");
-  const [sendingTest, setSendingTest] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    ok: boolean;
-    message: string;
-  } | null>(null);
+  const [saving, setSaving] =
+    useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL;
+  const [message, setMessage] =
+    useState("");
+
+  const API_URL =
+    import.meta.env.VITE_API_URL;
+
+  // =====================================================
+  // FETCH SETTINGS
+  // =====================================================
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    const fetchSettings = async () => {
+      try {
+        setLoading(true);
 
-  const fetchSettings = async () => {
-    try {
-      const response = await fetch(
-        `${API_URL}/api/site-settings`
-      );
+        const response = await fetch(
+          `${API_URL}/api/site-settings`
+        );
 
-      if (!response.ok) {
-        throw new Error("Unable to load settings");
+        if (!response.ok) {
+          throw new Error(
+            "Could not load site settings."
+          );
+        }
+
+        const data = await response.json();
+
+        setSettings({
+          salonName:
+            data.salonName ??
+            initialSettings.salonName,
+
+          description:
+            data.description ??
+            initialSettings.description,
+
+          email: data.email ?? "",
+
+          phone: data.phone ?? "",
+
+          whatsapp: data.whatsapp ?? "",
+
+          socialLinks: {
+            facebook:
+              data.socialLinks?.facebook ?? "",
+
+            instagram:
+              data.socialLinks?.instagram ?? "",
+
+            tiktok:
+              data.socialLinks?.tiktok ?? "",
+
+            youtube:
+              data.socialLinks?.youtube ?? "",
+          },
+
+          footer: {
+            showSocialLinks:
+              data.footer?.showSocialLinks ??
+              true,
+
+            showAdminLogin:
+              data.footer?.showAdminLogin ??
+              true,
+
+            showBookAppointment:
+              data.footer
+                ?.showBookAppointment ?? true,
+
+            copyrightText:
+              data.footer?.copyrightText ??
+              initialSettings.footer
+                .copyrightText,
+
+            developerName:
+              data.footer?.developerName ??
+              initialSettings.footer
+                .developerName,
+
+            developerUrl:
+              data.footer?.developerUrl ?? "",
+          },
+        });
+      } catch (error) {
+        console.error(error);
+
+        setMessage(
+          "Could not load site settings."
+        );
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const data = await response.json();
+    fetchSettings();
+  }, [API_URL]);
 
-      setSettings(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // =====================================================
+  // NORMAL INPUT
+  // =====================================================
 
   const updateField = (
-    field: keyof SiteSettings,
+    field:
+      | "salonName"
+      | "description"
+      | "email"
+      | "phone"
+      | "whatsapp",
     value: string
   ) => {
     setSettings((previous) => ({
@@ -84,8 +187,12 @@ export default function AdminSettings() {
     }));
   };
 
+  // =====================================================
+  // SOCIAL MEDIA
+  // =====================================================
+
   const updateSocial = (
-    field: keyof SiteSettings["socialLinks"],
+    network: keyof SocialLinks,
     value: string
   ) => {
     setSettings((previous) => ({
@@ -93,18 +200,72 @@ export default function AdminSettings() {
 
       socialLinks: {
         ...previous.socialLinks,
+        [network]: value,
+      },
+    }));
+  };
+
+  // =====================================================
+  // FOOTER TEXT
+  // =====================================================
+
+  const updateFooterText = (
+    field:
+      | "copyrightText"
+      | "developerName"
+      | "developerUrl",
+    value: string
+  ) => {
+    setSettings((previous) => ({
+      ...previous,
+
+      footer: {
+        ...previous.footer,
         [field]: value,
       },
     }));
   };
 
-  const saveSettings = async (
-    event: React.FormEvent
-  ) => {
-    event.preventDefault();
+  // =====================================================
+  // FOOTER SWITCH
+  // =====================================================
 
+  const updateFooterSwitch = (
+    field:
+      | "showSocialLinks"
+      | "showAdminLogin"
+      | "showBookAppointment"
+  ) => {
+    setSettings((previous) => ({
+      ...previous,
+
+      footer: {
+        ...previous.footer,
+
+        [field]:
+          !previous.footer[field],
+      },
+    }));
+  };
+
+  // =====================================================
+  // SAVE
+  // =====================================================
+
+  const handleSave = async () => {
     try {
       setSaving(true);
+      setMessage("");
+
+      /*
+       * IMPORTANT
+       *
+       * Change this if your project stores the
+       * authentication token under another name.
+       */
+
+      const token =
+        localStorage.getItem("token");
 
       const response = await fetch(
         `${API_URL}/api/site-settings`,
@@ -112,290 +273,633 @@ export default function AdminSettings() {
           method: "PUT",
 
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
 
-            Authorization: `Bearer ${localStorage.getItem(
-              "adminToken"
-            )}`,
+            ...(token
+              ? {
+                  Authorization:
+                    `Bearer ${token}`,
+                }
+              : {}),
           },
 
-          // Branches have their own page and
-          // are left out, so saving here never
-          // overwrites them.
-          body: JSON.stringify({
-            salonName: settings.salonName,
-            description: settings.description,
-            email: settings.email,
-            phone: settings.phone,
-            whatsapp: settings.whatsapp,
-            socialLinks: settings.socialLinks,
-          }),
+          body: JSON.stringify(settings),
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Unable to save settings");
-      }
-
       const data = await response.json();
 
-      setSettings(data);
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "Could not save settings."
+        );
+      }
 
-      alert("Website information updated successfully.");
+      setMessage(
+        "Settings saved successfully."
+      );
     } catch (error) {
       console.error(error);
 
-      alert("Unable to update website information.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not save settings."
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const sendTestEmail = async () => {
-    const to = testEmailTo.trim() || settings.email;
-
-    if (!to) {
-      setTestResult({
-        ok: false,
-        message: "Enter an email address to send the test to.",
-      });
-      return;
-    }
-
-    try {
-      setSendingTest(true);
-      setTestResult(null);
-
-      const response = await fetch(
-        `${API_URL}/api/site-settings/test-email`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-
-            Authorization: `Bearer ${localStorage.getItem(
-              "adminToken"
-            )}`,
-          },
-
-          body: JSON.stringify({ to }),
-        }
-      );
-
-      // The server explains failures (not configured,
-      // wrong password …) in `message`.
-      const data = await response.json().catch(() => ({}));
-
-      setTestResult({
-        ok: response.ok,
-        message:
-          data.message ??
-          (response.ok
-            ? "Test email sent."
-            : "Unable to send test email."),
-      });
-    } catch (error) {
-      console.error(error);
-
-      setTestResult({
-        ok: false,
-        message: "Unable to reach the server.",
-      });
-    } finally {
-      setSendingTest(false);
-    }
-  };
-
-  const inputStyle =
-    "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 outline-none focus:border-[#E75480]";
+  // =====================================================
+  // LOADING
+  // =====================================================
 
   if (loading) {
     return (
-      <div className="text-muted">
-        Loading website settings...
+      <div className="flex min-h-[500px] items-center justify-center">
+        <p className="text-sm text-[#8A6F78]">
+          Loading settings...
+        </p>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="font-serif text-4xl text-[#E75480] md:text-5xl">
-        Site Settings
-      </h1>
+    <div className="min-h-screen bg-[#FFF5F8] p-5 sm:p-7 lg:p-8">
 
-      <p className="mt-2 text-muted">
-        Manage contact information and social media
-        displayed across the website. Branches have
-        their own page.
-      </p>
+      {/* ===============================================
+          HEADER
+      =============================================== */}
 
-      <form
-        onSubmit={saveSettings}
-        className="mt-8 space-y-8"
-      >
-        {/* BUSINESS */}
+      <div className="mx-auto max-w-6xl">
 
-        <section className="rounded-3xl bg-surface p-6 shadow-sm">
-          <h2 className="font-serif text-2xl text-ink">
-            Business Information
-          </h2>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[4px] text-[#E75480]">
+            Website
+          </p>
 
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
-            <input
-              className={inputStyle}
-              placeholder="Salon Name"
-              value={settings.salonName}
-              onChange={(e) =>
-                updateField("salonName", e.target.value)
-              }
-            />
+          <h1 className="mt-2 font-serif text-4xl text-[#3A2A2F] sm:text-5xl">
+            Site Settings
+          </h1>
 
-            <input
-              className={inputStyle}
-              type="email"
-              placeholder="Email"
-              value={settings.email}
-              onChange={(e) =>
-                updateField("email", e.target.value)
-              }
-            />
-
-            <input
-              className={inputStyle}
-              placeholder="Main Phone Number"
-              value={settings.phone}
-              onChange={(e) =>
-                updateField("phone", e.target.value)
-              }
-            />
-
-            <input
-              className={inputStyle}
-              placeholder="WhatsApp Number"
-              value={settings.whatsapp}
-              onChange={(e) =>
-                updateField("whatsapp", e.target.value)
-              }
-            />
-
-            <textarea
-              className={`${inputStyle} md:col-span-2`}
-              rows={4}
-              placeholder="Business Description"
-              value={settings.description}
-              onChange={(e) =>
-                updateField("description", e.target.value)
-              }
-            />
-          </div>
-        </section>
-
-        {/* SOCIAL MEDIA */}
-
-        <section className="rounded-3xl bg-surface p-6 shadow-sm">
-          <h2 className="font-serif text-2xl text-ink">
-            Social Media
-          </h2>
-
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
-            <input
-              className={inputStyle}
-              placeholder="Facebook URL"
-              value={settings.socialLinks.facebook}
-              onChange={(e) =>
-                updateSocial("facebook", e.target.value)
-              }
-            />
-
-            <input
-              className={inputStyle}
-              placeholder="Instagram URL"
-              value={settings.socialLinks.instagram}
-              onChange={(e) =>
-                updateSocial("instagram", e.target.value)
-              }
-            />
-
-            <input
-              className={inputStyle}
-              placeholder="TikTok URL"
-              value={settings.socialLinks.tiktok}
-              onChange={(e) =>
-                updateSocial("tiktok", e.target.value)
-              }
-            />
-
-            <input
-              className={inputStyle}
-              placeholder="YouTube URL"
-              value={settings.socialLinks.youtube}
-              onChange={(e) =>
-                updateSocial("youtube", e.target.value)
-              }
-            />
-          </div>
-        </section>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-full bg-[#E75480] px-10 py-4 text-sm font-medium uppercase tracking-[2px] text-white disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save Settings"}
-        </button>
-      </form>
-
-      {/* EMAIL TEST — outside the form so it
-          never submits the settings */}
-
-      <section className="mt-8 rounded-3xl bg-surface p-6 shadow-sm">
-        <h2 className="font-serif text-2xl text-ink">
-          Email
-        </h2>
-
-        <p className="mt-2 text-muted">
-          Send a test email to check that booking
-          emails can be delivered.
-        </p>
-
-        <div className="mt-6 flex flex-col gap-4 md:flex-row">
-          <input
-            className={inputStyle}
-            type="email"
-            placeholder={
-              settings.email || "Recipient email"
-            }
-            value={testEmailTo}
-            onChange={(e) =>
-              setTestEmailTo(e.target.value)
-            }
-          />
-
-          <button
-            type="button"
-            onClick={sendTestEmail}
-            disabled={sendingTest}
-            className="shrink-0 rounded-full border border-[#E75480] px-8 py-3 text-sm font-medium uppercase tracking-[2px] text-[#E75480] disabled:opacity-50"
-          >
-            {sendingTest
-              ? "Sending..."
-              : "Send Test Email"}
-          </button>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#8A6F78]">
+            Manage business information,
+            social media and footer settings
+            displayed across the Nirjara
+            website.
+          </p>
         </div>
 
-        {testResult && (
-          <p
-            className={`mt-4 text-sm ${
-              testResult.ok
-                ? "text-green-600"
-                : "text-red-600"
-            }`}
+        <div className="mt-8 space-y-6">
+
+          {/* ===========================================
+              BUSINESS INFORMATION
+          =========================================== */}
+
+          <SettingsCard
+            title="Business Information"
+            description="General contact information used across the website."
           >
-            {testResult.message}
+            <div className="grid gap-4 md:grid-cols-2">
+
+              <Input
+                label="Salon Name"
+                value={settings.salonName}
+                placeholder="Nirjara Beauty"
+                onChange={(value) =>
+                  updateField(
+                    "salonName",
+                    value
+                  )
+                }
+              />
+
+              <Input
+                label="Email"
+                value={settings.email}
+                placeholder="Email address"
+                type="email"
+                onChange={(value) =>
+                  updateField(
+                    "email",
+                    value
+                  )
+                }
+              />
+
+              <Input
+                label="Phone Number"
+                value={settings.phone}
+                placeholder="Main phone number"
+                onChange={(value) =>
+                  updateField(
+                    "phone",
+                    value
+                  )
+                }
+              />
+
+              <Input
+                label="WhatsApp Number"
+                value={settings.whatsapp}
+                placeholder="WhatsApp number"
+                onChange={(value) =>
+                  updateField(
+                    "whatsapp",
+                    value
+                  )
+                }
+              />
+
+            </div>
+
+            <div className="mt-4">
+
+              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[2px] text-[#8A6F78]">
+                Description
+              </label>
+
+              <textarea
+                value={settings.description}
+                onChange={(event) =>
+                  updateField(
+                    "description",
+                    event.target.value
+                  )
+                }
+                rows={4}
+                className="
+                  w-full
+                  resize-none
+                  rounded-2xl
+                  border
+                  border-[#E75480]/15
+                  bg-[#FFF8FA]
+                  px-5
+                  py-4
+                  text-sm
+                  text-[#3A2A2F]
+                  outline-none
+                  transition
+                  placeholder:text-[#B89DA6]
+                  focus:border-[#E75480]/50
+                  focus:bg-white
+                "
+              />
+
+            </div>
+          </SettingsCard>
+
+          {/* ===========================================
+              SOCIAL MEDIA
+          =========================================== */}
+
+          <SettingsCard
+            title="Social Media"
+            description="Add your official social media profile links."
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+
+              <Input
+                label="Facebook"
+                value={
+                  settings.socialLinks
+                    .facebook
+                }
+                placeholder="Facebook URL"
+                onChange={(value) =>
+                  updateSocial(
+                    "facebook",
+                    value
+                  )
+                }
+              />
+
+              <Input
+                label="Instagram"
+                value={
+                  settings.socialLinks
+                    .instagram
+                }
+                placeholder="Instagram URL"
+                onChange={(value) =>
+                  updateSocial(
+                    "instagram",
+                    value
+                  )
+                }
+              />
+
+              <Input
+                label="TikTok"
+                value={
+                  settings.socialLinks
+                    .tiktok
+                }
+                placeholder="TikTok URL"
+                onChange={(value) =>
+                  updateSocial(
+                    "tiktok",
+                    value
+                  )
+                }
+              />
+
+              <Input
+                label="YouTube"
+                value={
+                  settings.socialLinks
+                    .youtube
+                }
+                placeholder="YouTube URL"
+                onChange={(value) =>
+                  updateSocial(
+                    "youtube",
+                    value
+                  )
+                }
+              />
+
+            </div>
+          </SettingsCard>
+
+          {/* ===========================================
+              FOOTER
+          =========================================== */}
+
+          <SettingsCard
+            title="Footer Settings"
+            description="Control what appears in the website footer."
+          >
+
+            {/* SWITCHES */}
+
+            <div className="grid gap-3 lg:grid-cols-3">
+
+              <SettingSwitch
+                title="Social Links"
+                description="Display social media icons."
+                checked={
+                  settings.footer
+                    .showSocialLinks
+                }
+                onChange={() =>
+                  updateFooterSwitch(
+                    "showSocialLinks"
+                  )
+                }
+              />
+
+              <SettingSwitch
+                title="Admin Login"
+                description="Show the admin login link."
+                checked={
+                  settings.footer
+                    .showAdminLogin
+                }
+                onChange={() =>
+                  updateFooterSwitch(
+                    "showAdminLogin"
+                  )
+                }
+              />
+
+              <SettingSwitch
+                title="Booking CTA"
+                description="Show the booking banner."
+                checked={
+                  settings.footer
+                    .showBookAppointment
+                }
+                onChange={() =>
+                  updateFooterSwitch(
+                    "showBookAppointment"
+                  )
+                }
+              />
+
+            </div>
+
+            {/* FOOTER TEXT */}
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+
+              <div className="md:col-span-2">
+
+                <Input
+                  label="Copyright Text"
+                  value={
+                    settings.footer
+                      .copyrightText
+                  }
+                  placeholder="© 2026 Nirjara Beauty. All rights reserved."
+                  onChange={(value) =>
+                    updateFooterText(
+                      "copyrightText",
+                      value
+                    )
+                  }
+                />
+
+              </div>
+
+              <Input
+                label="Developer Name"
+                value={
+                  settings.footer
+                    .developerName
+                }
+                placeholder="Prabhakar Khadka"
+                onChange={(value) =>
+                  updateFooterText(
+                    "developerName",
+                    value
+                  )
+                }
+              />
+
+              <Input
+                label="Developer Website"
+                value={
+                  settings.footer
+                    .developerUrl
+                }
+                placeholder="https://example.com"
+                onChange={(value) =>
+                  updateFooterText(
+                    "developerUrl",
+                    value
+                  )
+                }
+              />
+
+            </div>
+          </SettingsCard>
+
+          {/* ===========================================
+              SAVE AREA
+          =========================================== */}
+
+          <div
+            className="
+              flex
+              flex-col
+              gap-4
+              rounded-[24px]
+              border
+              border-[#E75480]/10
+              bg-white
+              p-5
+              shadow-sm
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+            "
+          >
+
+            <div>
+
+              <p className="font-serif text-xl text-[#3A2A2F]">
+                Save Changes
+              </p>
+
+              <p className="mt-1 text-xs text-[#8A6F78]">
+                Changes will be reflected on
+                the public website.
+              </p>
+
+              {message && (
+                <p className="mt-2 text-xs font-medium text-[#E75480]">
+                  {message}
+                </p>
+              )}
+
+            </div>
+
+            <button
+              type="button"
+              disabled={saving}
+              onClick={handleSave}
+              className="
+                rounded-full
+                bg-[#E75480]
+                px-8
+                py-3.5
+                text-xs
+                font-semibold
+                uppercase
+                tracking-[2px]
+                text-white
+                shadow-sm
+                transition
+                hover:bg-[#D94873]
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+            >
+              {saving
+                ? "Saving..."
+                : "Save Settings"}
+            </button>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================
+// SETTINGS CARD
+// =====================================================
+
+type SettingsCardProps = {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+};
+
+function SettingsCard({
+  title,
+  description,
+  children,
+}: SettingsCardProps) {
+  return (
+    <section
+      className="
+        rounded-[28px]
+        border
+        border-[#E75480]/10
+        bg-white
+        p-5
+        shadow-sm
+        sm:p-7
+      "
+    >
+      <div className="mb-6">
+
+        <h2 className="font-serif text-2xl text-[#3A2A2F]">
+          {title}
+        </h2>
+
+        {description && (
+          <p className="mt-1 text-sm text-[#8A6F78]">
+            {description}
           </p>
         )}
-      </section>
+
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+// =====================================================
+// INPUT
+// =====================================================
+
+type InputProps = {
+  label: string;
+  value: string;
+  placeholder?: string;
+  type?: string;
+  onChange: (value: string) => void;
+};
+
+function Input({
+  label,
+  value,
+  placeholder,
+  type = "text",
+  onChange,
+}: InputProps) {
+  return (
+    <div>
+
+      <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[2px] text-[#8A6F78]">
+        {label}
+      </label>
+
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        className="
+          h-12
+          w-full
+          rounded-2xl
+          border
+          border-[#E75480]/15
+          bg-[#FFF8FA]
+          px-5
+          text-sm
+          text-[#3A2A2F]
+          outline-none
+          transition
+          placeholder:text-[#B89DA6]
+          focus:border-[#E75480]/50
+          focus:bg-white
+        "
+      />
+
     </div>
+  );
+}
+
+// =====================================================
+// SWITCH
+// =====================================================
+
+type SettingSwitchProps = {
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: () => void;
+};
+
+function SettingSwitch({
+  title,
+  description,
+  checked,
+  onChange,
+}: SettingSwitchProps) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      className="
+        flex
+        items-center
+        justify-between
+        gap-5
+        rounded-2xl
+        border
+        border-[#E75480]/10
+        bg-[#FFF8FA]
+        p-4
+        text-left
+        transition
+        hover:border-[#E75480]/30
+      "
+    >
+
+      <div>
+
+        <p className="text-sm font-medium text-[#3A2A2F]">
+          {title}
+        </p>
+
+        <p className="mt-1 text-xs leading-5 text-[#8A6F78]">
+          {description}
+        </p>
+
+      </div>
+
+      <div
+        className={`
+          relative
+          h-6
+          w-11
+          shrink-0
+          rounded-full
+          transition-colors
+          duration-300
+
+          ${
+            checked
+              ? "bg-[#E75480]"
+              : "bg-[#E8D9DE]"
+          }
+        `}
+      >
+        <div
+          className={`
+            absolute
+            top-1
+            h-4
+            w-4
+            rounded-full
+            bg-white
+            shadow-sm
+            transition-all
+            duration-300
+
+            ${
+              checked
+                ? "left-6"
+                : "left-1"
+            }
+          `}
+        />
+      </div>
+
+    </button>
   );
 }

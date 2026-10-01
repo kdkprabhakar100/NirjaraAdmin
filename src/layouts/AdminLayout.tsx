@@ -22,6 +22,7 @@ import { useAdminSession } from "../hooks/useAuth";
 import { usePendingBookingCount } from "../hooks/usePendingBookingCount";
 import axios from "axios";
 import Topbar from "../components/Topbar";
+import LegalPagesAdmin from "../pages/legalPages/LegalPagesAdmin";
 
 type AdminLayoutProps = {
   children: ReactNode;
