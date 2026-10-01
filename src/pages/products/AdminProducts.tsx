@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import CustomTable, {
@@ -22,6 +23,10 @@ import api, {
 
 import FormField from "../../components/FormField";
 
+import { getProductCategories } from "../../services/productCategory/productCategoryService";
+
+import type { ProductCategory } from "../../services/productCategory/productCategory.types";
+
 // ========================================
 // TYPES
 // ========================================
@@ -31,7 +36,11 @@ type Product = {
   name: string;
   description: string;
   price: number;
-  category: string;
+  product_category_id: string;
+  // Filled in by the server. Null when the
+  // category is missing (e.g. an old product
+  // not yet migrated).
+  productCategory?: ProductCategory | null;
   images: string[];
   stock: number;
   featured: boolean;
@@ -42,7 +51,7 @@ const emptyForm = {
   name: "",
   description: "",
   price: "",
-  category: "",
+  product_category_id: "",
   stock: "",
   brand: "",
   image: "",
@@ -56,8 +65,14 @@ const inputClass =
   "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
 
 export default function AdminProducts() {
+  const navigate = useNavigate();
+
   const [products, setProducts] =
     useState<Product[]>([]);
+
+  // Options for the category dropdown.
+  const [categories, setCategories] =
+    useState<ProductCategory[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -67,6 +82,13 @@ export default function AdminProducts() {
 
   const [formOpen, setFormOpen] =
     useState(false);
+
+  // The product being edited. Null means
+  // the form adds a new one.
+  const [
+    editingProduct,
+    setEditingProduct,
+  ] = useState<Product | null>(null);
 
   const [saving, setSaving] =
     useState(false);
@@ -109,34 +131,85 @@ export default function AdminProducts() {
     }
   };
 
+  // ============================
+  // FETCH CATEGORIES
+  // ============================
+
+  const fetchCategories = async () => {
+    try {
+      setCategories(
+        await getProductCategories()
+      );
+    } catch (error) {
+      console.log(error);
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Failed to load product categories"
+        )
+      );
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   // ============================
   // FORM
+  //
+  // Add and edit share one dialog; the
+  // only difference is whether the form
+  // starts empty or filled.
   // ============================
 
   const openAddForm = () => {
     setForm(emptyForm);
+    setEditingProduct(null);
+    setFormOpen(true);
+  };
+
+  const openEditForm = (
+    product: Product
+  ) => {
+    setForm({
+      name: product.name || "",
+      description:
+        product.description || "",
+      price: String(product.price ?? ""),
+      // Blank for a product not yet
+      // migrated, so the admin must pick one.
+      product_category_id:
+        product.product_category_id || "",
+      stock: String(product.stock ?? ""),
+      brand: product.brand || "",
+      image: product.images?.[0] || "",
+    });
+
+    setEditingProduct(product);
     setFormOpen(true);
   };
 
   const closeForm = () => {
     setFormOpen(false);
     setForm(emptyForm);
+    setEditingProduct(null);
   };
 
   const handleSubmit = async () => {
     const error = validate(form, {
       name: ["Product name", [required()]],
-      category: ["Category", [required()]],
+      product_category_id: [
+        "Category",
+        [required()],
+      ],
       price: ["Price", [required(), number({ min: 0 })]],
       stock: [
         "Stock",
         [required(), number({ min: 0, integer: true })],
       ],
-      brand: ["Brand", [required()]],
       image: ["Image URL", [required(), url()]],
       description: ["Description", [required()]],
     });
@@ -147,23 +220,49 @@ export default function AdminProducts() {
       return;
     }
 
+    const payload = {
+      name: form.name,
+      description: form.description,
+      price: Number(form.price),
+      product_category_id:
+        form.product_category_id,
+      stock: Number(form.stock),
+      brand: form.brand.trim(),
+    };
+
     try {
       setSaving(true);
 
-      await api.post("/api/products", {
-        name: form.name,
-        description: form.description,
-        price: Number(form.price),
-        category: form.category,
-        stock: Number(form.stock),
-        brand: form.brand,
-        images: [form.image],
-        featured: false,
-      });
+      if (editingProduct) {
+        // The form only edits the cover
+        // image, so any further images are
+        // kept, and `featured` is left as is.
+        await api.put(
+          `/api/products/${editingProduct._id}`,
+          {
+            ...payload,
+            images: [
+              form.image,
+              ...(editingProduct.images ??
+                []).slice(1),
+            ],
+          }
+        );
 
-      toast.success(
-        "Product added successfully"
-      );
+        toast.success(
+          "Product updated successfully"
+        );
+      } else {
+        await api.post("/api/products", {
+          ...payload,
+          images: [form.image],
+          featured: false,
+        });
+
+        toast.success(
+          "Product added successfully"
+        );
+      }
 
       await fetchProducts();
 
@@ -256,10 +355,18 @@ export default function AdminProducts() {
       label={`Actions for ${product.name}`}
       actions={[
         {
+          key: "edit",
+          label: "Edit",
+          icon: "✎",
+          onSelect: () =>
+            openEditForm(product),
+        },
+        {
           key: "delete",
           label: "Delete",
           icon: "🗑",
           tone: "danger",
+          dividerBefore: true,
           onSelect: () =>
             setProductToDelete(product),
         },
@@ -293,17 +400,26 @@ export default function AdminProducts() {
         key: "category",
         header: "Category",
         hideOnMobile: true,
-        render: (product) => (
-          <span className="inline-block rounded-full bg-blush px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
-            {product.category}
-          </span>
-        ),
+        render: (product) =>
+          product.productCategory ? (
+            <span className="inline-block rounded-full bg-blush px-4 py-1 text-xs uppercase tracking-[1px] text-[#E75480]">
+              {product.productCategory.name}
+            </span>
+          ) : (
+            <span className="text-faint">
+              —
+            </span>
+          ),
       },
       {
         key: "brand",
         header: "Brand",
         render: (product) =>
-          product.brand,
+          product.brand || (
+            <span className="text-faint">
+              —
+            </span>
+          ),
       },
       {
         key: "price",
@@ -364,13 +480,27 @@ export default function AdminProducts() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openAddForm}
-          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
-        >
-          Add Product
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                "/product-categories"
+              )
+            }
+            className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-soft"
+          >
+            Categories
+          </button>
+
+          <button
+            type="button"
+            onClick={openAddForm}
+            className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+          >
+            Add Product
+          </button>
+        </div>
       </div>
 
       {/* TABLE */}
@@ -396,25 +526,38 @@ export default function AdminProducts() {
           </span>
         )}
         mobileSubtitle={(product) =>
-          product.category
+          product.productCategory?.name ??
+          "No category"
         }
         mobileActions={renderActions}
       />
 
       {/* ============================ */}
-      {/* ADD                          */}
+      {/* ADD / EDIT                   */}
       {/* ============================ */}
 
       <DialogBox
         open={formOpen}
         onClose={closeForm}
         eyebrow="Management"
-        title="Add Product"
+        title={
+          editingProduct
+            ? "Edit Product"
+            : "Add Product"
+        }
         size="lg"
         onSubmit={handleSubmit}
         submitting={saving}
-        submittingLabel="Adding..."
-        confirmLabel="Add Product"
+        submittingLabel={
+          editingProduct
+            ? "Updating..."
+            : "Adding..."
+        }
+        confirmLabel={
+          editingProduct
+            ? "Update Product"
+            : "Add Product"
+        }
         // A half filled form should not
         // vanish on a stray click.
         closeOnBackdrop={false}
@@ -442,19 +585,37 @@ export default function AdminProducts() {
             label="Category"
             required
           >
-            <input
-              type="text"
+            <select
               required
-              value={form.category}
+              value={
+                form.product_category_id
+              }
               onChange={(event) =>
                 setForm({
                   ...form,
-                  category:
+                  product_category_id:
                     event.target.value,
                 })
               }
               className={inputClass}
-            />
+            >
+              <option value="">
+                {categories.length
+                  ? "Select a category"
+                  : "No categories yet — add one first"}
+              </option>
+
+              {categories.map(
+                (category) => (
+                  <option
+                    key={category._id}
+                    value={category._id}
+                  >
+                    {category.name}
+                  </option>
+                )
+              )}
+            </select>
           </FormField>
 
           <FormField
@@ -495,13 +656,10 @@ export default function AdminProducts() {
             />
           </FormField>
 
-          <FormField
-            label="Brand"
-            required
-          >
+          <FormField label="Brand">
             <input
               type="text"
-              required
+              placeholder="Optional"
               value={form.brand}
               onChange={(event) =>
                 setForm({

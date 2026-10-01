@@ -25,6 +25,7 @@ import ContactMessagesAdmin from "./pages/messages/ContactMessagesAdmin";
 import BlogAdmin from "./pages/cms/blogs/BlogAdmin";
 import AdminOrders from "./pages/orders/AdminOrders";
 import AdminProducts from "./pages/products/AdminProducts";
+import ProductCategoriesAdmin from "./pages/productCategories/ProductCategoriesAdmin";
 import AdminPopup from "./pages/cms/popups/AdminPopup";
 import AdminEvents from "./pages/cms/events/AdminEvents";
 import AdminCareers from "./pages/cms/careers/AdminCareers";
@@ -185,6 +186,16 @@ export default function App() {
           element={
             <ProtectedPage permission="products.view">
               <AdminProducts />
+            </ProtectedPage>
+          }
+        />
+
+        {/* PRODUCT CATEGORIES */}
+        <Route
+          path="/product-categories"
+          element={
+            <ProtectedPage permission="productCategories.view">
+              <ProductCategoriesAdmin />
             </ProtectedPage>
           }
         />
