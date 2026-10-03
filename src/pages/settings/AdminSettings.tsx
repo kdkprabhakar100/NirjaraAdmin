@@ -421,7 +421,7 @@ export default function AdminSettings() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[500px] items-center justify-center">
+      <div className="flex min-h-125 items-center justify-center">
         <p className="text-sm text-muted">
           Loading settings...
         </p>
@@ -888,7 +888,7 @@ export default function AdminSettings() {
                 flex
                 flex-col
                 gap-4
-                rounded-[24px]
+                rounded-3xl
                 border
                 border-[#E75480]/10
                 bg-surface
