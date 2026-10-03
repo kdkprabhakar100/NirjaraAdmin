@@ -31,6 +31,22 @@ type SiteSettings = {
   footer: FooterSettings;
 };
 
+type TabId =
+  | "business"
+  | "social"
+  | "footer"
+  | "email";
+
+const TABS: {
+  id: TabId;
+  label: string;
+}[] = [
+  { id: "business", label: "Business" },
+  { id: "social", label: "Social Media" },
+  { id: "footer", label: "Footer" },
+  { id: "email", label: "Email" },
+];
+
 const initialSettings: SiteSettings = {
   salonName: "Nirjara Beauty",
 
@@ -65,6 +81,9 @@ export default function AdminSettings() {
   const [settings, setSettings] =
     useState<SiteSettings>(initialSettings);
 
+  const [activeTab, setActiveTab] =
+    useState<TabId>("business");
+
   const [loading, setLoading] =
     useState(true);
 
@@ -73,6 +92,18 @@ export default function AdminSettings() {
 
   const [message, setMessage] =
     useState("");
+
+  const [testEmailTo, setTestEmailTo] =
+    useState("");
+
+  const [sendingTest, setSendingTest] =
+    useState(false);
+
+  const [testResult, setTestResult] =
+    useState<{
+      ok: boolean;
+      message: string;
+    } | null>(null);
 
   const API_URL =
     import.meta.env.VITE_API_URL;
@@ -257,15 +288,8 @@ export default function AdminSettings() {
       setSaving(true);
       setMessage("");
 
-      /*
-       * IMPORTANT
-       *
-       * Change this if your project stores the
-       * authentication token under another name.
-       */
-
       const token =
-        localStorage.getItem("token");
+        localStorage.getItem("adminToken");
 
       const response = await fetch(
         `${API_URL}/api/site-settings`,
@@ -284,11 +308,24 @@ export default function AdminSettings() {
               : {}),
           },
 
-          body: JSON.stringify(settings),
+          // Branches have their own page and
+          // are left out, so saving here never
+          // overwrites them.
+          body: JSON.stringify({
+            salonName: settings.salonName,
+            description: settings.description,
+            email: settings.email,
+            phone: settings.phone,
+            whatsapp: settings.whatsapp,
+            socialLinks: settings.socialLinks,
+            footer: settings.footer,
+          }),
         }
       );
 
-      const data = await response.json();
+      const data = await response
+        .json()
+        .catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(
@@ -314,13 +351,78 @@ export default function AdminSettings() {
   };
 
   // =====================================================
+  // TEST EMAIL
+  // =====================================================
+
+  const sendTestEmail = async () => {
+    const to =
+      testEmailTo.trim() || settings.email;
+
+    if (!to) {
+      setTestResult({
+        ok: false,
+        message:
+          "Enter an email address to send the test to.",
+      });
+      return;
+    }
+
+    try {
+      setSendingTest(true);
+      setTestResult(null);
+
+      const response = await fetch(
+        `${API_URL}/api/site-settings/test-email`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization: `Bearer ${localStorage.getItem(
+              "adminToken"
+            )}`,
+          },
+
+          body: JSON.stringify({ to }),
+        }
+      );
+
+      // The server explains failures (not configured,
+      // wrong password …) in `message`.
+      const data = await response
+        .json()
+        .catch(() => ({}));
+
+      setTestResult({
+        ok: response.ok,
+        message:
+          data.message ??
+          (response.ok
+            ? "Test email sent."
+            : "Unable to send test email."),
+      });
+    } catch (error) {
+      console.error(error);
+
+      setTestResult({
+        ok: false,
+        message: "Unable to reach the server.",
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  // =====================================================
   // LOADING
   // =====================================================
 
   if (loading) {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
-        <p className="text-sm text-[#8A6F78]">
+        <p className="text-sm text-muted">
           Loading settings...
         </p>
       </div>
@@ -328,7 +430,7 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF5F8] p-5 sm:p-7 lg:p-8">
+    <div className="min-h-screen bg-soft p-5 sm:p-7 lg:p-8">
 
       {/* ===============================================
           HEADER
@@ -341,264 +443,132 @@ export default function AdminSettings() {
             Website
           </p>
 
-          <h1 className="mt-2 font-serif text-4xl text-[#3A2A2F] sm:text-5xl">
+          <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">
             Site Settings
           </h1>
 
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#8A6F78]">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
             Manage business information,
             social media and footer settings
             displayed across the Nirjara
-            website.
+            website. Branches have their own
+            page.
           </p>
         </div>
 
-        <div className="mt-8 space-y-6">
+        {/* ===========================================
+            TABS
+        =========================================== */}
+
+        <div
+          role="tablist"
+          className="
+            mt-8
+            flex
+            gap-2
+            overflow-x-auto
+            rounded-full
+            border
+            border-[#E75480]/10
+            bg-surface
+            p-1.5
+            shadow-sm
+          "
+        >
+          {TABS.map((tab) => {
+            const active =
+              tab.id === activeTab;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() =>
+                  setActiveTab(tab.id)
+                }
+                className={`
+                  shrink-0
+                  rounded-full
+                  px-5
+                  py-2.5
+                  text-xs
+                  font-semibold
+                  uppercase
+                  tracking-[2px]
+                  transition
+
+                  ${
+                    active
+                      ? "bg-[#E75480] text-white shadow-sm"
+                      : "text-muted hover:bg-blush hover:text-ink"
+                  }
+                `}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 space-y-6">
 
           {/* ===========================================
               BUSINESS INFORMATION
           =========================================== */}
 
-          <SettingsCard
-            title="Business Information"
-            description="General contact information used across the website."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-
-              <Input
-                label="Salon Name"
-                value={settings.salonName}
-                placeholder="Nirjara Beauty"
-                onChange={(value) =>
-                  updateField(
-                    "salonName",
-                    value
-                  )
-                }
-              />
-
-              <Input
-                label="Email"
-                value={settings.email}
-                placeholder="Email address"
-                type="email"
-                onChange={(value) =>
-                  updateField(
-                    "email",
-                    value
-                  )
-                }
-              />
-
-              <Input
-                label="Phone Number"
-                value={settings.phone}
-                placeholder="Main phone number"
-                onChange={(value) =>
-                  updateField(
-                    "phone",
-                    value
-                  )
-                }
-              />
-
-              <Input
-                label="WhatsApp Number"
-                value={settings.whatsapp}
-                placeholder="WhatsApp number"
-                onChange={(value) =>
-                  updateField(
-                    "whatsapp",
-                    value
-                  )
-                }
-              />
-
-            </div>
-
-            <div className="mt-4">
-
-              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[2px] text-[#8A6F78]">
-                Description
-              </label>
-
-              <textarea
-                value={settings.description}
-                onChange={(event) =>
-                  updateField(
-                    "description",
-                    event.target.value
-                  )
-                }
-                rows={4}
-                className="
-                  w-full
-                  resize-none
-                  rounded-2xl
-                  border
-                  border-[#E75480]/15
-                  bg-[#FFF8FA]
-                  px-5
-                  py-4
-                  text-sm
-                  text-[#3A2A2F]
-                  outline-none
-                  transition
-                  placeholder:text-[#B89DA6]
-                  focus:border-[#E75480]/50
-                  focus:bg-white
-                "
-              />
-
-            </div>
-          </SettingsCard>
-
-          {/* ===========================================
-              SOCIAL MEDIA
-          =========================================== */}
-
-          <SettingsCard
-            title="Social Media"
-            description="Add your official social media profile links."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-
-              <Input
-                label="Facebook"
-                value={
-                  settings.socialLinks
-                    .facebook
-                }
-                placeholder="Facebook URL"
-                onChange={(value) =>
-                  updateSocial(
-                    "facebook",
-                    value
-                  )
-                }
-              />
-
-              <Input
-                label="Instagram"
-                value={
-                  settings.socialLinks
-                    .instagram
-                }
-                placeholder="Instagram URL"
-                onChange={(value) =>
-                  updateSocial(
-                    "instagram",
-                    value
-                  )
-                }
-              />
-
-              <Input
-                label="TikTok"
-                value={
-                  settings.socialLinks
-                    .tiktok
-                }
-                placeholder="TikTok URL"
-                onChange={(value) =>
-                  updateSocial(
-                    "tiktok",
-                    value
-                  )
-                }
-              />
-
-              <Input
-                label="YouTube"
-                value={
-                  settings.socialLinks
-                    .youtube
-                }
-                placeholder="YouTube URL"
-                onChange={(value) =>
-                  updateSocial(
-                    "youtube",
-                    value
-                  )
-                }
-              />
-
-            </div>
-          </SettingsCard>
-
-          {/* ===========================================
-              FOOTER
-          =========================================== */}
-
-          <SettingsCard
-            title="Footer Settings"
-            description="Control what appears in the website footer."
-          >
-
-            {/* SWITCHES */}
-
-            <div className="grid gap-3 lg:grid-cols-3">
-
-              <SettingSwitch
-                title="Social Links"
-                description="Display social media icons."
-                checked={
-                  settings.footer
-                    .showSocialLinks
-                }
-                onChange={() =>
-                  updateFooterSwitch(
-                    "showSocialLinks"
-                  )
-                }
-              />
-
-              <SettingSwitch
-                title="Admin Login"
-                description="Show the admin login link."
-                checked={
-                  settings.footer
-                    .showAdminLogin
-                }
-                onChange={() =>
-                  updateFooterSwitch(
-                    "showAdminLogin"
-                  )
-                }
-              />
-
-              <SettingSwitch
-                title="Booking CTA"
-                description="Show the booking banner."
-                checked={
-                  settings.footer
-                    .showBookAppointment
-                }
-                onChange={() =>
-                  updateFooterSwitch(
-                    "showBookAppointment"
-                  )
-                }
-              />
-
-            </div>
-
-            {/* FOOTER TEXT */}
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-
-              <div className="md:col-span-2">
+          {activeTab === "business" && (
+            <SettingsCard
+              title="Business Information"
+              description="General contact information used across the website."
+            >
+              <div className="grid gap-4 md:grid-cols-2">
 
                 <Input
-                  label="Copyright Text"
-                  value={
-                    settings.footer
-                      .copyrightText
-                  }
-                  placeholder="© 2026 Nirjara Beauty. All rights reserved."
+                  label="Salon Name"
+                  value={settings.salonName}
+                  placeholder="Nirjara Beauty"
                   onChange={(value) =>
-                    updateFooterText(
-                      "copyrightText",
+                    updateField(
+                      "salonName",
+                      value
+                    )
+                  }
+                />
+
+                <Input
+                  label="Email"
+                  value={settings.email}
+                  placeholder="Email address"
+                  type="email"
+                  onChange={(value) =>
+                    updateField(
+                      "email",
+                      value
+                    )
+                  }
+                />
+
+                <Input
+                  label="Phone Number"
+                  value={settings.phone}
+                  placeholder="Main phone number"
+                  onChange={(value) =>
+                    updateField(
+                      "phone",
+                      value
+                    )
+                  }
+                />
+
+                <Input
+                  label="WhatsApp Number"
+                  value={settings.whatsapp}
+                  placeholder="WhatsApp number"
+                  onChange={(value) =>
+                    updateField(
+                      "whatsapp",
                       value
                     )
                   }
@@ -606,106 +576,377 @@ export default function AdminSettings() {
 
               </div>
 
-              <Input
-                label="Developer Name"
-                value={
-                  settings.footer
-                    .developerName
-                }
-                placeholder="Prabhakar Khadka"
-                onChange={(value) =>
-                  updateFooterText(
-                    "developerName",
-                    value
-                  )
-                }
-              />
+              <div className="mt-4">
 
-              <Input
-                label="Developer Website"
-                value={
-                  settings.footer
-                    .developerUrl
-                }
-                placeholder="https://example.com"
-                onChange={(value) =>
-                  updateFooterText(
-                    "developerUrl",
-                    value
-                  )
-                }
-              />
+                <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[2px] text-muted">
+                  Description
+                </label>
 
-            </div>
-          </SettingsCard>
+                <textarea
+                  value={settings.description}
+                  onChange={(event) =>
+                    updateField(
+                      "description",
+                      event.target.value
+                    )
+                  }
+                  rows={4}
+                  className="
+                    w-full
+                    resize-none
+                    rounded-2xl
+                    border
+                    border-[#E75480]/15
+                    bg-softer
+                    px-5
+                    py-4
+                    text-sm
+                    text-ink
+                    outline-none
+                    transition
+                    placeholder:text-faint
+                    focus:border-[#E75480]/50
+                    focus:bg-surface
+                  "
+                />
+
+              </div>
+            </SettingsCard>
+          )}
 
           {/* ===========================================
-              SAVE AREA
+              SOCIAL MEDIA
           =========================================== */}
 
-          <div
-            className="
-              flex
-              flex-col
-              gap-4
-              rounded-[24px]
-              border
-              border-[#E75480]/10
-              bg-white
-              p-5
-              shadow-sm
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
-            "
-          >
+          {activeTab === "social" && (
+            <SettingsCard
+              title="Social Media"
+              description="Add your official social media profile links."
+            >
+              <div className="grid gap-4 md:grid-cols-2">
 
-            <div>
+                <Input
+                  label="Facebook"
+                  value={
+                    settings.socialLinks
+                      .facebook
+                  }
+                  placeholder="Facebook URL"
+                  onChange={(value) =>
+                    updateSocial(
+                      "facebook",
+                      value
+                    )
+                  }
+                />
 
-              <p className="font-serif text-xl text-[#3A2A2F]">
-                Save Changes
+                <Input
+                  label="Instagram"
+                  value={
+                    settings.socialLinks
+                      .instagram
+                  }
+                  placeholder="Instagram URL"
+                  onChange={(value) =>
+                    updateSocial(
+                      "instagram",
+                      value
+                    )
+                  }
+                />
+
+                <Input
+                  label="TikTok"
+                  value={
+                    settings.socialLinks
+                      .tiktok
+                  }
+                  placeholder="TikTok URL"
+                  onChange={(value) =>
+                    updateSocial(
+                      "tiktok",
+                      value
+                    )
+                  }
+                />
+
+                <Input
+                  label="YouTube"
+                  value={
+                    settings.socialLinks
+                      .youtube
+                  }
+                  placeholder="YouTube URL"
+                  onChange={(value) =>
+                    updateSocial(
+                      "youtube",
+                      value
+                    )
+                  }
+                />
+
+              </div>
+            </SettingsCard>
+          )}
+
+          {/* ===========================================
+              FOOTER
+          =========================================== */}
+
+          {activeTab === "footer" && (
+            <SettingsCard
+              title="Footer Settings"
+              description="Control what appears in the website footer."
+            >
+
+              {/* SWITCHES */}
+
+              <div className="grid gap-3 lg:grid-cols-3">
+
+                <SettingSwitch
+                  title="Social Links"
+                  description="Display social media icons."
+                  checked={
+                    settings.footer
+                      .showSocialLinks
+                  }
+                  onChange={() =>
+                    updateFooterSwitch(
+                      "showSocialLinks"
+                    )
+                  }
+                />
+
+                <SettingSwitch
+                  title="Admin Login"
+                  description="Show the admin login link."
+                  checked={
+                    settings.footer
+                      .showAdminLogin
+                  }
+                  onChange={() =>
+                    updateFooterSwitch(
+                      "showAdminLogin"
+                    )
+                  }
+                />
+
+                <SettingSwitch
+                  title="Booking CTA"
+                  description="Show the booking banner."
+                  checked={
+                    settings.footer
+                      .showBookAppointment
+                  }
+                  onChange={() =>
+                    updateFooterSwitch(
+                      "showBookAppointment"
+                    )
+                  }
+                />
+
+              </div>
+
+              {/* FOOTER TEXT */}
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+
+                <div className="md:col-span-2">
+
+                  <Input
+                    label="Copyright Text"
+                    value={
+                      settings.footer
+                        .copyrightText
+                    }
+                    placeholder="© 2026 Nirjara Beauty. All rights reserved."
+                    onChange={(value) =>
+                      updateFooterText(
+                        "copyrightText",
+                        value
+                      )
+                    }
+                  />
+
+                </div>
+
+                <Input
+                  label="Developer Name"
+                  value={
+                    settings.footer
+                      .developerName
+                  }
+                  placeholder="Prabhakar Khadka"
+                  onChange={(value) =>
+                    updateFooterText(
+                      "developerName",
+                      value
+                    )
+                  }
+                />
+
+                <Input
+                  label="Developer Website"
+                  value={
+                    settings.footer
+                      .developerUrl
+                  }
+                  placeholder="https://example.com"
+                  onChange={(value) =>
+                    updateFooterText(
+                      "developerUrl",
+                      value
+                    )
+                  }
+                />
+
+              </div>
+            </SettingsCard>
+          )}
+
+          {/* ===========================================
+              EMAIL TEST — has its own button and
+              never saves the settings
+          =========================================== */}
+
+          {activeTab === "email" && (
+            <SettingsCard
+              title="Email"
+              description="Send a test email to check that booking emails can be delivered."
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-end">
+
+                <div className="flex-1">
+                  <Input
+                    label="Recipient"
+                    value={testEmailTo}
+                    placeholder={
+                      settings.email ||
+                      "Recipient email"
+                    }
+                    type="email"
+                    onChange={setTestEmailTo}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={sendTestEmail}
+                  disabled={sendingTest}
+                  className="
+                    h-12
+                    shrink-0
+                    rounded-full
+                    border
+                    border-[#E75480]
+                    px-8
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-[2px]
+                    text-[#E75480]
+                    transition
+                    hover:bg-[#E75480]
+                    hover:text-white
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+                  "
+                >
+                  {sendingTest
+                    ? "Sending..."
+                    : "Send Test Email"}
+                </button>
+
+              </div>
+
+              <p className="mt-3 text-xs text-muted">
+                Leave empty to send it to the
+                business email.
               </p>
 
-              <p className="mt-1 text-xs text-[#8A6F78]">
-                Changes will be reflected on
-                the public website.
-              </p>
-
-              {message && (
-                <p className="mt-2 text-xs font-medium text-[#E75480]">
-                  {message}
+              {testResult && (
+                <p
+                  className={`mt-4 text-sm ${
+                    testResult.ok
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {testResult.message}
                 </p>
               )}
+            </SettingsCard>
+          )}
 
-            </div>
+          {/* ===========================================
+              SAVE AREA — saves every tab at once
+          =========================================== */}
 
-            <button
-              type="button"
-              disabled={saving}
-              onClick={handleSave}
+          {activeTab !== "email" && (
+            <div
               className="
-                rounded-full
-                bg-[#E75480]
-                px-8
-                py-3.5
-                text-xs
-                font-semibold
-                uppercase
-                tracking-[2px]
-                text-white
+                flex
+                flex-col
+                gap-4
+                rounded-[24px]
+                border
+                border-[#E75480]/10
+                bg-surface
+                p-5
                 shadow-sm
-                transition
-                hover:bg-[#D94873]
-                disabled:cursor-not-allowed
-                disabled:opacity-50
+                sm:flex-row
+                sm:items-center
+                sm:justify-between
               "
             >
-              {saving
-                ? "Saving..."
-                : "Save Settings"}
-            </button>
 
-          </div>
+              <div>
+
+                <p className="font-serif text-xl text-ink">
+                  Save Changes
+                </p>
+
+                <p className="mt-1 text-xs text-muted">
+                  Saves all tabs. Changes will be
+                  reflected on the public website.
+                </p>
+
+                {message && (
+                  <p className="mt-2 text-xs font-medium text-[#E75480]">
+                    {message}
+                  </p>
+                )}
+
+              </div>
+
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleSave}
+                className="
+                  rounded-full
+                  bg-[#E75480]
+                  px-8
+                  py-3.5
+                  text-xs
+                  font-semibold
+                  uppercase
+                  tracking-[2px]
+                  text-white
+                  shadow-sm
+                  transition
+                  hover:bg-[#D94873]
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
+              >
+                {saving
+                  ? "Saving..."
+                  : "Save Settings"}
+              </button>
+
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -733,7 +974,7 @@ function SettingsCard({
         rounded-[28px]
         border
         border-[#E75480]/10
-        bg-white
+        bg-surface
         p-5
         shadow-sm
         sm:p-7
@@ -741,12 +982,12 @@ function SettingsCard({
     >
       <div className="mb-6">
 
-        <h2 className="font-serif text-2xl text-[#3A2A2F]">
+        <h2 className="font-serif text-2xl text-ink">
           {title}
         </h2>
 
         {description && (
-          <p className="mt-1 text-sm text-[#8A6F78]">
+          <p className="mt-1 text-sm text-muted">
             {description}
           </p>
         )}
@@ -780,7 +1021,7 @@ function Input({
   return (
     <div>
 
-      <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[2px] text-[#8A6F78]">
+      <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[2px] text-muted">
         {label}
       </label>
 
@@ -797,15 +1038,15 @@ function Input({
           rounded-2xl
           border
           border-[#E75480]/15
-          bg-[#FFF8FA]
+          bg-softer
           px-5
           text-sm
-          text-[#3A2A2F]
+          text-ink
           outline-none
           transition
-          placeholder:text-[#B89DA6]
+          placeholder:text-faint
           focus:border-[#E75480]/50
-          focus:bg-white
+          focus:bg-surface
         "
       />
 
@@ -842,7 +1083,7 @@ function SettingSwitch({
         rounded-2xl
         border
         border-[#E75480]/10
-        bg-[#FFF8FA]
+        bg-softer
         p-4
         text-left
         transition
@@ -852,11 +1093,11 @@ function SettingSwitch({
 
       <div>
 
-        <p className="text-sm font-medium text-[#3A2A2F]">
+        <p className="text-sm font-medium text-ink">
           {title}
         </p>
 
-        <p className="mt-1 text-xs leading-5 text-[#8A6F78]">
+        <p className="mt-1 text-xs leading-5 text-muted">
           {description}
         </p>
 
@@ -875,7 +1116,7 @@ function SettingSwitch({
           ${
             checked
               ? "bg-[#E75480]"
-              : "bg-[#E8D9DE]"
+              : "bg-blush"
           }
         `}
       >
