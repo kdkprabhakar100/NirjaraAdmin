@@ -1,43 +1,72 @@
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import {
   FileText,
   Save,
   ShieldCheck,
   ScrollText,
-  Loader2,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
-type LegalPageSlug =
-  | "privacy-policy"
-  | "terms";
+import { toast } from "react-toastify";
 
-type LegalPage = {
-  _id: string;
-  title: string;
+import {
+  getLegalPage,
+  updateLegalPage,
+} from "../../services/legalpage/legalPages";
+
+import { can } from "../../services/auth/authService";
+
+import type {
+  LegalPage,
+  LegalPageSlug,
+} from "../../types/legalPage";
+
+// ========================================
+// PAGE CONFIG
+// ========================================
+
+const pages: {
   slug: LegalPageSlug;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-};
+  label: string;
+  description: string;
+  icon: typeof ShieldCheck;
+}[] = [
+  {
+    slug: "privacy-policy",
+    label: "Privacy Policy",
+    description:
+      "Manage the privacy information displayed on the public website.",
+    icon: ShieldCheck,
+  },
+  {
+    slug: "terms",
+    label: "Terms & Conditions",
+    description:
+      "Manage the terms and conditions displayed on the public website.",
+    icon: ScrollText,
+  },
+];
 
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000";
+// ========================================
+// COMPONENT
+// ========================================
 
 export default function LegalPagesAdmin() {
-  const [activePage, setActivePage] =
-    useState<LegalPageSlug>(
-      "privacy-policy"
-    );
+  const [activeSlug, setActiveSlug] =
+    useState<LegalPageSlug>("privacy-policy");
 
   const [page, setPage] =
     useState<LegalPage | null>(null);
 
-  const [title, setTitle] =
-    useState("");
-
-  const [content, setContent] =
-    useState("");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
 
   const [loading, setLoading] =
     useState(true);
@@ -48,222 +77,177 @@ export default function LegalPagesAdmin() {
   const [error, setError] =
     useState("");
 
-  const [success, setSuccess] =
-    useState("");
+  const canUpdate = can(
+    "legalPages",
+    "update"
+  );
 
-  /* ==========================================
-     LOAD PAGE
-  ========================================== */
+  // ========================================
+  // LOAD PAGE
+  // ========================================
 
-  useEffect(() => {
-    const loadPage = async () => {
+  const loadPage = useCallback(
+    async (slug: LegalPageSlug) => {
       try {
         setLoading(true);
         setError("");
-        setSuccess("");
 
-        const response = await fetch(
-          `${API_URL}/api/legal-pages/${activePage}`
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            "Failed to load legal page."
-          );
-        }
-
-        const data: LegalPage =
-          await response.json();
+        const data =
+          await getLegalPage(slug);
 
         setPage(data);
         setTitle(data.title || "");
         setContent(data.content || "");
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(error);
+
+        setPage(null);
 
         setError(
-          err instanceof Error
-            ? err.message
-            : "Something went wrong."
+          "Unable to load this legal page."
         );
       } finally {
         setLoading(false);
       }
-    };
+    },
+    []
+  );
 
-    loadPage();
-  }, [activePage]);
+  useEffect(() => {
+    loadPage(activeSlug);
+  }, [activeSlug, loadPage]);
 
-  /* ==========================================
-     SAVE PAGE
-  ========================================== */
+  // ========================================
+  // CHANGE TAB
+  // ========================================
+
+  const handleTabChange = (
+    slug: LegalPageSlug
+  ) => {
+    if (saving) return;
+
+    setActiveSlug(slug);
+  };
+
+  // ========================================
+  // SAVE
+  // ========================================
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      setError(
-        "Page title is required."
+    if (!canUpdate) {
+      toast.error(
+        "You do not have permission to update legal pages."
       );
+
+      return;
+    }
+
+    if (!title.trim()) {
+      toast.error(
+        "Please enter a page title."
+      );
+
       return;
     }
 
     if (!content.trim()) {
-      setError(
-        "Page content is required."
+      toast.error(
+        "Please enter page content."
       );
+
       return;
     }
 
     try {
       setSaving(true);
-      setError("");
-      setSuccess("");
 
-      const token =
-        localStorage.getItem("token");
-
-      const response = await fetch(
-        `${API_URL}/api/legal-pages/${activePage}`,
-        {
-          method: "PUT",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            ...(token
-              ? {
-                  Authorization: `Bearer ${token}`,
-                }
-              : {}),
-          },
-
-          body: JSON.stringify({
-            title,
+      const updated =
+        await updateLegalPage(
+          activeSlug,
+          {
+            title: title.trim(),
             content,
-          }),
-        }
-      );
-
-      const data =
-        await response
-          .json()
-          .catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            "Failed to save legal page."
+          }
         );
-      }
 
-      setPage(data);
-      setTitle(data.title || "");
-      setContent(data.content || "");
+      setPage(updated);
 
-      setSuccess(
-        "Changes saved successfully."
+      setTitle(updated.title);
+      setContent(updated.content);
+
+      toast.success(
+        `${updated.title} updated successfully.`
       );
+    } catch (error) {
+      console.error(error);
 
-      window.setTimeout(() => {
-        setSuccess("");
-      }, 3000);
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save changes."
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update legal page."
       );
     } finally {
       setSaving(false);
     }
   };
 
-  /* ==========================================
-     DATE
-  ========================================== */
+  // ========================================
+  // CURRENT PAGE CONFIG
+  // ========================================
 
-  const updatedDate =
+  const currentPage =
+    pages.find(
+      (item) =>
+        item.slug === activeSlug
+    ) || pages[0];
+
+  const CurrentIcon =
+    currentPage.icon;
+
+  const hasChanges =
+    Boolean(page) &&
+    (title !== page?.title ||
+      content !== page?.content);
+
+  // ========================================
+  // DATE
+  // ========================================
+
+  const updatedAt =
     page?.updatedAt
       ? new Date(
           page.updatedAt
-        ).toLocaleString(
-          "en-US",
-          {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          }
-        )
-      : "";
+        ).toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : null;
+
+  // ========================================
+  // RENDER
+  // ========================================
 
   return (
-    <div
-      className="
-        min-h-screen
-        bg-[#FFF7FA]
-        px-5
-        py-8
+    <div className="min-h-full">
+      {/* =====================================
+          PAGE HEADER
+      ===================================== */}
 
-        sm:px-7
-        lg:px-8
-      "
-    >
-      <div className="mx-auto max-w-7xl">
-
-        {/* =====================================
-            HEADER
-        ===================================== */}
-
-        <div
-          className="
-            flex
-            flex-col
-            gap-5
-
-            lg:flex-row
-            lg:items-end
-            lg:justify-between
-          "
-        >
+      <div className="mb-8">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p
-              className="
-                text-[10px]
-                font-semibold
-                uppercase
-                tracking-[4px]
-                text-[#E75480]
-              "
-            >
-              Website Content
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[4px] text-[#E75480]">
+              CMS
             </p>
 
-            <h1
-              className="
-                mt-2
-                font-serif
-                text-4xl
-                text-[#3A2A2F]
-
-                sm:text-5xl
-              "
-            >
+            <h1 className="font-serif text-4xl text-[#3A2A2F] sm:text-5xl">
               Legal Pages
             </h1>
 
-            <p
-              className="
-                mt-3
-                max-w-2xl
-                text-sm
-                leading-7
-                text-[#8A6F78]
-              "
-            >
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#8A6F78]">
               Manage the Privacy Policy
               and Terms & Conditions
               displayed on the Nirjara
@@ -271,245 +255,167 @@ export default function LegalPagesAdmin() {
             </p>
           </div>
 
-          {updatedDate && (
-            <div
-              className="
-                rounded-full
-                border
-                border-[#E75480]/10
-                bg-white
-                px-5
-                py-3
-                text-xs
-                text-[#8A6F78]
-              "
-            >
-              Last updated{" "}
-              <span className="font-medium text-[#3A2A2F]">
-                {updatedDate}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* =====================================
-            PAGE SELECTOR
-        ===================================== */}
-
-        <div
-          className="
-            mt-8
-            grid
-            max-w-2xl
-            grid-cols-1
-            gap-3
-
-            sm:grid-cols-2
-          "
-        >
-          <button
-            type="button"
-            onClick={() =>
-              setActivePage(
-                "privacy-policy"
-              )
-            }
-            className={`
-              flex
-              items-center
-              gap-4
-              rounded-[20px]
-              border
-              p-5
-              text-left
-              transition-all
-              duration-300
-
-              ${
-                activePage ===
-                "privacy-policy"
-                  ? `
-                    border-[#E75480]
-                    bg-[#E75480]
-                    text-white
-                    shadow-[0_10px_30px_rgba(231,84,128,0.20)]
-                  `
-                  : `
-                    border-[#E75480]/10
-                    bg-white
-                    text-[#3A2A2F]
-                    hover:border-[#E75480]/30
-                  `
-              }
-            `}
-          >
-            <div
-              className={`
-                flex
-                h-11
-                w-11
-                shrink-0
-                items-center
-                justify-center
-                rounded-full
-
-                ${
-                  activePage ===
-                  "privacy-policy"
-                    ? "bg-white/15"
-                    : "bg-[#FCE7EF]"
-                }
-              `}
-            >
-              <ShieldCheck
-                size={19}
-                className={
-                  activePage ===
-                  "privacy-policy"
-                    ? "text-white"
-                    : "text-[#E75480]"
-                }
-              />
-            </div>
-
-            <div>
-              <p className="font-medium">
-                Privacy Policy
-              </p>
-
-              <p
-                className={`
-                  mt-1
-                  text-xs
-
-                  ${
-                    activePage ===
-                    "privacy-policy"
-                      ? "text-white/70"
-                      : "text-[#9A7F88]"
-                  }
-                `}
-              >
-                Privacy & data information
-              </p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              setActivePage("terms")
-            }
-            className={`
-              flex
-              items-center
-              gap-4
-              rounded-[20px]
-              border
-              p-5
-              text-left
-              transition-all
-              duration-300
-
-              ${
-                activePage === "terms"
-                  ? `
-                    border-[#E75480]
-                    bg-[#E75480]
-                    text-white
-                    shadow-[0_10px_30px_rgba(231,84,128,0.20)]
-                  `
-                  : `
-                    border-[#E75480]/10
-                    bg-white
-                    text-[#3A2A2F]
-                    hover:border-[#E75480]/30
-                  `
-              }
-            `}
-          >
-            <div
-              className={`
-                flex
-                h-11
-                w-11
-                shrink-0
-                items-center
-                justify-center
-                rounded-full
-
-                ${
-                  activePage === "terms"
-                    ? "bg-white/15"
-                    : "bg-[#FCE7EF]"
-                }
-              `}
-            >
-              <ScrollText
-                size={19}
-                className={
-                  activePage === "terms"
-                    ? "text-white"
-                    : "text-[#E75480]"
-                }
-              />
-            </div>
-
-            <div>
-              <p className="font-medium">
-                Terms & Conditions
-              </p>
-
-              <p
-                className={`
-                  mt-1
-                  text-xs
-
-                  ${
-                    activePage ===
-                    "terms"
-                      ? "text-white/70"
-                      : "text-[#9A7F88]"
-                  }
-                `}
-              >
-                Website terms of use
-              </p>
-            </div>
-          </button>
-        </div>
-
-        {/* =====================================
-            EDITOR CARD
-        ===================================== */}
-
-        <div
-          className="
-            mt-7
-            overflow-hidden
-            rounded-[26px]
-            border
-            border-[#E75480]/10
-            bg-white
-            shadow-[0_10px_40px_rgba(72,42,53,0.04)]
-          "
-        >
-
-          {/* CARD HEADER */}
+          {/* STATUS */}
 
           <div
             className="
-              flex
+              inline-flex
+              w-fit
               items-center
-              gap-3
-              border-b
+              gap-2
+              rounded-full
+              border
               border-[#E75480]/10
-              px-6
-              py-5
-
-              sm:px-8
+              bg-white
+              px-4
+              py-2
+              text-xs
+              text-[#8A6F78]
+              shadow-sm
             "
           >
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
+            Website Content
+          </div>
+        </div>
+      </div>
+
+      {/* =====================================
+          PAGE TABS
+      ===================================== */}
+
+      <div
+        className="
+          mb-6
+          grid
+          gap-3
+          sm:grid-cols-2
+        "
+      >
+        {pages.map((item) => {
+          const Icon = item.icon;
+
+          const active =
+            activeSlug === item.slug;
+
+          return (
+            <button
+              key={item.slug}
+              type="button"
+              onClick={() =>
+                handleTabChange(
+                  item.slug
+                )
+              }
+              className={`
+                group
+                flex
+                items-center
+                gap-4
+                rounded-2xl
+                border
+                p-4
+                text-left
+                transition-all
+                duration-200
+
+                ${
+                  active
+                    ? `
+                      border-[#E75480]/30
+                      bg-[#FFF4F7]
+                      shadow-[0_8px_25px_rgba(231,84,128,0.08)]
+                    `
+                    : `
+                      border-[#EADDE1]
+                      bg-white
+                      hover:border-[#E75480]/20
+                      hover:bg-[#FFFAFB]
+                    `
+                }
+              `}
+            >
+              <div
+                className={`
+                  flex
+                  h-11
+                  w-11
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  transition
+
+                  ${
+                    active
+                      ? "bg-[#E75480] text-white"
+                      : "bg-[#FFF0F4] text-[#E75480]"
+                  }
+                `}
+              >
+                <Icon size={19} />
+              </div>
+
+              <div className="min-w-0">
+                <p
+                  className={`
+                    text-sm
+                    font-semibold
+
+                    ${
+                      active
+                        ? "text-[#E75480]"
+                        : "text-[#3A2A2F]"
+                    }
+                  `}
+                >
+                  {item.label}
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-[#9A7F88]">
+                  {item.description}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* =====================================
+          MAIN CARD
+      ===================================== */}
+
+      <div
+        className="
+          overflow-hidden
+          rounded-[24px]
+          border
+          border-[#E75480]/10
+          bg-white
+          shadow-[0_8px_35px_rgba(58,42,47,0.04)]
+        "
+      >
+        {/* CARD HEADER */}
+
+        <div
+          className="
+            flex
+            flex-col
+            gap-4
+            border-b
+            border-[#F1E4E8]
+            px-5
+            py-5
+
+            sm:px-6
+
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+          "
+        >
+          <div className="flex items-center gap-3">
             <div
               className="
                 flex
@@ -517,86 +423,157 @@ export default function LegalPagesAdmin() {
                 w-10
                 items-center
                 justify-center
-                rounded-full
-                bg-[#FCE7EF]
+                rounded-xl
+                bg-[#FFF0F4]
                 text-[#E75480]
               "
             >
-              <FileText size={18} />
+              <CurrentIcon size={18} />
             </div>
 
             <div>
-              <h2
-                className="
-                  font-serif
-                  text-xl
-                  text-[#3A2A2F]
-                "
-              >
-                {activePage ===
-                "privacy-policy"
-                  ? "Edit Privacy Policy"
-                  : "Edit Terms & Conditions"}
+              <h2 className="font-serif text-xl text-[#3A2A2F]">
+                {currentPage.label}
               </h2>
 
-              <p
-                className="
-                  mt-0.5
-                  text-xs
-                  text-[#9A7F88]
-                "
-              >
-                Changes will appear on
-                the public website.
-              </p>
+              {updatedAt && (
+                <p className="mt-1 text-[11px] text-[#A18A92]">
+                  Last updated{" "}
+                  {updatedAt}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* BODY */}
+          {/* CHANGE STATUS */}
 
-          <div
-            className="
-              p-6
-              sm:p-8
-            "
-          >
-            {loading ? (
+          {hasChanges && (
+            <div
+              className="
+                flex
+                w-fit
+                items-center
+                gap-2
+                rounded-full
+                bg-amber-50
+                px-3
+                py-1.5
+                text-[11px]
+                font-medium
+                text-amber-700
+              "
+            >
+              <AlertCircle size={13} />
+
+              Unsaved changes
+            </div>
+          )}
+        </div>
+
+        {/* =====================================
+            LOADING
+        ===================================== */}
+
+        {loading && (
+          <div className="flex min-h-[420px] items-center justify-center">
+            <div className="text-center">
+              <RefreshCw
+                size={28}
+                className="mx-auto animate-spin text-[#E75480]"
+              />
+
+              <p className="mt-4 text-sm text-[#8A6F78]">
+                Loading{" "}
+                {currentPage.label}...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================
+            ERROR
+        ===================================== */}
+
+        {!loading && error && (
+          <div className="flex min-h-[420px] items-center justify-center p-6">
+            <div className="max-w-sm text-center">
               <div
                 className="
+                  mx-auto
                   flex
-                  min-h-[350px]
+                  h-12
+                  w-12
                   items-center
                   justify-center
+                  rounded-full
+                  bg-red-50
+                  text-red-500
                 "
               >
-                <div className="text-center">
-                  <Loader2
-                    className="
-                      mx-auto
-                      animate-spin
-                      text-[#E75480]
-                    "
-                    size={30}
-                  />
-
-                  <p
-                    className="
-                      mt-3
-                      text-sm
-                      text-[#8A6F78]
-                    "
-                  >
-                    Loading page...
-                  </p>
-                </div>
+                <AlertCircle
+                  size={21}
+                />
               </div>
-            ) : (
-              <>
-                {/* TITLE */}
+
+              <h3 className="mt-4 font-serif text-xl text-[#3A2A2F]">
+                Could not load page
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-[#8A6F78]">
+                {error}
+              </p>
+
+              <button
+                type="button"
+                onClick={() =>
+                  loadPage(
+                    activeSlug
+                  )
+                }
+                className="
+                  mt-5
+                  inline-flex
+                  items-center
+                  gap-2
+                  rounded-xl
+                  border
+                  border-[#E75480]/20
+                  px-4
+                  py-2.5
+                  text-xs
+                  font-semibold
+                  text-[#E75480]
+                  transition
+                  hover:bg-[#FFF4F7]
+                "
+              >
+                <RefreshCw
+                  size={14}
+                />
+
+                Try Again
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================
+            EDITOR
+        ===================================== */}
+
+        {!loading &&
+          !error &&
+          page && (
+            <>
+              <div className="space-y-6 p-5 sm:p-6 lg:p-8">
+                {/* PAGE TITLE */}
 
                 <div>
                   <label
+                    htmlFor="legal-title"
                     className="
+                      mb-2
+                      block
                       text-[10px]
                       font-semibold
                       uppercase
@@ -608,176 +585,224 @@ export default function LegalPagesAdmin() {
                   </label>
 
                   <input
+                    id="legal-title"
                     type="text"
                     value={title}
-                    onChange={(event) =>
+                    onChange={(e) =>
                       setTitle(
-                        event.target.value
+                        e.target.value
                       )
                     }
+                    disabled={
+                      !canUpdate
+                    }
+                    placeholder="Enter page title"
                     className="
-                      mt-2
                       w-full
-                      rounded-[14px]
+                      rounded-xl
                       border
-                      border-[#E75480]/15
-                      bg-[#FFF9FB]
-                      px-5
-                      py-4
+                      border-[#EADDE1]
+                      bg-white
+                      px-4
+                      py-3
                       text-sm
                       text-[#3A2A2F]
                       outline-none
                       transition
 
+                      placeholder:text-[#BCA8AF]
+
                       focus:border-[#E75480]/50
-                      focus:bg-white
+                      focus:ring-4
+                      focus:ring-[#E75480]/5
+
+                      disabled:cursor-not-allowed
+                      disabled:bg-[#FAF7F8]
+                      disabled:text-[#8A6F78]
                     "
                   />
                 </div>
 
                 {/* CONTENT */}
 
-                <div className="mt-6">
-                  <label
-                    className="
-                      text-[10px]
-                      font-semibold
-                      uppercase
-                      tracking-[2px]
-                      text-[#8A6F78]
-                    "
-                  >
-                    Page Content
-                  </label>
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-4">
+                    <label
+                      htmlFor="legal-content"
+                      className="
+                        text-[10px]
+                        font-semibold
+                        uppercase
+                        tracking-[2px]
+                        text-[#8A6F78]
+                      "
+                    >
+                      Page Content
+                    </label>
+
+                    <span className="text-[10px] text-[#B19AA2]">
+                      HTML supported
+                    </span>
+                  </div>
 
                   <textarea
+                    id="legal-content"
                     value={content}
-                    onChange={(event) =>
+                    onChange={(e) =>
                       setContent(
-                        event.target.value
+                        e.target.value
                       )
                     }
-                    rows={16}
-                    placeholder="Enter page content..."
+                    disabled={
+                      !canUpdate
+                    }
+                    placeholder="Write your legal page content..."
+                    rows={18}
                     className="
-                      mt-2
                       min-h-[420px]
                       w-full
                       resize-y
-                      rounded-[18px]
+                      rounded-xl
                       border
-                      border-[#E75480]/15
-                      bg-[#FFF9FB]
-                      px-5
-                      py-5
-                      text-sm
+                      border-[#EADDE1]
+                      bg-white
+                      px-4
+                      py-4
+                      font-mono
+                      text-[13px]
                       leading-7
-                      text-[#3A2A2F]
+                      text-[#59464D]
                       outline-none
                       transition
 
+                      placeholder:text-[#BCA8AF]
+
                       focus:border-[#E75480]/50
-                      focus:bg-white
+                      focus:ring-4
+                      focus:ring-[#E75480]/5
+
+                      disabled:cursor-not-allowed
+                      disabled:bg-[#FAF7F8]
                     "
                   />
                 </div>
 
-                {/* ERROR */}
+                {/* VIEW ONLY NOTICE */}
 
-                {error && (
+                {!canUpdate && (
                   <div
                     className="
-                      mt-5
-                      rounded-[14px]
+                      flex
+                      items-start
+                      gap-3
+                      rounded-xl
                       border
-                      border-red-200
-                      bg-red-50
-                      px-4
-                      py-3
-                      text-sm
-                      text-red-600
+                      border-amber-200
+                      bg-amber-50
+                      p-4
                     "
                   >
-                    {error}
+                    <FileText
+                      size={17}
+                      className="mt-0.5 shrink-0 text-amber-600"
+                    />
+
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">
+                        View-only access
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-amber-700">
+                        Your role does not
+                        have permission to
+                        update legal pages.
+                      </p>
+                    </div>
                   </div>
                 )}
+              </div>
 
-                {/* SUCCESS */}
+              {/* =================================
+                  FOOTER ACTIONS
+              ================================= */}
 
-                {success && (
-                  <div
-                    className="
-                      mt-5
-                      rounded-[14px]
-                      border
-                      border-green-200
-                      bg-green-50
-                      px-4
-                      py-3
-                      text-sm
-                      text-green-700
-                    "
-                  >
-                    {success}
-                  </div>
-                )}
+              <div
+                className="
+                  flex
+                  flex-col
+                  gap-3
+                  border-t
+                  border-[#F1E4E8]
+                  bg-[#FFFBFC]
+                  px-5
+                  py-4
 
-                {/* SAVE */}
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  sm:px-6
 
-                <div
-                  className="
-                    mt-7
-                    flex
-                    flex-col
-                    gap-4
-                    border-t
-                    border-[#E75480]/10
-                    pt-6
+                  lg:px-8
+                "
+              >
+                <div className="flex items-center gap-2 text-xs text-[#9A7F88]">
+                  {hasChanges ? (
+                    <>
+                      <AlertCircle
+                        size={14}
+                        className="text-amber-500"
+                      />
 
-                    sm:flex-row
-                    sm:items-center
-                    sm:justify-between
-                  "
-                >
-                  <p
-                    className="
-                      text-xs
-                      text-[#9A7F88]
-                    "
-                  >
-                    Remember to save after
-                    making changes.
-                  </p>
+                      You have unsaved
+                      changes.
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2
+                        size={14}
+                        className="text-emerald-500"
+                      />
 
+                      All changes saved.
+                    </>
+                  )}
+                </div>
+
+                {canUpdate && (
                   <button
                     type="button"
-                    onClick={handleSave}
-                    disabled={saving}
+                    onClick={
+                      handleSave
+                    }
+                    disabled={
+                      saving ||
+                      !hasChanges
+                    }
                     className="
                       inline-flex
                       items-center
                       justify-center
                       gap-2
-                      rounded-full
+                      rounded-xl
                       bg-[#E75480]
-                      px-7
-                      py-3.5
-                      text-[10px]
+                      px-5
+                      py-2.5
+                      text-xs
                       font-semibold
-                      uppercase
-                      tracking-[2px]
                       text-white
-                      transition-all
+                      shadow-[0_5px_18px_rgba(231,84,128,0.18)]
+                      transition
 
-                      hover:bg-[#D94873]
+                      hover:bg-[#D94B75]
 
                       disabled:cursor-not-allowed
-                      disabled:opacity-60
+                      disabled:opacity-50
+                      disabled:shadow-none
                     "
                   >
                     {saving ? (
                       <>
-                        <Loader2
+                        <RefreshCw
                           size={15}
                           className="animate-spin"
                         />
@@ -786,17 +811,18 @@ export default function LegalPagesAdmin() {
                       </>
                     ) : (
                       <>
-                        <Save size={15} />
+                        <Save
+                          size={15}
+                        />
 
                         Save Changes
                       </>
                     )}
                   </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+                )}
+              </div>
+            </>
+          )}
       </div>
     </div>
   );
