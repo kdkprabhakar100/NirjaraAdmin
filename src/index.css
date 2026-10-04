@@ -83,3 +83,149 @@ body {
 .dark .text-blue-700 { color: #93c5fd; }
 .dark .bg-yellow-100 { background-color: rgb(161 98 7 / 0.3); }
 .dark .text-yellow-700 { color: #fde68a; }
+
+
+/* =========================================================
+   NIRJARA TIPTAP EDITOR
+========================================================= */
+
+.nirjara-tiptap-editor {
+  min-height: 360px;
+  padding: 20px;
+
+  outline: none;
+
+  color: #3a2a2f;
+
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+/* Paragraphs */
+
+.nirjara-tiptap-editor p {
+  margin: 12px 0;
+}
+
+/* H2 */
+
+.nirjara-tiptap-editor h2 {
+  margin-top: 32px;
+  margin-bottom: 12px;
+
+  font-family: Georgia, serif;
+  font-size: 26px;
+  line-height: 1.3;
+
+  color: #3a2a2f;
+}
+
+/* H3 */
+
+.nirjara-tiptap-editor h3 {
+  margin-top: 26px;
+  margin-bottom: 10px;
+
+  font-family: Georgia, serif;
+  font-size: 21px;
+  line-height: 1.35;
+
+  color: #3a2a2f;
+}
+
+/* H4 */
+
+.nirjara-tiptap-editor h4 {
+  margin-top: 22px;
+  margin-bottom: 8px;
+
+  font-family: Georgia, serif;
+  font-size: 18px;
+
+  color: #3a2a2f;
+}
+
+/* Lists */
+
+.nirjara-tiptap-editor ul {
+  margin: 14px 0;
+  padding-left: 24px;
+
+  list-style-type: disc;
+}
+
+.nirjara-tiptap-editor ol {
+  margin: 14px 0;
+  padding-left: 24px;
+
+  list-style-type: decimal;
+}
+
+.nirjara-tiptap-editor li {
+  margin: 5px 0;
+}
+
+/* Links */
+
+.nirjara-tiptap-editor a {
+  color: #e75480;
+  text-decoration: underline;
+
+  cursor: pointer;
+}
+
+/* Blockquote */
+
+.nirjara-tiptap-editor blockquote {
+  margin: 18px 0;
+
+  border-left: 3px solid #e75480;
+
+  padding-left: 16px;
+
+  color: #806b73;
+
+  font-style: italic;
+}
+
+/* Horizontal divider */
+
+.nirjara-tiptap-editor hr {
+  margin: 24px 0;
+
+  border: 0;
+  border-top: 1px solid #eadde2;
+}
+
+/* Images */
+
+.nirjara-tiptap-editor img {
+  display: block;
+
+  max-width: 100%;
+  height: auto;
+
+  margin: 18px auto;
+
+  border-radius: 12px;
+}
+
+/* Selected editor */
+
+.nirjara-tiptap-editor:focus {
+  outline: none;
+}
+
+/* Empty paragraph */
+
+.nirjara-tiptap-editor p.is-editor-empty:first-child::before {
+  content: "Start writing your blog...";
+
+  float: left;
+
+  height: 0;
+
+  color: #b9a5ac;
+
+  pointer-events: none;
+}
