@@ -17,6 +17,10 @@ import { useAdminSession } from "../../hooks/useAuth";
 
 import { getApiErrorMessage } from "../../services/base/api";
 
+import { getBranches } from "../../services/branch/branchService";
+
+import type { Branch } from "../../services/branch/branch.types";
+
 import {
   deleteBooking as deleteBookingRequest,
   getBookings,
@@ -25,12 +29,23 @@ import {
 
 import type {
   Booking,
+  BookingStatus,
   BookingType,
 } from "../../services/booking/booking.types";
 
 // How long typing must pause before a
 // search request goes out.
 const SEARCH_DELAY_MS = 350;
+
+// ========================================
+// FILTER STYLES
+// ========================================
+
+const filterClass =
+  "rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm text-ink outline-none focus:border-[#E75480]";
+
+const filterLabelClass =
+  "mb-1 block text-[11px] uppercase tracking-[1.5px] text-muted";
 
 export default function BookingsAdmin() {
   // The API only sends a branch account
@@ -62,6 +77,37 @@ export default function BookingsAdmin() {
   const [typeFilter, setTypeFilter] =
     useState<BookingType | "">("");
 
+  const [statusFilter, setStatusFilter] =
+    useState<BookingStatus | "">("");
+
+  // A branch id; "" for every branch.
+  const [branchFilter, setBranchFilter] =
+    useState("");
+
+  // Appointment dates, "YYYY-MM-DD"; either
+  // end may be left blank.
+  const [dateFrom, setDateFrom] =
+    useState("");
+
+  const [dateTo, setDateTo] =
+    useState("");
+
+  const [branches, setBranches] =
+    useState<Branch[]>([]);
+
+  useEffect(() => {
+    // For the branch filter and the
+    // addresses in the Branch column.
+    getBranches()
+      .then(setBranches)
+      .catch((error) => {
+        console.error(
+          "Fetch branches error:",
+          error
+        );
+      });
+  }, []);
+
   // Counts the booking requests, so a slow
   // one cannot overwrite a fresher list.
   const latestRequest = useRef(0);
@@ -89,6 +135,10 @@ export default function BookingsAdmin() {
       const data = await getBookings({
         search: appliedSearch,
         type: typeFilter,
+        status: statusFilter,
+        branch: branchFilter,
+        dateFrom,
+        dateTo,
       });
 
       if (
@@ -142,7 +192,14 @@ export default function BookingsAdmin() {
 
   useEffect(() => {
     fetchBookings();
-  }, [appliedSearch, typeFilter]);
+  }, [
+    appliedSearch,
+    typeFilter,
+    statusFilter,
+    branchFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   // ============================
   // UPDATE STATUS
@@ -278,6 +335,99 @@ export default function BookingsAdmin() {
     return "bg-blush text-[#E75480]";
   };
 
+  // ============================
+  // SAME-TIME REQUESTS
+  //
+  // Customers may ask for a time someone
+  // else already asked for; the branch
+  // confirms one and cancels the rest.
+  // Counts the other open (not cancelled)
+  // service bookings on screen for the
+  // same branch, date and time.
+  // ============================
+
+  const slotKey = (booking: Booking) =>
+    [
+      booking.branchId ?? booking.branch,
+      booking.date,
+      booking.time,
+    ].join("|");
+
+  const openBookingsBySlot = new Map<
+    string,
+    Booking[]
+  >();
+
+  for (const booking of bookings) {
+    if (
+      booking.type !== "service" ||
+      booking.status === "Cancelled"
+    ) {
+      continue;
+    }
+
+    const key = slotKey(booking);
+
+    openBookingsBySlot.set(key, [
+      ...(openBookingsBySlot.get(key) ??
+        []),
+      booking,
+    ]);
+  }
+
+  const sameTimeOthers = (
+    booking: Booking
+  ) =>
+    booking.type === "service"
+      ? (
+          openBookingsBySlot.get(
+            slotKey(booking)
+          ) ?? []
+        ).filter(
+          (other) =>
+            other._id !== booking._id
+        )
+      : [];
+
+  const timeCell = (booking: Booking) => {
+    const others = sameTimeOthers(booking);
+
+    const confirmedOther = others.some(
+      (other) =>
+        other.status === "Confirmed"
+    );
+
+    return (
+      <span>
+        {booking.time}
+
+        {others.length > 0 && (
+          <span
+            className={`mt-1 block whitespace-nowrap text-xs font-medium ${
+              confirmedOther
+                ? "text-red-600"
+                : "text-amber-600"
+            }`}
+            title={others
+              .map(
+                (other) =>
+                  `${other.name} (${other.status})`
+              )
+              .join(", ")}
+          >
+            ⚠ {others.length} other
+            {others.length === 1
+              ? ""
+              : "s"}{" "}
+            {confirmedOther
+              ? "· one confirmed"
+              : "asked too"}
+          </span>
+        )}
+      </span>
+    );
+  };
+
   const statusBadge = (
     booking: Booking
   ) => (
@@ -400,7 +550,29 @@ export default function BookingsAdmin() {
     {
       key: "branch",
       header: "Branch",
-      render: (booking) => booking.branch,
+      render: (booking) => {
+        // The name the booking was made
+        // with; the address comes from the
+        // branch as it is now.
+        const address = branches.find(
+          (branch) =>
+            branch._id === booking.branchId
+        )?.address;
+
+        return (
+          <span>
+            <span className="block">
+              {booking.branch}
+            </span>
+
+            {address && (
+              <span className="block text-xs text-muted">
+                {address}
+              </span>
+            )}
+          </span>
+        );
+      },
     },
     {
       key: "date",
@@ -412,7 +584,7 @@ export default function BookingsAdmin() {
       key: "time",
       header: "Time",
       cellClassName: "whitespace-nowrap",
-      render: (booking) => booking.time,
+      render: timeCell,
     },
     {
       key: "status",
@@ -435,8 +607,23 @@ export default function BookingsAdmin() {
   // ============================
 
   const filtersActive = Boolean(
-    appliedSearch || typeFilter
+    appliedSearch ||
+      typeFilter ||
+      statusFilter ||
+      branchFilter ||
+      dateFrom ||
+      dateTo
   );
+
+  const clearFilters = () => {
+    setSearch("");
+    setAppliedSearch("");
+    setTypeFilter("");
+    setStatusFilter("");
+    setBranchFilter("");
+    setDateFrom("");
+    setDateTo("");
+  };
 
   return (
     <div>
@@ -456,55 +643,181 @@ export default function BookingsAdmin() {
         </p>
       </div>
 
-      {/* SEARCH + TYPE FILTER */}
+      {/* SEARCH + FILTERS */}
 
-      <div className="mt-8 flex flex-col gap-3 rounded-3xl bg-surface p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-sm text-muted">
-          {bookings.length} booking
-          {bookings.length === 1
-            ? ""
-            : "s"}{" "}
-          {filtersActive
-            ? "found"
-            : "in total"}
-        </p>
+      <div className="mt-8 rounded-3xl bg-surface p-5 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <p className="text-sm text-muted">
+            {bookings.length} booking
+            {bookings.length === 1
+              ? ""
+              : "s"}{" "}
+            {filtersActive
+              ? "found"
+              : "in total"}
+          </p>
 
-        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
-          <input
-            type="search"
-            value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
-            placeholder="Search name, phone, email, service or branch..."
-            className="w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480] lg:w-80"
-          />
+          <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+            <input
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value
+                )
+              }
+              placeholder="Search name, phone, email, service or branch..."
+              className={`${filterClass} w-full lg:w-80`}
+            />
 
-          <select
-            value={typeFilter}
-            onChange={(event) =>
-              setTypeFilter(
-                event.target.value as
-                  | BookingType
-                  | ""
-              )
-            }
-            className="rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm text-ink outline-none focus:border-[#E75480]"
-          >
-            <option value="">
-              All Types
-            </option>
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="whitespace-nowrap rounded-xl border border-[#E75480]/30 px-4 py-3 text-xs uppercase tracking-[1.5px] text-[#E75480] transition hover:bg-soft"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
 
-            <option value="service">
-              Service
-            </option>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <label className="block">
+            <span className={filterLabelClass}>
+              Type
+            </span>
 
-            <option value="course">
-              Course
-            </option>
-          </select>
+            <select
+              value={typeFilter}
+              onChange={(event) =>
+                setTypeFilter(
+                  event.target.value as
+                    | BookingType
+                    | ""
+                )
+              }
+              className={`${filterClass} w-full`}
+            >
+              <option value="">
+                All Types
+              </option>
+
+              <option value="service">
+                Service
+              </option>
+
+              <option value="course">
+                Course
+              </option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className={filterLabelClass}>
+              Status
+            </span>
+
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(
+                  event.target.value as
+                    | BookingStatus
+                    | ""
+                )
+              }
+              className={`${filterClass} w-full`}
+            >
+              <option value="">
+                All Statuses
+              </option>
+
+              <option value="Pending">
+                Pending
+              </option>
+
+              <option value="Confirmed">
+                Confirmed
+              </option>
+
+              <option value="Cancelled">
+                Cancelled
+              </option>
+            </select>
+          </label>
+
+          {/* A branch account only ever
+              gets its own branch. */}
+          {!branchName && (
+            <label className="block">
+              <span className={filterLabelClass}>
+                Branch
+              </span>
+
+              <select
+                value={branchFilter}
+                onChange={(event) =>
+                  setBranchFilter(
+                    event.target.value
+                  )
+                }
+                className={`${filterClass} w-full`}
+              >
+                <option value="">
+                  All Branches
+                </option>
+
+                {branches.map((branch) => (
+                  <option
+                    key={branch._id}
+                    value={branch._id}
+                  >
+                    {branch.name}
+                    {branch.address
+                      ? ` — ${branch.address}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <label className="block">
+            <span className={filterLabelClass}>
+              Date from
+            </span>
+
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(event) =>
+                setDateFrom(
+                  event.target.value
+                )
+              }
+              className={`${filterClass} w-full`}
+            />
+          </label>
+
+          <label className="block">
+            <span className={filterLabelClass}>
+              Date to
+            </span>
+
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(event) =>
+                setDateTo(
+                  event.target.value
+                )
+              }
+              className={`${filterClass} w-full`}
+            />
+          </label>
         </div>
       </div>
 

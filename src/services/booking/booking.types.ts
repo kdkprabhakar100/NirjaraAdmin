@@ -17,6 +17,17 @@ export type BookingFilters = {
   search?: string;
 
   type?: BookingType | "";
+
+  status?: BookingStatus | "";
+
+  // A branch id; empty means every branch.
+  branch?: string;
+
+  // Appointment date range, "YYYY-MM-DD",
+  // both ends included.
+  dateFrom?: string;
+
+  dateTo?: string;
 };
 
 export type Booking = {

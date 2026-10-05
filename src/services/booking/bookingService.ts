@@ -20,12 +20,16 @@ const BOOKING_API = "/api/bookings";
 // GET ALL BOOKINGS
 // ADMIN
 //
-// GET /api/bookings?search=&type=
+// GET /api/bookings?search=&type=&status=
+//   &branch=&dateFrom=&dateTo=
 //
 // Newest first. `search` matches name,
 // phone, email, service, course or
 // branch; `type` narrows to service or
-// course. Blank filters are left off.
+// course; `status` to one status;
+// `branch` (an id) to one branch;
+// `dateFrom`/`dateTo` to an appointment
+// date range. Blank filters are left off.
 //
 // The `t` param busts any cached response
 // so a freshly confirmed booking never
@@ -44,6 +48,14 @@ export const getBookings =
           filters.search?.trim() ||
           undefined,
         type: filters.type || undefined,
+        status:
+          filters.status || undefined,
+        branch:
+          filters.branch || undefined,
+        dateFrom:
+          filters.dateFrom || undefined,
+        dateTo:
+          filters.dateTo || undefined,
         t: Date.now(),
       },
     });
