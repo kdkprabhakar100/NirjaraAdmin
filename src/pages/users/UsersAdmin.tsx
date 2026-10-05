@@ -38,6 +38,10 @@ import type {
   AdminUserPayload,
 } from "../../services/adminUser/adminUser.types";
 
+import { getBranches } from "../../services/branch/branchService";
+
+import type { Branch } from "../../services/branch/branch.types";
+
 import { getRoles } from "../../services/role/roleService";
 
 import type { Role } from "../../services/role/role.types";
@@ -58,8 +62,13 @@ const EMPTY_FORM: AdminUserPayload = {
   name: "",
   email: "",
   role: "staff",
+  branch: "",
   password: "",
 };
+
+// The role that usually goes with a
+// branch; picking a branch suggests it.
+const BRANCH_ADMIN_ROLE = "branch_admin";
 
 // ========================================
 // SHARED INPUT STYLE
@@ -91,6 +100,16 @@ export default function UsersAdmin() {
   const [roles, setRoles] = useState<
     Role[]
   >([]);
+
+  // For the branch picker.
+  const [branches, setBranches] = useState<
+    Branch[]
+  >([]);
+
+  // An account tied to a branch can only
+  // add accounts to that branch.
+  const ownBranchId =
+    session?.branch?._id ?? "";
 
   const [users, setUsers] = useState<
     AdminUser[]
@@ -195,14 +214,16 @@ export default function UsersAdmin() {
     try {
       setLoading(true);
 
-      const [userList, roleList] =
+      const [userList, roleList, branchList] =
         await Promise.all([
           getAdminUsers(),
           getRoles(),
+          getBranches(),
         ]);
 
       setUsers(userList);
       setRoles(roleList);
+      setBranches(branchList);
     } catch (error) {
       console.error(
         "Fetch users error:",
@@ -245,6 +266,7 @@ export default function UsersAdmin() {
     setForm({
       ...EMPTY_FORM,
       role: defaultRole,
+      branch: ownBranchId,
     });
     setEditingId(null);
     setFormOpen(true);
@@ -255,6 +277,7 @@ export default function UsersAdmin() {
       name: user.name,
       email: user.email,
       role: user.role,
+      branch: user.branch?._id ?? "",
       password: "",
     });
 
@@ -277,6 +300,26 @@ export default function UsersAdmin() {
     setForm((previous) => ({
       ...previous,
       [field]: value,
+    }));
+  };
+
+  // Picking a branch for a new account
+  // suggests the Branch Admin role, when
+  // it can be assigned; the role can still
+  // be changed afterwards.
+  const changeBranch = (branch: string) => {
+    setForm((previous) => ({
+      ...previous,
+      branch,
+      role:
+        !editingId &&
+        branch &&
+        assignableRoles.some(
+          (role) =>
+            role.key === BRANCH_ADMIN_ROLE
+        )
+          ? BRANCH_ADMIN_ROLE
+          : previous.role,
     }));
   };
 
@@ -588,6 +631,31 @@ export default function UsersAdmin() {
       render: roleBadge,
     },
     {
+      key: "branch",
+      header: "Branch",
+      width: "220px",
+      hideOnMobile: true,
+      cellClassName: "text-sm",
+      render: (user) =>
+        user.branch ? (
+          <span>
+            <span className="block text-ink">
+              {user.branch.name}
+            </span>
+
+            {user.branch.address && (
+              <span className="block text-xs text-muted">
+                {user.branch.address}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-muted">
+            All branches
+          </span>
+        ),
+    },
+    {
       key: "created",
       header: "Added",
       width: "140px",
@@ -672,7 +740,7 @@ export default function UsersAdmin() {
         emptyIcon="☺"
         emptyTitle="No admin users yet"
         emptyMessage="Add your first admin user using the button above."
-        minWidth="760px"
+        minWidth="900px"
         mobileTitle={nameCell}
         mobileBadge={roleBadge}
         mobileActions={renderActions}
@@ -771,6 +839,45 @@ export default function UsersAdmin() {
                   {role.name}
                   {role.description
                     ? ` — ${role.description}`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField
+            label="Branch"
+            hint={
+              editingSelf
+                ? "you cannot change your own branch"
+                : ownBranchId
+                  ? "you can only add accounts to your branch"
+                  : "a branch account only sees that branch's bookings"
+            }
+          >
+            <select
+              value={form.branch}
+              disabled={
+                editingSelf ||
+                Boolean(ownBranchId)
+              }
+              onChange={(e) =>
+                changeBranch(e.target.value)
+              }
+              className={inputClass}
+            >
+              <option value="">
+                All branches
+              </option>
+
+              {branches.map((branch) => (
+                <option
+                  key={branch._id}
+                  value={branch._id}
+                >
+                  {branch.name}
+                  {branch.address
+                    ? ` — ${branch.address}`
                     : ""}
                 </option>
               ))}

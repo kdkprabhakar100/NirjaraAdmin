@@ -36,7 +36,14 @@ export type Booking = {
 
   course?: string;
 
+  // The branch name when the booking was
+  // made.
   branch: string;
+
+  // Decides which branch admins see it.
+  // Null on bookings from before branches
+  // had ids.
+  branchId?: string | null;
 
   date: string;
 

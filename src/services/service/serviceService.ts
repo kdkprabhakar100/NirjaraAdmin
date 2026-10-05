@@ -119,6 +119,31 @@ export const setServiceAvailability =
   };
 
 // ========================================
+// SET AVAILABILITY AT ONE BRANCH
+//
+// PUT /api/services/:id/branches/:branchId
+//
+// Needs serviceAvailability.update. An
+// account tied to a branch can only
+// switch its own.
+// ========================================
+
+export const setServiceBranchAvailability =
+  async (
+    id: string,
+    branchId: string,
+    available: boolean
+  ): Promise<Service> => {
+    const response =
+      await api.put<Service>(
+        `${SERVICE_API}/${id}/branches/${branchId}`,
+        { available }
+      );
+
+    return response.data;
+  };
+
+// ========================================
 // DELETE SERVICE
 //
 // DELETE /api/services/:id

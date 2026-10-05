@@ -19,7 +19,16 @@ import DialogBox from "../../components/DialogBox";
 
 import RowActionsMenu from "../../components/RowActionsMenu";
 
+import {
+  useAdminSession,
+  usePermissions,
+} from "../../hooks/useAuth";
+
 import { getApiErrorMessage } from "../../services/base/api";
+
+import { getBranches } from "../../services/branch/branchService";
+
+import type { Branch } from "../../services/branch/branch.types";
 
 import { uploadImage } from "../../services/upload/uploadService";
 
@@ -28,6 +37,7 @@ import {
   deleteService,
   getServices,
   setServiceAvailability,
+  setServiceBranchAvailability,
   updateService,
 } from "../../services/service/serviceService";
 
@@ -65,6 +75,16 @@ const emptyForm: ServicePayload = {
 const isAvailable = (service: Service) =>
   service.available !== false;
 
+// On at a branch unless that branch is in
+// the service's switched-off list.
+const isOnAtBranch = (
+  service: Service,
+  branchId: string
+) =>
+  !service.unavailableBranches?.includes(
+    branchId
+  );
+
 // Categories are managed on their own
 // page; this one only reads them.
 const CATEGORIES_PATH =
@@ -88,6 +108,30 @@ export default function ServicesAdmin() {
   // links here with ?category=<id>.
   const [searchParams] =
     useSearchParams();
+
+  const allowed = usePermissions("services");
+
+  const canSeeCategories =
+    usePermissions("serviceCategories").view;
+
+  const canSwitchBranches =
+    usePermissions("serviceAvailability")
+      .update;
+
+  // A branch admin only sees, and can only
+  // switch, their own branch.
+  const ownBranchId =
+    useAdminSession()?.branch?._id;
+
+  const [branches, setBranches] =
+    useState<Branch[]>([]);
+
+  const shownBranches = ownBranchId
+    ? branches.filter(
+        (branch) =>
+          branch._id === ownBranchId
+      )
+    : branches;
 
   const [services, setServices] =
     useState<Service[]>([]);
@@ -185,6 +229,22 @@ export default function ServicesAdmin() {
 
   useEffect(() => {
     fetchCategories();
+
+    getBranches()
+      .then(setBranches)
+      .catch((error) => {
+        console.error(
+          "Fetch branches error:",
+          error
+        );
+
+        toast.error(
+          getApiErrorMessage(
+            error,
+            "Failed to load branches"
+          )
+        );
+      });
   }, []);
 
   // ============================
@@ -529,6 +589,99 @@ export default function ServicesAdmin() {
     }
   };
 
+  // ============================
+  // AVAILABILITY PER BRANCH
+  //
+  // One chip per branch; clicking it
+  // switches the service on or off there.
+  // Off everywhere (above) still wins.
+  // ============================
+
+  const toggleBranch = async (
+    service: Service,
+    branch: Branch
+  ) => {
+    if (!service._id) {
+      return;
+    }
+
+    const next = !isOnAtBranch(
+      service,
+      branch._id
+    );
+
+    try {
+      const updated =
+        await setServiceBranchAvailability(
+          service._id,
+          branch._id,
+          next
+        );
+
+      setServices((previous) =>
+        previous.map((one) =>
+          one._id === updated._id
+            ? updated
+            : one
+        )
+      );
+
+      toast.success(
+        next
+          ? `"${service.title}" can be booked at ${branch.name} again.`
+          : `"${service.title}" is no longer bookable at ${branch.name}.`
+      );
+    } catch (error) {
+      console.error(
+        "Branch availability error:",
+        error
+      );
+
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to change availability"
+        )
+      );
+    }
+  };
+
+  const branchChips = (
+    service: Service
+  ) => (
+    <div className="flex flex-wrap gap-2">
+      {shownBranches.map((branch) => {
+        const on = isOnAtBranch(
+          service,
+          branch._id
+        );
+
+        return (
+          <button
+            key={branch._id}
+            type="button"
+            disabled={!canSwitchBranches}
+            onClick={() =>
+              toggleBranch(service, branch)
+            }
+            title={
+              canSwitchBranches
+                ? `Click to ${on ? "stop" : "allow"} bookings at ${branch.name}`
+                : undefined
+            }
+            className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition disabled:cursor-default ${
+              on
+                ? "bg-green-100 text-green-700 enabled:hover:bg-green-200"
+                : "bg-gray-200 text-gray-600 line-through enabled:hover:bg-gray-300"
+            }`}
+          >
+            {on ? "✓" : "✕"} {branch.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const availabilityBadge = (
     service: Service
   ) =>
@@ -567,35 +720,43 @@ export default function ServicesAdmin() {
     <RowActionsMenu
       label={`Actions for ${service.title}`}
       actions={[
-        {
-          key: "edit",
-          label: "Edit",
-          icon: "✎",
-          onSelect: () =>
-            openEditForm(service),
-        },
-        {
-          key: "availability",
-          label: isAvailable(service)
-            ? "Mark not available"
-            : "Mark available",
-          icon: isAvailable(service)
-            ? "⏸"
-            : "▶",
-          onSelect: () =>
-            toggleAvailability(service),
-        },
-        {
-          key: "delete",
-          label: "Delete",
-          icon: "🗑",
-          tone: "danger",
-          dividerBefore: true,
-          onSelect: () =>
-            setServiceToDelete(
-              service
-            ),
-        },
+        ...(allowed.update
+          ? [
+              {
+                key: "edit",
+                label: "Edit",
+                icon: "✎",
+                onSelect: () =>
+                  openEditForm(service),
+              },
+              {
+                key: "availability",
+                label: isAvailable(service)
+                  ? "Mark not available everywhere"
+                  : "Mark available",
+                icon: isAvailable(service)
+                  ? "⏸"
+                  : "▶",
+                onSelect: () =>
+                  toggleAvailability(service),
+              },
+            ]
+          : []),
+        ...(allowed.delete
+          ? [
+              {
+                key: "delete",
+                label: "Delete",
+                icon: "🗑",
+                tone: "danger" as const,
+                dividerBefore: allowed.update,
+                onSelect: () =>
+                  setServiceToDelete(
+                    service
+                  ),
+              },
+            ]
+          : []),
       ]}
     />
   );
@@ -650,6 +811,13 @@ export default function ServicesAdmin() {
       render: availabilityBadge,
     },
     {
+      key: "branches",
+      header: ownBranchId
+        ? "Your Branch"
+        : "Branches",
+      render: branchChips,
+    },
+    {
       key: "description",
       header: "Description",
       cellClassName: "max-w-sm",
@@ -692,33 +860,39 @@ export default function ServicesAdmin() {
           </h1>
 
           <p className="mt-2 text-muted">
-            Create, edit, delete, and manage website services.
+            {allowed.update
+              ? "Create, edit, delete, and manage website services."
+              : "Click a branch to switch a service on or off there."}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() =>
-              navigate(CATEGORIES_PATH)
-            }
-            className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-soft"
-          >
-            Service Categories
-            {categories.length > 0 && (
-              <span className="ml-2 rounded-full bg-blush px-2 py-0.5 text-[10px]">
-                {categories.length}
-              </span>
-            )}
-          </button>
+          {canSeeCategories && (
+            <button
+              type="button"
+              onClick={() =>
+                navigate(CATEGORIES_PATH)
+              }
+              className="rounded-full border border-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-soft"
+            >
+              Service Categories
+              {categories.length > 0 && (
+                <span className="ml-2 rounded-full bg-blush px-2 py-0.5 text-[10px]">
+                  {categories.length}
+                </span>
+              )}
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={openAddForm}
-            className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
-          >
-            Add Service
-          </button>
+          {allowed.create && (
+            <button
+              type="button"
+              onClick={openAddForm}
+              className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+            >
+              Add Service
+            </button>
+          )}
         </div>
       </div>
 
@@ -799,7 +973,7 @@ export default function ServicesAdmin() {
             ? "Try a different name, or pick another category."
             : "Add your first service using the button above."
         }
-        minWidth="1000px"
+        minWidth="1200px"
         mobileTitle={(service) => (
           <span className="flex items-center gap-3">
             {thumbnail(service)}
@@ -982,7 +1156,9 @@ export default function ServicesAdmin() {
                 When off, the website shows
                 "Currently not available" on
                 this service and customers
-                cannot book it.
+                cannot book it at any branch.
+                Switch single branches from
+                the Branches column.
               </span>
             </span>
           </label>

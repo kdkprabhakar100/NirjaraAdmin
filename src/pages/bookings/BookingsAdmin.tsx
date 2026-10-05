@@ -13,6 +13,8 @@ import DialogBox from "../../components/DialogBox";
 
 import RowActionsMenu from "../../components/RowActionsMenu";
 
+import { useAdminSession } from "../../hooks/useAuth";
+
 import { getApiErrorMessage } from "../../services/base/api";
 
 import {
@@ -31,6 +33,11 @@ import type {
 const SEARCH_DELAY_MS = 350;
 
 export default function BookingsAdmin() {
+  // The API only sends a branch account
+  // its own branch's bookings.
+  const branchName =
+    useAdminSession()?.branch?.name;
+
   const [bookings, setBookings] = useState<Booking[]>([]);
 
   // Only the first load blanks the table.
@@ -443,7 +450,9 @@ export default function BookingsAdmin() {
         </h1>
 
         <p className="mt-2 text-muted">
-          View, confirm, cancel, or delete customer bookings.
+          {branchName
+            ? `Bookings and enrollments made at ${branchName}.`
+            : "View, confirm, cancel, or delete customer bookings."}
         </p>
       </div>
 

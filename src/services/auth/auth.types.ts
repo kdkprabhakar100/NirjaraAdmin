@@ -45,6 +45,15 @@ export type AdminSummary = {
   // Missing from sessions saved before
   // roles moved to the database.
   roleName?: string;
+  // The branch the account works for; the
+  // API narrows its bookings, dashboard
+  // counts and service switches to it.
+  // Null (or missing on older sessions)
+  // means it sees every branch.
+  branch?: {
+    _id: string;
+    name: string;
+  } | null;
   permissions: Permission[];
 };
 

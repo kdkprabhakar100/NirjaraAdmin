@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAdminSession } from "../../hooks/useAuth";
 import api from "../../services/base/api";
 
 type DashboardStats = {
@@ -26,6 +27,8 @@ const initialStats: DashboardStats = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+
+  const session = useAdminSession();
 
   const [stats, setStats] = useState<DashboardStats>(initialStats);
   const [loading, setLoading] = useState(true);
@@ -120,56 +123,72 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
-  const cards = [
+  const allCards = [
     {
       title: "Bookings",
       value: stats.bookings,
       path: "/bookings",
       icon: "📅",
+      permission: "bookings.view",
     },
     {
       title: "Services",
       value: stats.services,
       path: "/services",
       icon: "✨",
+      permission: "services.view",
     },
     {
       title: "Messages",
       value: stats.messages,
       path: "/messages",
       icon: "💬",
+      permission: "messages.view",
     },
     {
       title: "Blogs",
       value: stats.blogs,
       path: "/blogs",
       icon: "📝",
+      permission: "blogs.view",
     },
     {
       title: "Orders",
       value: stats.orders,
       path: "/orders",
       icon: "🛍️",
+      permission: "orders.view",
     },
     {
       title: "Products",
       value: stats.products,
       path: "/products",
       icon: "🧴",
+      permission: "products.view",
     },
     {
       title: "Events",
       value: stats.events,
       path: "/events",
       icon: "🎉",
+      permission: "events.view",
     },
     {
       title: "Careers",
       value: stats.careers,
       path: "/careers",
       icon: "💼",
+      permission: "careers.view",
     },
   ];
+
+  // Only pages the account can open; a
+  // branch admin sees just their own.
+  const cards = allCards.filter((card) =>
+    session?.permissions.includes(
+      card.permission
+    )
+  );
 
   return (
     <div className="w-full">
@@ -184,7 +203,9 @@ export default function Dashboard() {
         </h1>
 
         <p className="mt-3 text-sm text-muted">
-          Manage your website content and activity from one place.
+          {session?.branch
+            ? `Bookings and services at ${session.branch.name}.`
+            : "Manage your website content and activity from one place."}
         </p>
       </div>
 

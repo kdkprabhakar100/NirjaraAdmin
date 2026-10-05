@@ -34,6 +34,12 @@ export type Service = {
   // switch existed, which count as on.
   available?: boolean;
 
+  // Ids of the branches where it is
+  // switched off; bookable everywhere
+  // else. Changed only through
+  // setServiceBranchAvailability.
+  unavailableBranches?: string[];
+
   createdAt?: string;
 
   updatedAt?: string;
@@ -51,6 +57,7 @@ export type ServicePayload = Omit<
   Service,
   | "_id"
   | "category"
+  | "unavailableBranches"
   | "createdAt"
   | "updatedAt"
 > & {

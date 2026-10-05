@@ -19,6 +19,16 @@ export type AdminUser = {
   // what each one may do.
   role: AdminRole;
 
+  // The branch the account works for, with
+  // its name and address filled in by the
+  // server. Null means it sees every
+  // branch.
+  branch?: {
+    _id: string;
+    name: string;
+    address?: string;
+  } | null;
+
   createdAt?: string;
 
   updatedAt?: string;
@@ -39,6 +49,9 @@ export type AdminUserPayload = {
   email: string;
 
   role: AdminRole;
+
+  // A branch id; "" for every branch.
+  branch: string;
 
   password: string;
 };

@@ -219,6 +219,11 @@ function ProfileMenu({
               <span className="mt-2 inline-block rounded-full bg-blush px-3 py-0.5 text-[11px] uppercase tracking-[1px] text-[#E75480]">
                 {session.roleName ?? session.role}
               </span>
+
+              <p className="mt-2 truncate text-xs text-muted">
+                {session.branch?.name ??
+                  "All branches"}
+              </p>
             </div>
           )}
 
