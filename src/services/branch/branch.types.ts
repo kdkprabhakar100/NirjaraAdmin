@@ -19,6 +19,17 @@ export type Branch = {
 
   mapUrl: string;
 
+  // Booking hours: the appointment times
+  // the website offers at this branch.
+  // "HH:mm"; the last slot must end by
+  // bookingCloses.
+  bookingOpens: string;
+
+  bookingCloses: string;
+
+  // Length of one slot, in minutes.
+  slotMinutes: number;
+
   createdAt?: string;
 
   updatedAt?: string;
@@ -27,7 +38,9 @@ export type Branch = {
 // ========================================
 // CREATE / UPDATE PAYLOAD
 //
-// Only the name is required.
+// Only the name is required; the booking
+// hours default to 10:00–19:00 in 30
+// minute slots.
 // ========================================
 
 export type BranchPayload = Omit<

@@ -176,6 +176,13 @@ export default function ServicesAdmin() {
   const [editingId, setEditingId] =
     useState<string | null>(null);
 
+  // Branch ids the service is switched off
+  // at, as ticked in the form. Saved after
+  // the service itself, through the
+  // per-branch route.
+  const [formOffBranches, setFormOffBranches] =
+    useState<string[]>([]);
+
   const [uploading, setUploading] =
     useState(false);
 
@@ -347,6 +354,7 @@ export default function ServicesAdmin() {
         categories[0]?._id ?? "",
     });
 
+    setFormOffBranches([]);
     setEditingId(null);
     setFormOpen(true);
   };
@@ -369,6 +377,9 @@ export default function ServicesAdmin() {
       available: isAvailable(service),
     });
 
+    setFormOffBranches(
+      service.unavailableBranches ?? []
+    );
     setEditingId(service._id || null);
     setFormOpen(true);
   };
@@ -432,6 +443,49 @@ export default function ServicesAdmin() {
   // checked here.
   // ============================
 
+  // Sends only the branches whose tick
+  // differs from what is saved, one
+  // request each.
+  const saveBranchSwitches = async (
+    saved: Service
+  ) => {
+    if (!canSwitchBranches || !saved._id) {
+      return;
+    }
+
+    for (const branch of shownBranches) {
+      const wantOff =
+        formOffBranches.includes(
+          branch._id
+        );
+
+      const isOff = !isOnAtBranch(
+        saved,
+        branch._id
+      );
+
+      if (wantOff !== isOff) {
+        await setServiceBranchAvailability(
+          saved._id,
+          branch._id,
+          !wantOff
+        );
+      }
+    }
+  };
+
+  const toggleFormBranch = (
+    branchId: string
+  ) => {
+    setFormOffBranches((previous) =>
+      previous.includes(branchId)
+        ? previous.filter(
+            (id) => id !== branchId
+          )
+        : [...previous, branchId]
+    );
+  };
+
   const handleSubmit = async () => {
     if (!form.category) {
       toast.error(
@@ -452,22 +506,20 @@ export default function ServicesAdmin() {
     try {
       setSaving(true);
 
-      if (editingId) {
-        await updateService(
-          editingId,
-          form
-        );
+      const saved = editingId
+        ? await updateService(
+            editingId,
+            form
+          )
+        : await createService(form);
 
-        toast.success(
-          "Service updated successfully!"
-        );
-      } else {
-        await createService(form);
+      await saveBranchSwitches(saved);
 
-        toast.success(
-          "Service added successfully!"
-        );
-      }
+      toast.success(
+        editingId
+          ? "Service updated successfully!"
+          : "Service added successfully!"
+      );
 
       await fetchServices();
 
@@ -669,13 +721,25 @@ export default function ServicesAdmin() {
                 ? `Click to ${on ? "stop" : "allow"} bookings at ${branch.name}`
                 : undefined
             }
-            className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition disabled:cursor-default ${
+            className={`rounded-xl px-3 py-1 text-left text-xs font-medium transition disabled:cursor-default ${
               on
                 ? "bg-green-100 text-green-700 enabled:hover:bg-green-200"
-                : "bg-gray-200 text-gray-600 line-through enabled:hover:bg-gray-300"
+                : "bg-gray-200 text-gray-600 enabled:hover:bg-gray-300"
             }`}
           >
-            {on ? "✓" : "✕"} {branch.name}
+            <span
+              className={`block whitespace-nowrap ${
+                on ? "" : "line-through"
+              }`}
+            >
+              {on ? "✓" : "✕"} {branch.name}
+            </span>
+
+            {branch.address && (
+              <span className="block text-[10px] font-normal opacity-75">
+                {branch.address}
+              </span>
+            )}
           </button>
         );
       })}
@@ -1157,11 +1221,62 @@ export default function ServicesAdmin() {
                 "Currently not available" on
                 this service and customers
                 cannot book it at any branch.
-                Switch single branches from
-                the Branches column.
               </span>
             </span>
           </label>
+
+          {canSwitchBranches &&
+            shownBranches.length > 0 && (
+              <div className="md:col-span-2">
+                <p className="text-sm font-medium text-ink">
+                  Bookable at
+                </p>
+
+                <p className="text-xs text-muted">
+                  Untick a branch to stop
+                  bookings for this service
+                  there only.
+                </p>
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {shownBranches.map(
+                    (branch) => (
+                      <label
+                        key={branch._id}
+                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            !formOffBranches.includes(
+                              branch._id
+                            )
+                          }
+                          onChange={() =>
+                            toggleFormBranch(
+                              branch._id
+                            )
+                          }
+                          className="mt-1 h-4 w-4 accent-[#E75480]"
+                        />
+
+                        <span>
+                          <span className="block text-sm font-medium text-ink">
+                            {branch.name}
+                          </span>
+
+                          {branch.address && (
+                            <span className="block text-xs text-muted">
+                              {branch.address}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
         </div>
 
         {uploading && (

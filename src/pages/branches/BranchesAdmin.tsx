@@ -43,6 +43,32 @@ const EMPTY_FORM: BranchPayload = {
   phone: "",
   openingHours: "",
   mapUrl: "",
+  bookingOpens: "10:00",
+  bookingCloses: "19:00",
+  slotMinutes: 30,
+};
+
+// Slot lengths offered in the form.
+const SLOT_LENGTHS = [15, 20, 30, 45, 60, 90, 120];
+
+const toMinutes = (time: string) => {
+  const [hours, minutes] = time
+    .split(":")
+    .map(Number);
+
+  return hours * 60 + minutes;
+};
+
+// "10:00" → "10:00 AM", for the table.
+const formatTime = (time: string) => {
+  const minutes = toMinutes(time);
+  const hours = Math.floor(minutes / 60);
+
+  return `${hours % 12 || 12}:${String(
+    minutes % 60
+  ).padStart(2, "0")} ${
+    hours >= 12 ? "PM" : "AM"
+  }`;
 };
 
 // ========================================
@@ -132,6 +158,15 @@ export default function BranchesAdmin() {
       phone: branch.phone,
       openingHours: branch.openingHours,
       mapUrl: branch.mapUrl,
+      bookingOpens:
+        branch.bookingOpens ||
+        EMPTY_FORM.bookingOpens,
+      bookingCloses:
+        branch.bookingCloses ||
+        EMPTY_FORM.bookingCloses,
+      slotMinutes:
+        branch.slotMinutes ||
+        EMPTY_FORM.slotMinutes,
     });
 
     setEditingId(branch._id);
@@ -144,9 +179,11 @@ export default function BranchesAdmin() {
     setEditingId(null);
   };
 
-  const updateField = (
-    field: keyof BranchPayload,
-    value: string
+  const updateField = <
+    K extends keyof BranchPayload,
+  >(
+    field: K,
+    value: BranchPayload[K]
   ) => {
     setForm((previous) => ({
       ...previous,
@@ -171,6 +208,22 @@ export default function BranchesAdmin() {
       return;
     }
 
+    // The API refuses this too; checking
+    // here saves the round trip.
+    if (
+      !form.bookingOpens ||
+      !form.bookingCloses ||
+      toMinutes(form.bookingCloses) -
+        toMinutes(form.bookingOpens) <
+        form.slotMinutes
+    ) {
+      toast.error(
+        "Booking closing time must be at least one slot after the opening time."
+      );
+
+      return;
+    }
+
     const payload: BranchPayload = {
       name: form.name.trim(),
       label: form.label.trim(),
@@ -178,6 +231,9 @@ export default function BranchesAdmin() {
       phone: form.phone.trim(),
       openingHours: form.openingHours.trim(),
       mapUrl: form.mapUrl.trim(),
+      bookingOpens: form.bookingOpens,
+      bookingCloses: form.bookingCloses,
+      slotMinutes: form.slotMinutes,
     };
 
     try {
@@ -355,6 +411,31 @@ export default function BranchesAdmin() {
         "text-sm text-muted",
       render: (branch) =>
         branch.openingHours || "—",
+    },
+    {
+      key: "booking",
+      header: "Booking Times",
+      cellClassName:
+        "whitespace-nowrap text-sm",
+      render: (branch) => (
+        <span>
+          <span className="block">
+            {formatTime(
+              branch.bookingOpens || "10:00"
+            )}{" "}
+            –{" "}
+            {formatTime(
+              branch.bookingCloses ||
+                "19:00"
+            )}
+          </span>
+
+          <span className="block text-xs text-muted">
+            {branch.slotMinutes || 30} min
+            slots
+          </span>
+        </span>
+      ),
     },
     {
       key: "actions",
@@ -540,6 +621,91 @@ export default function BranchesAdmin() {
               }
               className={inputClass}
             />
+          </FormField>
+
+          {/* BOOKING HOURS */}
+
+          <div className="md:col-span-2">
+            <p className="text-sm font-medium text-ink">
+              Booking Times
+            </p>
+
+            <p className="text-xs text-muted">
+              The appointment times customers
+              can pick for this branch on the
+              website. The last slot ends by
+              the closing time.
+            </p>
+          </div>
+
+          <FormField
+            label="First appointment"
+            required
+          >
+            <input
+              type="time"
+              required
+              value={form.bookingOpens}
+              onChange={(e) =>
+                updateField(
+                  "bookingOpens",
+                  e.target.value
+                )
+              }
+              className={inputClass}
+            />
+          </FormField>
+
+          <FormField
+            label="Closing time"
+            required
+          >
+            <input
+              type="time"
+              required
+              value={form.bookingCloses}
+              onChange={(e) =>
+                updateField(
+                  "bookingCloses",
+                  e.target.value
+                )
+              }
+              className={inputClass}
+            />
+          </FormField>
+
+          <FormField
+            label="Slot length"
+            required
+          >
+            <select
+              value={form.slotMinutes}
+              onChange={(e) =>
+                updateField(
+                  "slotMinutes",
+                  Number(e.target.value)
+                )
+              }
+              className={inputClass}
+            >
+              {/* Keeps an odd stored value
+                  listed. */}
+              {[
+                ...new Set([
+                  ...SLOT_LENGTHS,
+                  form.slotMinutes,
+                ]),
+              ]
+                .sort((a, b) => a - b)
+                .map((minutes) => (
+                  <option
+                    key={minutes}
+                    value={minutes}
+                  >
+                    {minutes} minutes
+                  </option>
+                ))}
+            </select>
           </FormField>
         </div>
       </DialogBox>
