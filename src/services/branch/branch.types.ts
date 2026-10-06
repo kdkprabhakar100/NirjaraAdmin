@@ -30,6 +30,11 @@ export type Branch = {
   // Length of one slot, in minutes.
   slotMinutes: number;
 
+  // The branch's own appointment times,
+  // "HH:mm", sorted. When not empty they
+  // replace the regular slots above.
+  customSlots: string[];
+
   createdAt?: string;
 
   updatedAt?: string;
@@ -39,8 +44,8 @@ export type Branch = {
 // CREATE / UPDATE PAYLOAD
 //
 // Only the name is required; the booking
-// hours default to 10:00–19:00 in 30
-// minute slots.
+// hours default to 10:00–19:00 in one
+// hour slots.
 // ========================================
 
 export type BranchPayload = Omit<
