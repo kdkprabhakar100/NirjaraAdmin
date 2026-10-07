@@ -1,62 +1,113 @@
-import api, {
-  getApiErrorMessage,
-} from "../base/api";
+const API_URL =
+  import.meta.env
+    .VITE_API_URL;
 
-import type { UploadResponse } from "./upload.types";
+/* ============================================================
+   ADMIN UPLOAD
+============================================================ */
 
-// ========================================
-// UPLOAD IMAGE
-//
-// POST /api/upload
-// Admin only — multipart/form-data with
-// an "image" field.
-//
-// Two things matter here:
-//
-// 1. We go through the shared `api`
-//    instance so the admin bearer token
-//    is attached by the interceptor.
-//
-// 2. We never set Content-Type ourselves.
-//    The browser has to add the multipart
-//    boundary, and hardcoding the header
-//    strips it.
-// ========================================
+export async function uploadImage(
+  file: File,
+  filename?: string
+): Promise<string> {
+  const token =
+    localStorage.getItem(
+      "adminToken"
+    );
 
-export const uploadImage = async (
-  file: File | Blob,
-  fileName = "image.png"
-): Promise<string> => {
-  const formData = new FormData();
+  const formData =
+    new FormData();
 
   formData.append(
     "image",
     file,
-    file instanceof File
-      ? file.name
-      : fileName
+    filename ||
+      file.name
   );
 
-  try {
-    const response =
-      await api.post<UploadResponse>(
-        "/api/upload",
-        formData
+  const response =
+    await fetch(
+      `${API_URL}/api/upload`,
+      {
+        method:
+          "POST",
+
+        headers: token
+          ? {
+              Authorization:
+                `Bearer ${token}`,
+            }
+          : undefined,
+
+        body:
+          formData,
+      }
+    );
+
+  const data =
+    await response
+      .json()
+      .catch(
+        () =>
+          ({})
       );
 
-    if (!response.data?.imageUrl) {
-      throw new Error(
-        "The server did not return an image URL."
-      );
-    }
-
-    return response.data.imageUrl;
-  } catch (error) {
+  if (
+    !response.ok
+  ) {
     throw new Error(
-      getApiErrorMessage(
-        error,
-        "Image upload failed."
-      )
+      data?.message ||
+        "Image upload failed"
     );
   }
-};
+
+  return data.imageUrl;
+}
+
+/* ============================================================
+   PUBLIC PAYMENT PROOF UPLOAD
+============================================================ */
+
+export async function uploadPaymentProof(
+  file: File
+): Promise<string> {
+  const formData =
+    new FormData();
+
+  formData.append(
+    "image",
+    file,
+    file.name
+  );
+
+  const response =
+    await fetch(
+      `${API_URL}/api/upload/payment-proof`,
+      {
+        method:
+          "POST",
+
+        body:
+          formData,
+      }
+    );
+
+  const data =
+    await response
+      .json()
+      .catch(
+        () =>
+          ({})
+      );
+
+  if (
+    !response.ok
+  ) {
+    throw new Error(
+      data?.message ||
+        "Payment screenshot upload failed"
+    );
+  }
+
+  return data.imageUrl;
+}

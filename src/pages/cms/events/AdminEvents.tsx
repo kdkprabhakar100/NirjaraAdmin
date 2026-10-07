@@ -9,55 +9,113 @@ import CustomTable, {
 } from "../../../components/CustomTable";
 
 import DialogBox from "../../../components/DialogBox";
-
 import RowActionsMenu from "../../../components/RowActionsMenu";
 
 import api from "../../../services/base/api";
 
 import getCroppedImg from "../../../utils/cropImage";
 
-import { uploadImage as uploadImageToServer } from "../../../services/upload/uploadService";
+import {
+  uploadImage as uploadImageToServer,
+} from "../../../services/upload/uploadService";
 
-import FormField, { FormLabel } from "../../../components/FormField";
+import FormField, {
+  FormLabel,
+} from "../../../components/FormField";
 
-// ========================================
-// TYPES
-// ========================================
+/* ============================================================
+   TYPES
+============================================================ */
 
 interface EventType {
   _id: string;
+
   title: string;
   description: string;
   image: string;
+
+  branchId?: string | null;
+  locationType?: "branch" | "custom";
   location: string;
+  mapUrl?: string;
+
   date: string;
   time: string;
+
+  buttonText?: string;
+  buttonLink?: string;
+
   featured: boolean;
   active: boolean;
 }
 
-const emptyForm = {
+interface BranchType {
+  _id: string;
+  name: string;
+  label?: string;
+  address: string;
+  phone?: string;
+  openingHours?: string;
+  mapUrl?: string;
+  active?: boolean;
+}
+
+type EventFormData = {
+  title: string;
+  description: string;
+  image: string;
+
+  branchId: string;
+  locationType: "branch" | "custom";
+  location: string;
+  mapUrl: string;
+
+  date: string;
+  time: string;
+
+  buttonText: string;
+  buttonLink: string;
+};
+
+/* ============================================================
+   EMPTY FORM
+============================================================ */
+
+const emptyForm: EventFormData = {
   title: "",
   description: "",
   image: "",
+
+  branchId: "",
+  locationType: "branch",
   location: "",
+  mapUrl: "",
+
   date: "",
   time: "",
+
   buttonText: "Register Now",
   buttonLink: "/contact",
 };
 
-// ========================================
-// SHARED INPUT STYLE
-// ========================================
+/* ============================================================
+   SHARED INPUT STYLE
+============================================================ */
 
 const inputClass =
-  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none focus:border-[#E75480]";
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm outline-none transition focus:border-[#E75480] focus:ring-2 focus:ring-[#E75480]/10";
+
+/* ============================================================
+   ADMIN EVENTS
+============================================================ */
 
 const AdminEvents = () => {
-  const [events, setEvents] = useState<
-    EventType[]
-  >([]);
+  /* ============================================================
+     EVENTS
+  ============================================================ */
+
+  const [events, setEvents] =
+    useState<EventType[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -68,6 +126,20 @@ const AdminEvents = () => {
   const [processingId, setProcessingId] =
     useState<string | null>(null);
 
+  /* ============================================================
+     BRANCHES
+  ============================================================ */
+
+  const [branches, setBranches] =
+    useState<BranchType[]>([]);
+
+  const [branchesLoading, setBranchesLoading] =
+    useState(true);
+
+  /* ============================================================
+     FORM
+  ============================================================ */
+
   const [formOpen, setFormOpen] =
     useState(false);
 
@@ -75,50 +147,51 @@ const AdminEvents = () => {
     useState<string | null>(null);
 
   const [formData, setFormData] =
-    useState(emptyForm);
+    useState<EventFormData>(emptyForm);
 
-  // The event awaiting delete
-  // confirmation. Null means the dialog
-  // is closed.
+  /* ============================================================
+     DELETE
+  ============================================================ */
+
   const [eventToDelete, setEventToDelete] =
     useState<EventType | null>(null);
 
   const [deleting, setDeleting] =
     useState(false);
 
-  // ============================
-  // CROPPER STATE
-  // ============================
+  /* ============================================================
+     CROPPER
+  ============================================================ */
 
   const [crop, setCrop] = useState({
     x: 0,
     y: 0,
   });
 
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] =
+    useState(1);
 
   const [
     croppedAreaPixels,
     setCroppedAreaPixels,
   ] = useState<Area | null>(null);
 
-  // The picked file, before cropping.
   const [imageSrc, setImageSrc] =
     useState("");
 
   const [cropping, setCropping] =
     useState(false);
 
-  // ============================
-  // FETCH EVENTS
-  // ============================
+  /* ============================================================
+     FETCH EVENTS
+  ============================================================ */
 
   const fetchEvents = async () => {
     try {
       setLoading(true);
 
       const res = await api.get(
-        `/api/events/admin/all`
+        "/api/events/admin/all"
       );
 
       setEvents(
@@ -127,7 +200,10 @@ const AdminEvents = () => {
           : []
       );
     } catch (error) {
-      console.log(error);
+      console.error(
+        "EVENT FETCH ERROR:",
+        error
+      );
 
       toast.error(
         "Failed to load events"
@@ -139,87 +215,330 @@ const AdminEvents = () => {
     }
   };
 
+  /* ============================================================
+     FETCH BRANCHES
+  ============================================================ */
+
+  const fetchBranches = async () => {
+    try {
+      setBranchesLoading(true);
+
+      const res = await api.get(
+        "/api/branches"
+      );
+
+      const data =
+        Array.isArray(res.data)
+          ? res.data
+          : res.data?.branches || [];
+
+      setBranches(data);
+    } catch (error) {
+      console.error(
+        "BRANCH FETCH ERROR:",
+        error
+      );
+
+      toast.error(
+        "Failed to load branches"
+      );
+
+      setBranches([]);
+    } finally {
+      setBranchesLoading(false);
+    }
+  };
+
+  /* ============================================================
+     INITIAL FETCH
+  ============================================================ */
+
   useEffect(() => {
     fetchEvents();
+    fetchBranches();
   }, []);
 
-  // ============================
-  // FORM
-  // ============================
+  /* ============================================================
+     NORMAL FIELD CHANGE
+  ============================================================ */
 
   const handleChange = (
     event: React.ChangeEvent<
       | HTMLInputElement
       | HTMLTextAreaElement
+      | HTMLSelectElement
     >
   ) => {
-    setFormData({
-      ...formData,
-      [event.target.name]:
-        event.target.value,
-    });
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
   };
+
+  /* ============================================================
+     BRANCH CHANGE
+
+     Automatically copies:
+     - branchId
+     - branch address
+     - branch map URL
+  ============================================================ */
+
+  const handleBranchChange = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const value =
+      event.target.value;
+
+    /* CUSTOM LOCATION */
+
+    if (value === "custom") {
+      setFormData(
+        (previous) => ({
+          ...previous,
+
+          branchId: "",
+          locationType:
+            "custom",
+
+          location: "",
+          mapUrl: "",
+        })
+      );
+
+      return;
+    }
+
+    /* EMPTY */
+
+    if (!value) {
+      setFormData(
+        (previous) => ({
+          ...previous,
+
+          branchId: "",
+          locationType:
+            "branch",
+
+          location: "",
+          mapUrl: "",
+        })
+      );
+
+      return;
+    }
+
+    /* FIND BRANCH */
+
+    const selectedBranch =
+      branches.find(
+        (branch) =>
+          branch._id === value
+      );
+
+    if (!selectedBranch) {
+      return;
+    }
+
+    /* COPY BRANCH INFO */
+
+    setFormData(
+      (previous) => ({
+        ...previous,
+
+        branchId:
+          selectedBranch._id,
+
+        locationType:
+          "branch",
+
+        location:
+          selectedBranch.address ||
+          "",
+
+        mapUrl:
+          selectedBranch.mapUrl ||
+          "",
+      })
+    );
+  };
+
+  /* ============================================================
+     OPEN ADD FORM
+  ============================================================ */
 
   const openAddForm = () => {
     setFormData(emptyForm);
+
     setEditingId(null);
+
     setImageSrc("");
+
+    setCrop({
+      x: 0,
+      y: 0,
+    });
+
+    setZoom(1);
+
+    setCroppedAreaPixels(null);
+
     setFormOpen(true);
   };
+
+  /* ============================================================
+     OPEN EDIT FORM
+  ============================================================ */
 
   const openEditForm = (
     item: EventType
   ) => {
+    const locationType:
+      | "branch"
+      | "custom" =
+      item.locationType ||
+      (item.branchId
+        ? "branch"
+        : "custom");
+
     setFormData({
-      title: item.title,
-      description: item.description,
-      image: item.image,
-      location: item.location,
-      date: item.date.split("T")[0],
-      time: item.time,
-      buttonText: "Register Now",
-      buttonLink: "/contact",
+      title:
+        item.title || "",
+
+      description:
+        item.description || "",
+
+      image:
+        item.image || "",
+
+      branchId:
+        item.branchId || "",
+
+      locationType,
+
+      location:
+        item.location || "",
+
+      mapUrl:
+        item.mapUrl || "",
+
+      date:
+        item.date
+          ? item.date.split("T")[0]
+          : "",
+
+      time:
+        item.time || "",
+
+      buttonText:
+        item.buttonText ||
+        "Register Now",
+
+      buttonLink:
+        item.buttonLink ||
+        "/contact",
     });
 
-    setEditingId(item._id);
+    setEditingId(
+      item._id
+    );
+
     setImageSrc("");
+
+    setCrop({
+      x: 0,
+      y: 0,
+    });
+
+    setZoom(1);
+
+    setCroppedAreaPixels(null);
+
     setFormOpen(true);
   };
 
+  /* ============================================================
+     CLOSE FORM
+  ============================================================ */
+
   const closeForm = () => {
     setFormOpen(false);
+
     setFormData(emptyForm);
+
     setEditingId(null);
+
     setImageSrc("");
+
+    setCrop({
+      x: 0,
+      y: 0,
+    });
+
+    setZoom(1);
+
+    setCroppedAreaPixels(null);
   };
 
-  // ============================
-  // IMAGE SELECT + CROP
-  // ============================
+  /* ============================================================
+     IMAGE SELECT
+  ============================================================ */
 
   const onCropComplete = (
     _: Area,
     areaPixels: Area
   ) => {
-    setCroppedAreaPixels(areaPixels);
+    setCroppedAreaPixels(
+      areaPixels
+    );
   };
 
   const pickImage = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
     if (!file) {
       return;
     }
+
+    setCrop({
+      x: 0,
+      y: 0,
+    });
+
+    setZoom(1);
+
+    setCroppedAreaPixels(null);
 
     setImageSrc(
       URL.createObjectURL(file)
     );
   };
 
+  /* ============================================================
+     CROP IMAGE
+  ============================================================ */
+
   const handleCropDone = async () => {
     try {
+      if (
+        !imageSrc ||
+        !croppedAreaPixels
+      ) {
+        toast.error(
+          "Please position the image before cropping"
+        );
+
+        return;
+      }
+
       setCropping(true);
 
       const croppedBlob =
@@ -238,14 +557,19 @@ const AdminEvents = () => {
           "event.jpg"
         );
 
-      setFormData((previous) => ({
-        ...previous,
-        image: imageUrl,
-      }));
+      setFormData(
+        (previous) => ({
+          ...previous,
+          image: imageUrl,
+        })
+      );
 
       setImageSrc("");
     } catch (error) {
-      console.log(error);
+      console.error(
+        "IMAGE UPLOAD ERROR:",
+        error
+      );
 
       toast.error(
         "Unable to upload the image"
@@ -255,18 +579,97 @@ const AdminEvents = () => {
     }
   };
 
-  // ============================
-  // CREATE / UPDATE
-  // ============================
+  /* ============================================================
+     CREATE / UPDATE
+  ============================================================ */
 
   const handleSubmit = async () => {
+    if (!formData.title.trim()) {
+      toast.error(
+        "Event title is required"
+      );
+      return;
+    }
+
+    if (
+      !formData.description.trim()
+    ) {
+      toast.error(
+        "Description is required"
+      );
+      return;
+    }
+
+    if (!formData.image) {
+      toast.error(
+        "Event image is required"
+      );
+      return;
+    }
+
+    if (
+      formData.locationType ===
+        "branch" &&
+      !formData.branchId
+    ) {
+      toast.error(
+        "Please select a branch"
+      );
+      return;
+    }
+
+    if (
+      !formData.location.trim()
+    ) {
+      toast.error(
+        "Event location is required"
+      );
+      return;
+    }
+
+    if (!formData.date) {
+      toast.error(
+        "Event date is required"
+      );
+      return;
+    }
+
+    if (!formData.time.trim()) {
+      toast.error(
+        "Event time is required"
+      );
+      return;
+    }
+
     try {
       setSaving(true);
+
+      const payload = {
+        ...formData,
+
+        branchId:
+          formData.locationType ===
+          "branch"
+            ? formData.branchId
+            : null,
+
+        location:
+          formData.location.trim(),
+
+        mapUrl:
+          formData.mapUrl.trim(),
+
+        buttonText:
+          formData.buttonText.trim(),
+
+        buttonLink:
+          formData.buttonLink.trim(),
+      };
 
       if (editingId) {
         await api.put(
           `/api/events/${editingId}`,
-          formData
+          payload
         );
 
         toast.success(
@@ -274,8 +677,8 @@ const AdminEvents = () => {
         );
       } else {
         await api.post(
-          `/api/events`,
-          formData
+          "/api/events",
+          payload
         );
 
         toast.success(
@@ -286,26 +689,36 @@ const AdminEvents = () => {
       await fetchEvents();
 
       closeForm();
-    } catch (error) {
-      console.log(error);
-
-      toast.error(
-        "Unable to save the event"
+    } catch (error: any) {
+      console.error(
+        "EVENT SAVE ERROR:",
+        error
       );
+
+      const message =
+        error?.response?.data
+          ?.message ||
+        error?.response?.data
+          ?.error ||
+        "Unable to save the event";
+
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   };
 
-  // ============================
-  // TOGGLES
-  // ============================
+  /* ============================================================
+     FEATURED
+  ============================================================ */
 
   const toggleFeatured = async (
     item: EventType
   ) => {
     try {
-      setProcessingId(item._id);
+      setProcessingId(
+        item._id
+      );
 
       await api.put(
         `/api/events/${item._id}/featured`
@@ -313,7 +726,7 @@ const AdminEvents = () => {
 
       await fetchEvents();
     } catch (error) {
-      console.log(error);
+      console.error(error);
 
       toast.error(
         "Unable to update the event"
@@ -323,11 +736,17 @@ const AdminEvents = () => {
     }
   };
 
+  /* ============================================================
+     ACTIVE
+  ============================================================ */
+
   const toggleActive = async (
     item: EventType
   ) => {
     try {
-      setProcessingId(item._id);
+      setProcessingId(
+        item._id
+      );
 
       await api.put(
         `/api/events/${item._id}/active`
@@ -335,7 +754,7 @@ const AdminEvents = () => {
 
       await fetchEvents();
     } catch (error) {
-      console.log(error);
+      console.error(error);
 
       toast.error(
         "Unable to update the event"
@@ -345,60 +764,81 @@ const AdminEvents = () => {
     }
   };
 
-  // ============================
-  // DELETE
-  //
-  // Asking happens in the dialog; this
-  // only runs once the admin confirms.
-  // ============================
+  /* ============================================================
+     DELETE
+  ============================================================ */
 
-  const confirmDelete = async () => {
-    if (!eventToDelete) {
-      return;
-    }
-
-    const id = eventToDelete._id;
-
-    try {
-      setDeleting(true);
-
-      await api.delete(
-        `/api/events/${id}`
-      );
-
-      // Remove from UI immediately
-      setEvents((previous) =>
-        previous.filter(
-          (item) => item._id !== id
-        )
-      );
-
-      toast.success(
-        "Event deleted successfully!"
-      );
-
-      if (editingId === id) {
-        closeForm();
+  const confirmDelete =
+    async () => {
+      if (!eventToDelete) {
+        return;
       }
 
-      setEventToDelete(null);
-    } catch (error) {
-      console.log(error);
+      const id =
+        eventToDelete._id;
 
-      toast.error(
-        "Unable to delete the event"
+      try {
+        setDeleting(true);
+
+        await api.delete(
+          `/api/events/${id}`
+        );
+
+        setEvents(
+          (previous) =>
+            previous.filter(
+              (item) =>
+                item._id !== id
+            )
+        );
+
+        toast.success(
+          "Event deleted successfully!"
+        );
+
+        if (
+          editingId === id
+        ) {
+          closeForm();
+        }
+
+        setEventToDelete(
+          null
+        );
+      } catch (error) {
+        console.error(error);
+
+        toast.error(
+          "Unable to delete the event"
+        );
+      } finally {
+        setDeleting(false);
+      }
+    };
+
+  /* ============================================================
+     HELPERS
+  ============================================================ */
+
+  const getBranchName = (
+    branchId?: string | null
+  ) => {
+    if (!branchId) {
+      return "";
+    }
+
+    const branch =
+      branches.find(
+        (item) =>
+          item._id === branchId
       );
 
-      // Dialog stays open so the admin can
-      // retry.
-    } finally {
-      setDeleting(false);
-    }
+    return branch?.name || "";
   };
 
-  // ============================
-  // ROW PIECES
-  // ============================
+  /* ============================================================
+     THUMBNAIL
+  ============================================================ */
 
   const thumbnail = (
     item: EventType
@@ -407,24 +847,53 @@ const AdminEvents = () => {
       <img
         src={item.image}
         alt={item.title}
-        className="h-14 w-20 rounded-xl object-cover"
+        className="
+          h-14
+          w-20
+          rounded-xl
+          object-cover
+        "
       />
     ) : (
-      <div className="flex h-14 w-20 items-center justify-center rounded-xl bg-soft text-lg text-[#E75480]">
+      <div
+        className="
+          flex
+          h-14
+          w-20
+          items-center
+          justify-center
+          rounded-xl
+          bg-soft
+          text-lg
+          text-[#E75480]
+        "
+      >
         ✦
       </div>
     );
+
+  /* ============================================================
+     STATUS BADGE
+  ============================================================ */
 
   const statusBadge = (
     item: EventType
   ) => (
     <div className="flex flex-wrap gap-2">
       <span
-        className={`inline-block rounded-full px-4 py-1 text-xs ${
-          item.active
-            ? "bg-green-100 text-green-700"
-            : "bg-gray-100 text-gray-600"
-        }`}
+        className={`
+          inline-block
+          rounded-full
+          px-4
+          py-1
+          text-xs
+
+          ${
+            item.active
+              ? "bg-green-100 text-green-700"
+              : "bg-gray-100 text-gray-600"
+          }
+        `}
       >
         {item.active
           ? "Active"
@@ -432,66 +901,107 @@ const AdminEvents = () => {
       </span>
 
       {item.featured && (
-        <span className="inline-block rounded-full bg-blush px-4 py-1 text-xs text-[#E75480]">
+        <span
+          className="
+            inline-block
+            rounded-full
+            bg-blush
+            px-4
+            py-1
+            text-xs
+            text-[#E75480]
+          "
+        >
           Featured
         </span>
       )}
     </div>
   );
 
+  /* ============================================================
+     ACTIONS
+  ============================================================ */
+
   const renderActions = (
     item: EventType
   ) => (
     <RowActionsMenu
       label={`Actions for ${item.title}`}
-      busy={processingId === item._id}
+      busy={
+        processingId ===
+        item._id
+      }
       actions={[
         {
           key: "edit",
           label: "Edit",
           icon: "✎",
+
           onSelect: () =>
-            openEditForm(item),
+            openEditForm(
+              item
+            ),
         },
+
         {
           key: "featured",
-          label: item.featured
-            ? "Unfeature"
-            : "Make featured",
+
+          label:
+            item.featured
+              ? "Unfeature"
+              : "Make featured",
+
           icon: "★",
+
           onSelect: () =>
-            toggleFeatured(item),
+            toggleFeatured(
+              item
+            ),
         },
+
         {
           key: "active",
-          label: item.active
-            ? "Deactivate"
-            : "Activate",
-          icon: item.active
-            ? "✕"
-            : "✓",
-          tone: item.active
-            ? "default"
-            : "success",
+
+          label:
+            item.active
+              ? "Deactivate"
+              : "Activate",
+
+          icon:
+            item.active
+              ? "✕"
+              : "✓",
+
+          tone:
+            item.active
+              ? "default"
+              : "success",
+
           onSelect: () =>
-            toggleActive(item),
+            toggleActive(
+              item
+            ),
         },
+
         {
           key: "delete",
           label: "Delete",
           icon: "🗑",
           tone: "danger",
           dividerBefore: true,
+
           onSelect: () =>
-            setEventToDelete(item),
+            setEventToDelete(
+              item
+            ),
         },
       ]}
     />
   );
 
-  // ============================
-  // COLUMNS
-  // ============================
+  /* ============================================================
+     TABLE COLUMNS
+  ============================================================ */
 
   const columns: TableColumn<EventType>[] =
     [
@@ -502,132 +1012,293 @@ const AdminEvents = () => {
         hideOnMobile: true,
         render: thumbnail,
       },
+
       {
         key: "title",
         header: "Title",
         hideOnMobile: true,
+
         cellClassName:
           "font-medium text-ink",
-        render: (item) => item.title,
+
+        render: (item) =>
+          item.title,
       },
+
       {
         key: "location",
         header: "Location",
-        render: (item) => item.location,
+
+        render: (item) => (
+          <div className="max-w-[260px]">
+            <p
+              className="
+                font-medium
+                leading-5
+                text-ink
+              "
+            >
+              {item.location}
+            </p>
+
+            <div
+              className="
+                mt-1.5
+                flex
+                flex-wrap
+                items-center
+                gap-2
+              "
+            >
+              {item.locationType ===
+                "branch" && (
+                <span
+                  className="
+                    rounded-full
+                    bg-[#FFF0F5]
+                    px-2.5
+                    py-1
+                    text-[10px]
+                    font-medium
+                    text-[#E75480]
+                  "
+                >
+                  {getBranchName(
+                    item.branchId
+                  ) ||
+                    "Nirjara Branch"}
+                </span>
+              )}
+
+              {(item.locationType ===
+                "custom" ||
+                !item.locationType) && (
+                <span
+                  className="
+                    rounded-full
+                    bg-gray-100
+                    px-2.5
+                    py-1
+                    text-[10px]
+                    text-gray-600
+                  "
+                >
+                  Custom
+                </span>
+              )}
+
+              {item.mapUrl && (
+                <a
+                  href={
+                    item.mapUrl
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="
+                    text-[10px]
+                    font-medium
+                    text-[#E75480]
+                    underline
+                    underline-offset-2
+                  "
+                >
+                  Map
+                </a>
+              )}
+            </div>
+          </div>
+        ),
       },
+
       {
         key: "date",
         header: "Date",
+
         cellClassName:
           "whitespace-nowrap",
+
         render: (item) =>
           new Date(
             item.date
           ).toLocaleDateString(),
       },
+
       {
         key: "time",
         header: "Time",
+
         cellClassName:
           "whitespace-nowrap",
-        render: (item) => item.time,
+
+        render: (item) =>
+          item.time,
       },
+
       {
         key: "description",
         header: "Description",
-        cellClassName: "max-w-sm",
+
+        cellClassName:
+          "max-w-sm",
+
         render: (item) => (
           <p className="line-clamp-2 leading-6">
-            {item.description}
+            {
+              item.description
+            }
           </p>
         ),
       },
+
       {
         key: "status",
         header: "Status",
         hideOnMobile: true,
-        render: statusBadge,
+
+        render:
+          statusBadge,
       },
+
       {
         key: "actions",
         header: "Actions",
         align: "right",
         width: "90px",
         hideOnMobile: true,
-        render: renderActions,
+
+        render:
+          renderActions,
       },
     ];
 
-  // ============================
-  // UI
-  // ============================
+  /* ============================================================
+     UI
+  ============================================================ */
 
   return (
     <div>
-      {/* HEADER */}
+      {/* ========================================================
+          HEADER
+      ======================================================== */}
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div
+        className="
+          flex
+          flex-wrap
+          items-start
+          justify-between
+          gap-4
+        "
+      >
         <div>
-          <p className="text-xs uppercase tracking-[3px] text-[#E75480]">
+          <p
+            className="
+              text-xs
+              uppercase
+              tracking-[3px]
+              text-[#E75480]
+            "
+          >
             Management
           </p>
 
-          <h1 className="mt-2 font-serif text-4xl text-[#E75480] md:text-5xl">
+          <h1
+            className="
+              mt-2
+              font-serif
+              text-4xl
+              text-[#E75480]
+
+              md:text-5xl
+            "
+          >
             Events
           </h1>
 
           <p className="mt-2 text-muted">
-            Create, edit, and manage website
-            events.
+            Create, edit, and manage
+            website events.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={openAddForm}
-          className="rounded-full bg-[#E75480] px-8 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873]"
+          onClick={
+            openAddForm
+          }
+          className="
+            rounded-full
+            bg-[#E75480]
+            px-8
+            py-3
+            text-xs
+            uppercase
+            tracking-[2px]
+            text-white
+            transition
+
+            hover:bg-[#d94873]
+          "
         >
           Add Event
         </button>
       </div>
 
-      {/* TABLE */}
+      {/* ========================================================
+          TABLE
+      ======================================================== */}
 
       <CustomTable
         className="mt-10"
         columns={columns}
         rows={events}
-        rowKey={(item) => item._id}
+        rowKey={(item) =>
+          item._id
+        }
         loading={loading}
         loadingMessage="Loading events..."
         emptyIcon="✦"
         emptyTitle="No events yet"
         emptyMessage="Add your first event using the button above."
-        minWidth="1200px"
-        mobileTitle={(item) => (
+        minWidth="1250px"
+        mobileTitle={(
+          item
+        ) => (
           <span className="flex items-center gap-3">
-            {thumbnail(item)}
+            {thumbnail(
+              item
+            )}
 
-            <span>{item.title}</span>
+            <span>
+              {
+                item.title
+              }
+            </span>
           </span>
         )}
-        mobileSubtitle={(item) =>
+        mobileSubtitle={(
+          item
+        ) =>
           `${new Date(
             item.date
           ).toLocaleDateString()} · ${
             item.time
           }`
         }
-        mobileActions={renderActions}
+        mobileActions={
+          renderActions
+        }
       />
 
-      {/* ============================ */}
-      {/* ADD / EDIT                   */}
-      {/* ============================ */}
+      {/* ========================================================
+          ADD / EDIT DIALOG
+      ======================================================== */}
 
       <DialogBox
         open={formOpen}
-        onClose={closeForm}
+        onClose={
+          closeForm
+        }
         eyebrow="Management"
         title={
           editingId
@@ -635,8 +1306,12 @@ const AdminEvents = () => {
             : "Create Event"
         }
         size="lg"
-        onSubmit={handleSubmit}
-        submitting={saving}
+        onSubmit={
+          handleSubmit
+        }
+        submitting={
+          saving
+        }
         submittingLabel={
           editingId
             ? "Updating..."
@@ -647,16 +1322,23 @@ const AdminEvents = () => {
             ? "Update Event"
             : "Create Event"
         }
-        // The picked image still needs
-        // cropping before it can be saved.
         confirmDisabled={Boolean(
           imageSrc
         )}
-        // A half filled form should not
-        // vanish on a stray click.
-        closeOnBackdrop={false}
+        closeOnBackdrop={
+          false
+        }
       >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div
+          className="
+            grid
+            gap-5
+
+            md:grid-cols-2
+          "
+        >
+          {/* EVENT TITLE */}
+
           <FormField
             label="Event Title"
             required
@@ -665,25 +1347,269 @@ const AdminEvents = () => {
               type="text"
               name="title"
               required
-              value={formData.title}
-              onChange={handleChange}
-              className={inputClass}
+              value={
+                formData.title
+              }
+              onChange={
+                handleChange
+              }
+              className={
+                inputClass
+              }
             />
           </FormField>
 
+          {/* BRANCH SELECT */}
+
           <FormField
-            label="Location"
+            label="Branch / Event Location"
             required
           >
-            <input
-              type="text"
-              name="location"
-              required
-              value={formData.location}
-              onChange={handleChange}
-              className={inputClass}
-            />
+            <select
+              value={
+                formData.locationType ===
+                "custom"
+                  ? "custom"
+                  : formData.branchId
+              }
+              onChange={
+                handleBranchChange
+              }
+              disabled={
+                branchesLoading
+              }
+              className={`
+                ${inputClass}
+                cursor-pointer
+
+                disabled:cursor-not-allowed
+                disabled:opacity-60
+              `}
+            >
+              <option value="">
+                {branchesLoading
+                  ? "Loading branches..."
+                  : "Select a branch"}
+              </option>
+
+              {branches
+                .filter(
+                  (branch) =>
+                    branch.active !==
+                    false
+                )
+                .map(
+                  (branch) => (
+                    <option
+                      key={
+                        branch._id
+                      }
+                      value={
+                        branch._id
+                      }
+                    >
+                      {
+                        branch.name
+                      }
+
+                      {branch.label
+                        ? ` — ${branch.label}`
+                        : ""}
+                    </option>
+                  )
+                )}
+
+              <option value="custom">
+                Custom / External Location
+              </option>
+            </select>
+
+            <p
+              className="
+                mt-2
+                text-xs
+                leading-5
+                text-muted
+              "
+            >
+              Select a Nirjara branch to
+              automatically load its address
+              and Google Maps link.
+            </p>
           </FormField>
+
+          {/* LOCATION ADDRESS */}
+
+ {/* LOCATION ADDRESS */}
+
+<FormField
+  label="Location Address"
+  required
+>
+  <input
+    type="text"
+    name="location"
+    required
+    placeholder="e.g. Kalanki, Kathmandu"
+    value={formData.location}
+    onChange={handleChange}
+    readOnly={formData.locationType === "branch"}
+    className={`
+      ${inputClass}
+
+      ${
+        formData.locationType === "branch"
+          ? "cursor-default bg-[#F8F4F6] text-[#765F68]"
+          : ""
+      }
+    `}
+  />
+
+  {formData.locationType === "branch" &&
+    formData.branchId && (
+      <p className="mt-2 text-xs leading-5 text-[#E75480]">
+        Automatically loaded from{" "}
+        {getBranchName(formData.branchId)}
+      </p>
+    )}
+</FormField>
+
+{/* GOOGLE MAPS LINK */}
+
+<FormField
+  label="Google Maps Link"
+>
+  <input
+    type="url"
+    name="mapUrl"
+    placeholder="https://maps.google.com/..."
+    value={formData.mapUrl}
+    onChange={handleChange}
+    readOnly={formData.locationType === "branch"}
+    className={`
+      ${inputClass}
+
+      ${
+        formData.locationType === "branch"
+          ? "cursor-default bg-[#F8F4F6] text-[#765F68]"
+          : ""
+      }
+    `}
+  />
+
+  {formData.locationType === "branch" &&
+    formData.branchId && (
+      <p className="mt-2 text-xs leading-5 text-muted">
+        Automatically loaded from the selected branch.
+      </p>
+    )}
+</FormField>
+
+          {/* MAP PREVIEW */}
+
+          {formData.mapUrl && (
+            <div className="md:col-span-2">
+              <div
+                className="
+                  flex
+                  flex-col
+                  gap-4
+
+                  rounded-2xl
+
+                  border
+                  border-[#E75480]/15
+
+                  bg-[#FFF7FA]
+
+                  p-5
+
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                "
+              >
+                <div>
+                  <p
+                    className="
+                      text-[9px]
+                      font-semibold
+                      uppercase
+                      tracking-[2.5px]
+                      text-[#E75480]
+                    "
+                  >
+                    Map Destination
+                  </p>
+
+                  <p
+                    className="
+                      mt-2
+                      text-sm
+                      font-medium
+                      text-ink
+                    "
+                  >
+                    {formData.location ||
+                      "Selected Event Location"}
+                  </p>
+
+                  <p
+                    className="
+                      mt-1
+                      max-w-xl
+                      truncate
+                      text-xs
+                      text-muted
+                    "
+                  >
+                    {formData.mapUrl}
+                  </p>
+                </div>
+
+                <a
+                  href={
+                    formData.mapUrl
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="
+                    inline-flex
+                    shrink-0
+                    items-center
+                    justify-center
+
+                    rounded-full
+
+                    border
+                    border-[#E75480]/25
+
+                    bg-white
+
+                    px-5
+                    py-2.5
+
+                    text-[9px]
+                    font-semibold
+                    uppercase
+                    tracking-[1.8px]
+                    text-[#E75480]
+
+                    transition-all
+                    duration-300
+
+                    hover:border-[#E75480]
+                    hover:bg-[#E75480]
+                    hover:text-white
+                  "
+                >
+                  Open Map
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* DATE */}
 
           <div>
             <FormLabel
@@ -695,11 +1621,19 @@ const AdminEvents = () => {
               type="date"
               name="date"
               required
-              value={formData.date}
-              onChange={handleChange}
-              className={inputClass}
+              value={
+                formData.date
+              }
+              onChange={
+                handleChange
+              }
+              className={
+                inputClass
+              }
             />
           </div>
+
+          {/* TIME */}
 
           <div>
             <FormLabel
@@ -712,11 +1646,61 @@ const AdminEvents = () => {
               name="time"
               placeholder="2:00 PM"
               required
-              value={formData.time}
-              onChange={handleChange}
-              className={inputClass}
+              value={
+                formData.time
+              }
+              onChange={
+                handleChange
+              }
+              className={
+                inputClass
+              }
             />
           </div>
+
+          {/* BUTTON TEXT */}
+
+          <FormField
+            label="Button Text"
+          >
+            <input
+              type="text"
+              name="buttonText"
+              placeholder="Register Now"
+              value={
+                formData.buttonText
+              }
+              onChange={
+                handleChange
+              }
+              className={
+                inputClass
+              }
+            />
+          </FormField>
+
+          {/* BUTTON LINK */}
+
+          <FormField
+            label="Button Link"
+          >
+            <input
+              type="text"
+              name="buttonLink"
+              placeholder="/contact"
+              value={
+                formData.buttonLink
+              }
+              onChange={
+                handleChange
+              }
+              className={
+                inputClass
+              }
+            />
+          </FormField>
+
+          {/* DESCRIPTION */}
 
           <FormField
             label="Description"
@@ -727,11 +1711,19 @@ const AdminEvents = () => {
               name="description"
               required
               rows={5}
-              value={formData.description}
-              onChange={handleChange}
-              className={inputClass}
+              value={
+                formData.description
+              }
+              onChange={
+                handleChange
+              }
+              className={
+                inputClass
+              }
             />
           </FormField>
+
+          {/* IMAGE */}
 
           <div className="md:col-span-2">
             <FormLabel label="Event Image" />
@@ -739,13 +1731,22 @@ const AdminEvents = () => {
             <input
               type="file"
               accept="image/*"
-              onChange={pickImage}
-              className={inputClass}
+              onChange={
+                pickImage
+              }
+              className={
+                inputClass
+              }
             />
 
-            <p className="mt-2 text-xs text-muted">
-              Recommended size: 1200 × 800
-              px
+            <p
+              className="
+                mt-2
+                text-xs
+                text-muted
+              "
+            >
+              Recommended size: 1200 × 800 px
             </p>
           </div>
         </div>
@@ -754,14 +1755,31 @@ const AdminEvents = () => {
 
         {imageSrc && (
           <div className="mt-5">
-            <div className="relative h-80 w-full overflow-hidden rounded-2xl bg-black">
+            <div
+              className="
+                relative
+                h-80
+                w-full
+                overflow-hidden
+                rounded-2xl
+                bg-black
+              "
+            >
               <Cropper
-                image={imageSrc}
+                image={
+                  imageSrc
+                }
                 crop={crop}
                 zoom={zoom}
-                aspect={3 / 2}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
+                aspect={
+                  3 / 2
+                }
+                onCropChange={
+                  setCrop
+                }
+                onZoomChange={
+                  setZoom
+                }
                 onCropComplete={
                   onCropComplete
                 }
@@ -779,7 +1797,9 @@ const AdminEvents = () => {
                 max={3}
                 step={0.1}
                 value={zoom}
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   setZoom(
                     Number(
                       event.target.value
@@ -792,9 +1812,33 @@ const AdminEvents = () => {
 
             <button
               type="button"
-              onClick={handleCropDone}
-              disabled={cropping}
-              className="mt-3 rounded-full bg-[#E75480] px-6 py-3 text-xs uppercase tracking-[2px] text-white transition hover:bg-[#d94873] disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={
+                handleCropDone
+              }
+              disabled={
+                cropping
+              }
+              className="
+                mt-3
+                rounded-full
+
+                bg-[#E75480]
+
+                px-6
+                py-3
+
+                text-xs
+                uppercase
+                tracking-[2px]
+                text-white
+
+                transition
+
+                hover:bg-[#d94873]
+
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
             >
               {cropping
                 ? "Uploading..."
@@ -803,31 +1847,45 @@ const AdminEvents = () => {
           </div>
         )}
 
-        {/* PREVIEW */}
+        {/* IMAGE PREVIEW */}
 
-        {!imageSrc && formData.image && (
-          <div className="mt-5">
-            <p className="mb-2 text-sm text-muted">
-              Image Preview
-            </p>
+        {!imageSrc &&
+          formData.image && (
+            <div className="mt-5">
+              <p className="mb-2 text-sm text-muted">
+                Image Preview
+              </p>
 
-            <img
-              src={formData.image}
-              alt="Preview"
-              className="h-44 w-full rounded-2xl object-cover md:max-w-md"
-            />
-          </div>
-        )}
+              <img
+                src={
+                  formData.image
+                }
+                alt="Preview"
+                className="
+                  h-44
+                  w-full
+                  rounded-2xl
+                  object-cover
+
+                  md:max-w-md
+                "
+              />
+            </div>
+          )}
       </DialogBox>
 
-      {/* ============================ */}
-      {/* DELETE CONFIRMATION          */}
-      {/* ============================ */}
+      {/* ========================================================
+          DELETE
+      ======================================================== */}
 
       <DialogBox
-        open={Boolean(eventToDelete)}
+        open={Boolean(
+          eventToDelete
+        )}
         onClose={() =>
-          setEventToDelete(null)
+          setEventToDelete(
+            null
+          )
         }
         eyebrow="Confirm"
         title="Delete event?"
@@ -840,8 +1898,12 @@ const AdminEvents = () => {
         destructive
         confirmLabel="Delete"
         submittingLabel="Deleting..."
-        submitting={deleting}
-        onConfirm={confirmDelete}
+        submitting={
+          deleting
+        }
+        onConfirm={
+          confirmDelete
+        }
       >
         <p className="text-sm text-muted">
           Visitors will no longer see this
