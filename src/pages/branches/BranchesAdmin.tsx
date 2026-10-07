@@ -45,7 +45,8 @@ const EMPTY_FORM: BranchPayload = {
   mapUrl: "",
   bookingOpens: "10:00",
   bookingCloses: "19:00",
-  slotMinutes: 30,
+  slotMinutes: 60,
+  customSlots: [],
 };
 
 // Slot lengths offered in the form.
@@ -58,6 +59,45 @@ const toMinutes = (time: string) => {
 
   return hours * 60 + minutes;
 };
+
+const toTime = (minutes: number) =>
+  `${String(
+    Math.floor(minutes / 60)
+  ).padStart(2, "0")}:${String(
+    minutes % 60
+  ).padStart(2, "0")}`;
+
+// The slots regular hours give, the same
+// way the API builds them: every slot
+// length from opening, while the slot
+// still ends by closing.
+const regularSlots = (
+  opens: string,
+  closes: string,
+  slotMinutes: number
+) => {
+  const times: string[] = [];
+
+  if (!opens || !closes || !slotMinutes) {
+    return times;
+  }
+
+  for (
+    let minutes = toMinutes(opens);
+    minutes + slotMinutes <=
+    toMinutes(closes);
+    minutes += slotMinutes
+  ) {
+    times.push(toTime(minutes));
+  }
+
+  return times;
+};
+
+// Sorted, without repeats; "HH:mm"
+// sorts as text in time order.
+const normalizeSlots = (times: string[]) =>
+  [...new Set(times)].sort();
 
 // "10:00" → "10:00 AM", for the table.
 const formatTime = (time: string) => {
@@ -98,6 +138,17 @@ export default function BranchesAdmin() {
 
   const [saving, setSaving] =
     useState(false);
+
+  // "regular": a slot every slot length
+  // between the two times. "custom": the
+  // admin lists the exact times.
+  const [slotMode, setSlotMode] = useState<
+    "regular" | "custom"
+  >("regular");
+
+  // The time being typed into "Add time".
+  const [newSlot, setNewSlot] =
+    useState("");
 
   // The branch awaiting delete
   // confirmation. Null means the dialog
@@ -146,6 +197,8 @@ export default function BranchesAdmin() {
 
   const openAddForm = () => {
     setForm(EMPTY_FORM);
+    setSlotMode("regular");
+    setNewSlot("");
     setEditingId(null);
     setFormOpen(true);
   };
@@ -167,8 +220,16 @@ export default function BranchesAdmin() {
       slotMinutes:
         branch.slotMinutes ||
         EMPTY_FORM.slotMinutes,
+      customSlots:
+        branch.customSlots ?? [],
     });
 
+    setSlotMode(
+      branch.customSlots?.length
+        ? "custom"
+        : "regular"
+    );
+    setNewSlot("");
     setEditingId(branch._id);
     setFormOpen(true);
   };
@@ -192,6 +253,67 @@ export default function BranchesAdmin() {
   };
 
   // ============================
+  // CUSTOM TIMES
+  // ============================
+
+  // Switching to custom starts from the
+  // times the regular hours give, so the
+  // admin only adds or removes a few.
+  const switchSlotMode = (
+    mode: "regular" | "custom"
+  ) => {
+    if (
+      mode === "custom" &&
+      form.customSlots.length === 0
+    ) {
+      updateField(
+        "customSlots",
+        regularSlots(
+          form.bookingOpens,
+          form.bookingCloses,
+          form.slotMinutes
+        )
+      );
+    }
+
+    setSlotMode(mode);
+  };
+
+  const addCustomSlot = () => {
+    if (!newSlot) {
+      return;
+    }
+
+    if (form.customSlots.includes(newSlot)) {
+      toast.info(
+        `${formatTime(newSlot)} is already listed.`
+      );
+
+      return;
+    }
+
+    updateField(
+      "customSlots",
+      normalizeSlots([
+        ...form.customSlots,
+        newSlot,
+      ])
+    );
+    setNewSlot("");
+  };
+
+  const removeCustomSlot = (
+    time: string
+  ) => {
+    updateField(
+      "customSlots",
+      form.customSlots.filter(
+        (one) => one !== time
+      )
+    );
+  };
+
+  // ============================
   // SAVE
   // ============================
 
@@ -208,14 +330,30 @@ export default function BranchesAdmin() {
       return;
     }
 
-    // The API refuses this too; checking
-    // here saves the round trip.
+    const custom = slotMode === "custom";
+
     if (
-      !form.bookingOpens ||
-      !form.bookingCloses ||
-      toMinutes(form.bookingCloses) -
-        toMinutes(form.bookingOpens) <
-        form.slotMinutes
+      custom &&
+      form.customSlots.length === 0
+    ) {
+      toast.error(
+        "Add at least one custom time, or switch back to regular slots."
+      );
+
+      return;
+    }
+
+    // The API refuses this too; checking
+    // here saves the round trip. Custom
+    // times replace the regular hours, so
+    // those need not fit then.
+    if (
+      !custom &&
+      (!form.bookingOpens ||
+        !form.bookingCloses ||
+        toMinutes(form.bookingCloses) -
+          toMinutes(form.bookingOpens) <
+          form.slotMinutes)
     ) {
       toast.error(
         "Booking closing time must be at least one slot after the opening time."
@@ -234,6 +372,11 @@ export default function BranchesAdmin() {
       bookingOpens: form.bookingOpens,
       bookingCloses: form.bookingCloses,
       slotMinutes: form.slotMinutes,
+      // Empty sends the branch back to its
+      // regular slots.
+      customSlots: custom
+        ? form.customSlots
+        : [],
     };
 
     try {
@@ -417,25 +560,49 @@ export default function BranchesAdmin() {
       header: "Booking Times",
       cellClassName:
         "whitespace-nowrap text-sm",
-      render: (branch) => (
-        <span>
-          <span className="block">
-            {formatTime(
-              branch.bookingOpens || "10:00"
-            )}{" "}
-            –{" "}
-            {formatTime(
-              branch.bookingCloses ||
-                "19:00"
-            )}
-          </span>
+      render: (branch) =>
+        branch.customSlots?.length ? (
+          <span>
+            <span className="block">
+              Custom ·{" "}
+              {branch.customSlots.length}{" "}
+              time
+              {branch.customSlots.length === 1
+                ? ""
+                : "s"}
+            </span>
 
-          <span className="block text-xs text-muted">
-            {branch.slotMinutes || 30} min
-            slots
+            <span className="block text-xs text-muted">
+              {formatTime(
+                branch.customSlots[0]
+              )}{" "}
+              –{" "}
+              {formatTime(
+                branch.customSlots[
+                  branch.customSlots.length - 1
+                ]
+              )}
+            </span>
           </span>
-        </span>
-      ),
+        ) : (
+          <span>
+            <span className="block">
+              {formatTime(
+                branch.bookingOpens || "10:00"
+              )}{" "}
+              –{" "}
+              {formatTime(
+                branch.bookingCloses ||
+                  "19:00"
+              )}
+            </span>
+
+            <span className="block text-xs text-muted">
+              {branch.slotMinutes || 60} min
+              slots
+            </span>
+          </span>
+        ),
     },
     {
       key: "actions",
@@ -633,11 +800,119 @@ export default function BranchesAdmin() {
             <p className="text-xs text-muted">
               The appointment times customers
               can pick for this branch on the
-              website. The last slot ends by
-              the closing time.
+              website.
             </p>
+
+            <div className="mt-3 inline-flex rounded-full border border-[#E75480]/20 bg-soft p-1">
+              {(
+                [
+                  ["regular", "Regular slots"],
+                  ["custom", "Custom times"],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() =>
+                    switchSlotMode(mode)
+                  }
+                  className={`rounded-full px-4 py-1.5 text-xs uppercase tracking-[1px] transition ${
+                    slotMode === mode
+                      ? "bg-[#E75480] text-white"
+                      : "text-muted hover:text-[#E75480]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {slotMode === "custom" ? (
+            <div className="md:col-span-2">
+              <p className="text-xs text-muted">
+                Only these times are offered.
+                Click × to remove one.
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {form.customSlots.length ===
+                  0 && (
+                  <span className="text-sm text-muted">
+                    No times yet — add one
+                    below.
+                  </span>
+                )}
+
+                {form.customSlots.map(
+                  (time) => (
+                    <span
+                      key={time}
+                      className="inline-flex items-center gap-1 rounded-full bg-blush py-1 pl-3 pr-1 text-xs font-medium text-[#E75480]"
+                    >
+                      {formatTime(time)}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeCustomSlot(time)
+                        }
+                        aria-label={`Remove ${formatTime(time)}`}
+                        className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-[#E75480] hover:text-white"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )
+                )}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <input
+                  type="time"
+                  value={newSlot}
+                  onChange={(e) =>
+                    setNewSlot(e.target.value)
+                  }
+                  onKeyDown={(e) => {
+                    // Enter adds the time
+                    // instead of submitting
+                    // the whole form.
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addCustomSlot();
+                    }
+                  }}
+                  className={`${inputClass} max-w-45`}
+                />
+
+                <button
+                  type="button"
+                  onClick={addCustomSlot}
+                  disabled={!newSlot}
+                  className="rounded-xl border border-[#E75480] px-5 py-3 text-xs uppercase tracking-[1.5px] text-[#E75480] transition hover:bg-soft disabled:opacity-50"
+                >
+                  Add time
+                </button>
+
+                {form.customSlots.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateField(
+                        "customSlots",
+                        []
+                      )
+                    }
+                    className="rounded-xl px-4 py-3 text-xs uppercase tracking-[1.5px] text-muted transition hover:text-red-600"
+                  >
+                    Remove all
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+          <>
           <FormField
             label="First appointment"
             required
@@ -707,6 +982,24 @@ export default function BranchesAdmin() {
                 ))}
             </select>
           </FormField>
+
+          <p className="text-xs text-muted md:col-span-2">
+            {(() => {
+              const times = regularSlots(
+                form.bookingOpens,
+                form.bookingCloses,
+                form.slotMinutes
+              );
+
+              return times.length
+                ? `${times.length} slots: ${times
+                    .map(formatTime)
+                    .join(", ")}`
+                : "These hours fit no slot yet.";
+            })()}
+          </p>
+          </>
+          )}
         </div>
       </DialogBox>
 
