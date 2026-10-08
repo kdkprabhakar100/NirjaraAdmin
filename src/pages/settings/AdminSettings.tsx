@@ -110,57 +110,6 @@ const TABS: {
 ];
 
 /* ============================================================
-   SHIPPING DEFAULTS
-============================================================ */
-
-const defaultShippingOptions: ShippingOption[] = [
-  {
-    key: "inside-valley",
-    label: "Inside Valley",
-    price: 0,
-    enabled: true,
-    freeShipping: false,
-    freeShippingNote: "",
-  },
-
-  {
-    key: "outside-valley",
-    label: "Outside Valley",
-    price: 0,
-    enabled: true,
-    freeShipping: false,
-    freeShippingNote: "",
-  },
-
-  {
-    key: "asia",
-    label: "Asia",
-    price: 0,
-    enabled: true,
-    freeShipping: false,
-    freeShippingNote: "",
-  },
-
-  {
-    key: "europe",
-    label: "Europe",
-    price: 0,
-    enabled: true,
-    freeShipping: false,
-    freeShippingNote: "",
-  },
-
-  {
-    key: "usa",
-    label: "USA",
-    price: 0,
-    enabled: true,
-    freeShipping: false,
-    freeShippingNote: "",
-  },
-];
-
-/* ============================================================
    INITIAL SETTINGS
 ============================================================ */
 
@@ -193,11 +142,7 @@ const initialSettings: SiteSettings = {
   },
 
   shipping: {
-    options: defaultShippingOptions.map(
-      (option) => ({
-        ...option,
-      })
-    ),
+    options: [],
   },
 
   footer: {
@@ -263,6 +208,32 @@ export default function AdminSettings() {
     setUploadingQr,
   ] =
     useState(false);
+
+  const [
+    newShippingLabel,
+    setNewShippingLabel,
+  ] =
+    useState("");
+
+  const [
+    newShippingPrice,
+    setNewShippingPrice,
+  ] =
+    useState("");
+
+  const [
+    addingShipping,
+    setAddingShipping,
+  ] =
+    useState(false);
+
+  const [
+    shippingActionKey,
+    setShippingActionKey,
+  ] =
+    useState<string | null>(
+      null
+    );
 
   const [
     message,
@@ -336,10 +307,7 @@ export default function AdminSettings() {
               Array.isArray(
                 data.shipping
                   ?.options
-              ) &&
-              data.shipping.options
-                .length >
-                0
+              )
                 ? data.shipping.options.map(
                     (
                       option: ShippingOption
@@ -369,13 +337,7 @@ export default function AdminSettings() {
                         "",
                     })
                   )
-                : defaultShippingOptions.map(
-                    (
-                      option
-                    ) => ({
-                      ...option,
-                    })
-                  );
+                : [];
 
             setSettings({
               salonName:
@@ -611,8 +573,28 @@ export default function AdminSettings() {
   };
 
   /* ============================================================
-     SHIPPING
+     SHIPPING CRUD
   ============================================================ */
+
+  const getAuthHeaders =
+    () => {
+      const token =
+        localStorage.getItem(
+          "adminToken"
+        );
+
+      return {
+        "Content-Type":
+          "application/json",
+
+        ...(token
+          ? {
+              Authorization:
+                `Bearer ${token}`,
+            }
+          : {}),
+      };
+    };
 
   const updateShippingOption = (
     key: string,
@@ -711,6 +693,428 @@ export default function AdminSettings() {
       !option.freeShipping
     );
   };
+
+  const addShippingOption =
+    async () => {
+      const label =
+        newShippingLabel.trim();
+
+      const price =
+        Number(
+          newShippingPrice
+        );
+
+      if (
+        !label
+      ) {
+        toast.error(
+          "Enter a shipping region name."
+        );
+
+        return;
+      }
+
+      if (
+        !Number.isFinite(
+          price
+        ) ||
+        price <=
+          0
+      ) {
+        toast.error(
+          "Shipping fee must be greater than Rs. 0."
+        );
+
+        return;
+      }
+
+      if (
+        settings.shipping.options.length >=
+        20
+      ) {
+        toast.error(
+          "Maximum 20 shipping regions are allowed."
+        );
+
+        return;
+      }
+
+      try {
+        setAddingShipping(
+          true
+        );
+
+        const response =
+          await fetch(
+            `${API_URL}/api/site-settings/shipping`,
+
+            {
+              method:
+                "POST",
+
+              headers:
+                getAuthHeaders(),
+
+              body:
+                JSON.stringify({
+                  label,
+                  price,
+                  enabled:
+                    true,
+                  freeShipping:
+                    false,
+                  freeShippingNote:
+                    "",
+                }),
+            }
+          );
+
+        const data =
+          await response
+            .json()
+            .catch(
+              () =>
+                ({})
+            );
+
+        if (
+          !response.ok
+        ) {
+          throw new Error(
+            data?.message ||
+              "Could not add shipping region."
+          );
+        }
+
+        setSettings(
+          (
+            previous
+          ) => ({
+            ...previous,
+
+            shipping: {
+              ...previous.shipping,
+
+              options: [
+                ...previous.shipping.options,
+
+                {
+                  key:
+                    data.key,
+
+                  label:
+                    data.label,
+
+                  price:
+                    Number(
+                      data.price ??
+                        0
+                    ),
+
+                  enabled:
+                    data.enabled !==
+                    false,
+
+                  freeShipping:
+                    data.freeShipping ===
+                    true,
+
+                  freeShippingNote:
+                    data.freeShippingNote ??
+                    "",
+                },
+              ],
+            },
+          })
+        );
+
+        setNewShippingLabel(
+          ""
+        );
+
+        setNewShippingPrice(
+          ""
+        );
+
+        toast.success(
+          "Shipping region added."
+        );
+      } catch (
+        error
+      ) {
+        console.error(
+          "ADD SHIPPING ERROR:",
+          error
+        );
+
+        toast.error(
+          error instanceof
+            Error
+            ? error.message
+            : "Could not add shipping region."
+        );
+      } finally {
+        setAddingShipping(
+          false
+        );
+      }
+    };
+
+  const saveShippingOption =
+    async (
+      option:
+        ShippingOption
+    ) => {
+      if (
+        !option.label.trim()
+      ) {
+        toast.error(
+          "Shipping region name is required."
+        );
+
+        return;
+      }
+
+      if (
+        option.enabled &&
+        !option.freeShipping &&
+        Number(
+          option.price
+        ) <=
+          0
+      ) {
+        toast.error(
+          `Enter a shipping fee for ${option.label}, or enable Free Shipping.`
+        );
+
+        return;
+      }
+
+      try {
+        setShippingActionKey(
+          option.key
+        );
+
+        const response =
+          await fetch(
+            `${API_URL}/api/site-settings/shipping/${encodeURIComponent(
+              option.key
+            )}`,
+
+            {
+              method:
+                "PUT",
+
+              headers:
+                getAuthHeaders(),
+
+              body:
+                JSON.stringify({
+                  label:
+                    option.label.trim(),
+
+                  price:
+                    Number(
+                      option.price
+                    ),
+
+                  enabled:
+                    option.enabled,
+
+                  freeShipping:
+                    option.freeShipping,
+
+                  freeShippingNote:
+                    option.freeShippingNote.trim(),
+                }),
+            }
+          );
+
+        const data =
+          await response
+            .json()
+            .catch(
+              () =>
+                ({})
+            );
+
+        if (
+          !response.ok
+        ) {
+          throw new Error(
+            data?.message ||
+              "Could not update shipping region."
+          );
+        }
+
+        setSettings(
+          (
+            previous
+          ) => ({
+            ...previous,
+
+            shipping: {
+              ...previous.shipping,
+
+              options:
+                previous.shipping.options.map(
+                  (
+                    current
+                  ) =>
+                    current.key ===
+                    option.key
+                      ? {
+                          key:
+                            data.key,
+
+                          label:
+                            data.label,
+
+                          price:
+                            Number(
+                              data.price ??
+                                0
+                            ),
+
+                          enabled:
+                            data.enabled !==
+                            false,
+
+                          freeShipping:
+                            data.freeShipping ===
+                            true,
+
+                          freeShippingNote:
+                            data.freeShippingNote ??
+                            "",
+                        }
+                      : current
+                ),
+            },
+          })
+        );
+
+        toast.success(
+          `${data.label} updated.`
+        );
+      } catch (
+        error
+      ) {
+        console.error(
+          "UPDATE SHIPPING ERROR:",
+          error
+        );
+
+        toast.error(
+          error instanceof
+            Error
+            ? error.message
+            : "Could not update shipping region."
+        );
+      } finally {
+        setShippingActionKey(
+          null
+        );
+      }
+    };
+
+  const deleteShippingOption =
+    async (
+      option:
+        ShippingOption
+    ) => {
+      const confirmed =
+        window.confirm(
+          `Delete "${option.label}" shipping region?`
+        );
+
+      if (
+        !confirmed
+      ) {
+        return;
+      }
+
+      try {
+        setShippingActionKey(
+          option.key
+        );
+
+        const response =
+          await fetch(
+            `${API_URL}/api/site-settings/shipping/${encodeURIComponent(
+              option.key
+            )}`,
+
+            {
+              method:
+                "DELETE",
+
+              headers:
+                getAuthHeaders(),
+            }
+          );
+
+        const data =
+          await response
+            .json()
+            .catch(
+              () =>
+                ({})
+            );
+
+        if (
+          !response.ok
+        ) {
+          throw new Error(
+            data?.message ||
+              "Could not delete shipping region."
+          );
+        }
+
+        setSettings(
+          (
+            previous
+          ) => ({
+            ...previous,
+
+            shipping: {
+              ...previous.shipping,
+
+              options:
+                previous.shipping.options.filter(
+                  (
+                    current
+                  ) =>
+                    current.key !==
+                    option.key
+                ),
+            },
+          })
+        );
+
+        toast.success(
+          "Shipping region deleted."
+        );
+      } catch (
+        error
+      ) {
+        console.error(
+          "DELETE SHIPPING ERROR:",
+          error
+        );
+
+        toast.error(
+          error instanceof
+            Error
+            ? error.message
+            : "Could not delete shipping region."
+        );
+      } finally {
+        setShippingActionKey(
+          null
+        );
+      }
+    };
 
   /* ============================================================
      QR UPLOAD
@@ -877,6 +1281,8 @@ export default function AdminSettings() {
 
   /* ============================================================
      SAVE SETTINGS
+
+     Shipping is saved independently through CRUD endpoints.
   ============================================================ */
 
   const handleSave =
@@ -894,43 +1300,6 @@ export default function AdminSettings() {
           localStorage.getItem(
             "adminToken"
           );
-
-        /* ======================================================
-           NORMALIZE SHIPPING
-        ====================================================== */
-
-        const shippingPayload = {
-          options:
-            settings.shipping.options.map(
-              (
-                option
-              ) => ({
-                key:
-                  option.key,
-
-                label:
-                  option.label,
-
-                price:
-                  Number(
-                    option.price
-                  ),
-
-                enabled:
-                  option.enabled,
-
-                freeShipping:
-                  option.freeShipping,
-
-                freeShippingNote:
-                  option.freeShippingNote,
-              })
-            ),
-        };
-
-        /* ======================================================
-           FULL PAYLOAD
-        ====================================================== */
 
         const payload = {
           salonName:
@@ -954,28 +1323,9 @@ export default function AdminSettings() {
           payment:
             settings.payment,
 
-          shipping:
-            shippingPayload,
-
           footer:
             settings.footer,
         };
-
-        console.log(
-          "FULL SETTINGS PAYLOAD:",
-          payload
-        );
-
-        console.log(
-          "SHIPPING BEING SAVED:",
-          shippingPayload
-        );
-
-        /* ======================================================
-           IMPORTANT FIX
-
-           Send PAYLOAD, not shippingPayload.
-        ====================================================== */
 
         const response =
           await fetch(
@@ -1012,11 +1362,6 @@ export default function AdminSettings() {
                 ({})
             );
 
-        console.log(
-          "SAVE SETTINGS RESPONSE:",
-          data
-        );
-
         if (
           !response.ok
         ) {
@@ -1025,10 +1370,6 @@ export default function AdminSettings() {
               "Could not save settings."
           );
         }
-
-        /* ======================================================
-           UPDATE LOCAL STATE FROM SERVER
-        ====================================================== */
 
         setSettings(
           (
@@ -1066,45 +1407,6 @@ export default function AdminSettings() {
               ...previous.payment,
               ...(data.payment ??
                 {}),
-            },
-
-            shipping: {
-              options:
-                Array.isArray(
-                  data.shipping
-                    ?.options
-                )
-                  ? data.shipping.options.map(
-                      (
-                        option: ShippingOption
-                      ) => ({
-                        key:
-                          option.key,
-
-                        label:
-                          option.label,
-
-                        price:
-                          Number(
-                            option.price ??
-                              0
-                          ),
-
-                        enabled:
-                          option.enabled !==
-                          false,
-
-                        freeShipping:
-                          option.freeShipping ===
-                          true,
-
-                        freeShippingNote:
-                          option.freeShippingNote ??
-                          "",
-                      })
-                    )
-                  : previous.shipping
-                      .options,
             },
 
             footer: {
@@ -1809,365 +2111,586 @@ export default function AdminSettings() {
               </SettingsCard>
 
               {/* ==================================================
-                  SHIPPING
+                  SHIPPING CRUD
               ================================================== */}
 
               <SettingsCard
                 title="Shipping Rates"
-                description="Configure delivery fees and free-shipping promotions."
+                description="Create and manage delivery regions, prices, availability and free-shipping promotions."
               >
-                <div className="space-y-4">
+                {/* ADD REGION */}
+
+                <div
+                  className="
+                    rounded-[24px]
+                    border
+                    border-dashed
+                    border-[#E75480]/25
+                    bg-[#FFF8FA]
+                    p-5
+
+                    sm:p-6
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      flex-col
+                      gap-2
+
+                      sm:flex-row
+                      sm:items-end
+                      sm:justify-between
+                    "
+                  >
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[2px] text-[#E75480]">
+                        New Region
+                      </p>
+
+                      <h3 className="mt-1 font-serif text-xl text-ink">
+                        Add Shipping Region
+                      </h3>
+
+                      <p className="mt-1 text-xs leading-5 text-muted">
+                        Add any local or international delivery area.
+                      </p>
+                    </div>
+
+                    <p className="text-xs text-muted">
+                      {settings.shipping.options.length}
+                      /20 regions
+                    </p>
+                  </div>
+
+                  <div
+                    className="
+                      mt-5
+                      grid
+                      gap-4
+
+                      md:grid-cols-[1fr_220px_auto]
+                      md:items-end
+                    "
+                  >
+                    <div>
+                      <FieldLabel>
+                        Region Name
+                      </FieldLabel>
+
+                      <input
+                        type="text"
+                        value={
+                          newShippingLabel
+                        }
+                        placeholder="e.g. Pokhara"
+                        maxLength={
+                          150
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setNewShippingLabel(
+                            event.target.value
+                          )
+                        }
+                        className="
+                          h-12
+                          w-full
+                          rounded-2xl
+                          border
+                          border-[#E75480]/15
+                          bg-white
+                          px-4
+                          text-sm
+                          text-ink
+                          outline-none
+
+                          focus:border-[#E75480]/50
+                        "
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel>
+                        Shipping Fee
+                      </FieldLabel>
+
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">
+                          Rs.
+                        </span>
+
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={
+                            newShippingPrice
+                          }
+                          placeholder="150"
+                          onChange={(
+                            event
+                          ) =>
+                            setNewShippingPrice(
+                              event.target.value
+                            )
+                          }
+                          className="
+                            h-12
+                            w-full
+                            rounded-2xl
+                            border
+                            border-[#E75480]/15
+                            bg-white
+                            pl-12
+                            pr-4
+                            text-sm
+                            text-ink
+                            outline-none
+
+                            focus:border-[#E75480]/50
+                          "
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={
+                        addingShipping ||
+                        settings.shipping.options.length >=
+                          20
+                      }
+                      onClick={
+                        addShippingOption
+                      }
+                      className="
+                        h-12
+                        rounded-full
+                        bg-[#E75480]
+                        px-7
+                        text-xs
+                        font-semibold
+                        uppercase
+                        tracking-[1.5px]
+                        text-white
+                        transition
+
+                        hover:bg-[#D94873]
+
+                        disabled:cursor-not-allowed
+                        disabled:opacity-50
+                      "
+                    >
+                      {addingShipping
+                        ? "Adding..."
+                        : "+ Add Region"}
+                    </button>
+                  </div>
+                </div>
+
+                {settings.shipping.options.length ===
+                  0 && (
+                  <div className="mt-5 rounded-[24px] border border-[#E75480]/10 bg-white p-8 text-center">
+                    <p className="font-serif text-xl text-ink">
+                      No shipping regions yet
+                    </p>
+
+                    <p className="mt-2 text-sm text-muted">
+                      Add your first shipping region above.
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-5 space-y-4">
                   {settings.shipping.options.map(
                     (
                       option
-                    ) => (
-                      <div
-                        key={
-                          option.key
-                        }
-                        className="
-                          rounded-[24px]
-                          border
-                          border-[#E75480]/10
-                          bg-[#FFF8FA]
-                          p-5
+                    ) => {
+                      const busy =
+                        shippingActionKey ===
+                        option.key;
 
-                          sm:p-6
-                        "
-                      >
-                        {/* HEADER */}
-
+                      return (
                         <div
+                          key={
+                            option.key
+                          }
                           className="
-                            flex
-                            flex-col
-                            gap-4
+                            rounded-[24px]
+                            border
+                            border-[#E75480]/10
+                            bg-[#FFF8FA]
+                            p-5
 
-                            sm:flex-row
-                            sm:items-center
-                            sm:justify-between
+                            sm:p-6
                           "
                         >
-                          <div>
-                            <h3 className="font-serif text-xl text-ink">
-                              {
-                                option.label
-                              }
-                            </h3>
+                          {/* HEADER */}
 
-                            <p className="mt-1 text-xs text-muted">
-                              {option.enabled
-                                ? option.freeShipping
-                                  ? `Regular fee: Rs. ${Number(
-                                      option.price
-                                    ).toLocaleString()} · FREE now`
-                                  : `Current shipping fee: Rs. ${Number(
-                                      option.price
-                                    ).toLocaleString()}`
-                                : "Shipping option disabled"}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-semibold uppercase tracking-[1px] text-muted">
-                              {option.enabled
-                                ? "Enabled"
-                                : "Disabled"}
-                            </span>
-
-                            <Toggle
-                              checked={
-                                option.enabled
-                              }
-                              onClick={() =>
-                                toggleShippingEnabled(
-                                  option.key
-                                )
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        {/* CONTROLS */}
-
-                        <div
-                          className="
-                            mt-5
-                            grid
-                            gap-4
-
-                            md:grid-cols-2
-                          "
-                        >
-                          {/* PRICE */}
-
-                          <div>
-                            <FieldLabel>
-                              Normal Shipping Fee
-                            </FieldLabel>
-
-                            <div className="relative">
-                              <span
-                                className="
-                                  pointer-events-none
-                                  absolute
-                                  left-4
-                                  top-1/2
-                                  -translate-y-1/2
-                                  text-sm
-                                  text-muted
-                                "
-                              >
-                                Rs.
-                              </span>
-
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                disabled={
-                                  !option.enabled
-                                }
-                                value={
-                                  option.price
-                                }
-                                onChange={(
-                                  event
-                                ) => {
-                                  const raw =
-                                    event.target
-                                      .value;
-
-                                  const parsed =
-                                    raw ===
-                                    ""
-                                      ? 0
-                                      : Number(
-                                          raw
-                                        );
-
-                                  updateShippingOption(
-                                    option.key,
-                                    "price",
-                                    Number.isFinite(
-                                      parsed
-                                    )
-                                      ? Math.max(
-                                          0,
-                                          parsed
-                                        )
-                                      : 0
-                                  );
-                                }}
-                                className="
-                                  h-12
-                                  w-full
-                                  rounded-2xl
-                                  border
-                                  border-[#E75480]/15
-                                  bg-white
-                                  pl-12
-                                  pr-4
-                                  text-sm
-                                  text-ink
-                                  outline-none
-                                  transition
-
-                                  focus:border-[#E75480]/50
-
-                                  disabled:cursor-not-allowed
-                                  disabled:opacity-50
-                                "
-                              />
-                            </div>
-                          </div>
-
-                          {/* FREE SHIPPING */}
-
-                          <div>
-                            <FieldLabel>
-                              Free Shipping
-                            </FieldLabel>
-
-                            <button
-                              type="button"
-                              disabled={
-                                !option.enabled
-                              }
-                              onClick={() =>
-                                toggleFreeShipping(
-                                  option.key
-                                )
-                              }
-                              className={`
-                                flex
-                                h-12
-                                w-full
-                                items-center
-                                justify-between
-                                rounded-2xl
-                                border
-                                px-4
-                                text-left
-
-                                ${
-                                  option.freeShipping
-                                    ? "border-green-200 bg-green-50"
-                                    : "border-[#E75480]/15 bg-white"
-                                }
-
-                                disabled:cursor-not-allowed
-                                disabled:opacity-50
-                              `}
-                            >
-                              <span
-                                className={`
-                                  text-sm
-                                  font-medium
-
-                                  ${
-                                    option.freeShipping
-                                      ? "text-green-700"
-                                      : "text-ink"
-                                  }
-                                `}
-                              >
-                                {option.freeShipping
-                                  ? "Free shipping active"
-                                  : "Charge normal fee"}
-                              </span>
-
-                              <ToggleVisual
-                                checked={
-                                  option.freeShipping
-                                }
-                              />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* FREE SHIPPING NOTE */}
-
-                        {option.enabled &&
-                          option.freeShipping && (
-                            <div className="mt-4">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="w-full max-w-md">
                               <FieldLabel>
-                                Free Shipping Note
+                                Region Name
                               </FieldLabel>
 
                               <input
                                 type="text"
                                 value={
-                                  option.freeShippingNote
+                                  option.label
+                                }
+                                disabled={
+                                  busy
                                 }
                                 maxLength={
-                                  500
+                                  150
                                 }
-                                placeholder="Example: Free shipping this week"
                                 onChange={(
                                   event
                                 ) =>
                                   updateShippingOption(
                                     option.key,
-                                    "freeShippingNote",
-                                    event.target
-                                      .value
+                                    "label",
+                                    event.target.value
                                   )
                                 }
                                 className="
-                                  h-12
+                                  h-11
                                   w-full
-                                  rounded-2xl
+                                  rounded-xl
                                   border
-                                  border-green-200
+                                  border-[#E75480]/15
                                   bg-white
                                   px-4
-                                  text-sm
+                                  font-serif
+                                  text-lg
                                   text-ink
                                   outline-none
 
-                                  focus:border-green-400
+                                  focus:border-[#E75480]/50
+                                  disabled:opacity-60
                                 "
                               />
+
+                              <p className="mt-2 text-[10px] text-muted">
+                                ID: {option.key}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                              <button
+                                type="button"
+                                disabled={
+                                  busy
+                                }
+                                onClick={() =>
+                                  deleteShippingOption(
+                                    option
+                                  )
+                                }
+                                className="
+                                  rounded-full
+                                  border
+                                  border-red-200
+                                  bg-white
+                                  px-4
+                                  py-2
+                                  text-[10px]
+                                  font-semibold
+                                  uppercase
+                                  tracking-[1px]
+                                  text-red-600
+                                  transition
+
+                                  hover:bg-red-50
+                                  disabled:opacity-50
+                                "
+                              >
+                                Delete
+                              </button>
+
+                              <span className="text-[10px] font-semibold uppercase tracking-[1px] text-muted">
+                                {option.enabled
+                                  ? "Enabled"
+                                  : "Disabled"}
+                              </span>
+
+                              <Toggle
+                                checked={
+                                  option.enabled
+                                }
+                                onClick={() =>
+                                  toggleShippingEnabled(
+                                    option.key
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          {/* CONTROLS */}
+
+                          <div className="mt-5 grid gap-4 md:grid-cols-2">
+                            <div>
+                              <FieldLabel>
+                                Normal Shipping Fee
+                              </FieldLabel>
+
+                              <div className="relative">
+                                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">
+                                  Rs.
+                                </span>
+
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  disabled={
+                                    !option.enabled ||
+                                    busy
+                                  }
+                                  value={
+                                    option.price
+                                  }
+                                  onChange={(
+                                    event
+                                  ) => {
+                                    const raw =
+                                      event.target.value;
+
+                                    const parsed =
+                                      raw ===
+                                      ""
+                                        ? 0
+                                        : Number(
+                                            raw
+                                          );
+
+                                    updateShippingOption(
+                                      option.key,
+                                      "price",
+                                      Number.isFinite(
+                                        parsed
+                                      )
+                                        ? Math.max(
+                                            0,
+                                            parsed
+                                          )
+                                        : 0
+                                    );
+                                  }}
+                                  className="
+                                    h-12
+                                    w-full
+                                    rounded-2xl
+                                    border
+                                    border-[#E75480]/15
+                                    bg-white
+                                    pl-12
+                                    pr-4
+                                    text-sm
+                                    text-ink
+                                    outline-none
+
+                                    focus:border-[#E75480]/50
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-50
+                                  "
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <FieldLabel>
+                                Free Shipping
+                              </FieldLabel>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  !option.enabled ||
+                                  busy
+                                }
+                                onClick={() =>
+                                  toggleFreeShipping(
+                                    option.key
+                                  )
+                                }
+                                className={`
+                                  flex
+                                  h-12
+                                  w-full
+                                  items-center
+                                  justify-between
+                                  rounded-2xl
+                                  border
+                                  px-4
+                                  text-left
+
+                                  ${
+                                    option.freeShipping
+                                      ? "border-green-200 bg-green-50"
+                                      : "border-[#E75480]/15 bg-white"
+                                  }
+
+                                  disabled:cursor-not-allowed
+                                  disabled:opacity-50
+                                `}
+                              >
+                                <span
+                                  className={`
+                                    text-sm
+                                    font-medium
+
+                                    ${
+                                      option.freeShipping
+                                        ? "text-green-700"
+                                        : "text-ink"
+                                    }
+                                  `}
+                                >
+                                  {option.freeShipping
+                                    ? "Free shipping active"
+                                    : "Charge normal fee"}
+                                </span>
+
+                                <ToggleVisual
+                                  checked={
+                                    option.freeShipping
+                                  }
+                                />
+                              </button>
+                            </div>
+                          </div>
+
+                          {option.enabled &&
+                            option.freeShipping && (
+                              <div className="mt-4">
+                                <FieldLabel>
+                                  Free Shipping Note
+                                </FieldLabel>
+
+                                <input
+                                  type="text"
+                                  value={
+                                    option.freeShippingNote
+                                  }
+                                  disabled={
+                                    busy
+                                  }
+                                  maxLength={
+                                    500
+                                  }
+                                  placeholder="Example: Free shipping this week"
+                                  onChange={(
+                                    event
+                                  ) =>
+                                    updateShippingOption(
+                                      option.key,
+                                      "freeShippingNote",
+                                      event.target.value
+                                    )
+                                  }
+                                  className="
+                                    h-12
+                                    w-full
+                                    rounded-2xl
+                                    border
+                                    border-green-200
+                                    bg-white
+                                    px-4
+                                    text-sm
+                                    text-ink
+                                    outline-none
+
+                                    focus:border-green-400
+                                    disabled:opacity-50
+                                  "
+                                />
+                              </div>
+                            )}
+
+                          {option.enabled && (
+                            <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-[#E75480]/10 bg-white p-4">
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-[2px] text-muted">
+                                  Checkout Preview
+                                </p>
+
+                                <p className="mt-1 text-sm font-medium text-ink">
+                                  {option.label}
+                                </p>
+
+                                {option.freeShipping &&
+                                  option.freeShippingNote && (
+                                    <p className="mt-1 text-xs text-green-600">
+                                      {option.freeShippingNote}
+                                    </p>
+                                  )}
+                              </div>
+
+                              {option.freeShipping ? (
+                                <div className="text-right">
+                                  <span className="rounded-full bg-green-100 px-4 py-1.5 text-xs font-semibold text-green-700">
+                                    FREE
+                                  </span>
+
+                                  {option.price >
+                                    0 && (
+                                    <p className="mt-1 text-xs text-muted line-through">
+                                      Rs. {Number(
+                                        option.price
+                                      ).toLocaleString()}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="font-semibold text-[#E75480]">
+                                  Rs. {Number(
+                                    option.price
+                                  ).toLocaleString()}
+                                </p>
+                              )}
                             </div>
                           )}
 
-                        {/* PREVIEW */}
+                          <div className="mt-5 flex justify-end">
+                            <button
+                              type="button"
+                              disabled={
+                                busy
+                              }
+                              onClick={() =>
+                                saveShippingOption(
+                                  option
+                                )
+                              }
+                              className="
+                                rounded-full
+                                bg-[#E75480]
+                                px-6
+                                py-3
+                                text-[10px]
+                                font-semibold
+                                uppercase
+                                tracking-[1.5px]
+                                text-white
+                                transition
 
-                        {option.enabled && (
-                          <div
-                            className="
-                              mt-5
-                              flex
-                              items-center
-                              justify-between
-                              gap-4
-                              rounded-2xl
-                              border
-                              border-[#E75480]/10
-                              bg-white
-                              p-4
-                            "
-                          >
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-[2px] text-muted">
-                                Checkout Preview
-                              </p>
-
-                              <p className="mt-1 text-sm font-medium text-ink">
-                                {
-                                  option.label
-                                }
-                              </p>
-
-                              {option.freeShipping &&
-                                option.freeShippingNote && (
-                                  <p className="mt-1 text-xs text-green-600">
-                                    {
-                                      option.freeShippingNote
-                                    }
-                                  </p>
-                                )}
-                            </div>
-
-                            {option.freeShipping ? (
-                              <div className="text-right">
-                                <span
-                                  className="
-                                    rounded-full
-                                    bg-green-100
-                                    px-4
-                                    py-1.5
-                                    text-xs
-                                    font-semibold
-                                    text-green-700
-                                  "
-                                >
-                                  FREE
-                                </span>
-
-                                {option.price >
-                                  0 && (
-                                  <p className="mt-1 text-xs text-muted line-through">
-                                    Rs.{" "}
-                                    {Number(
-                                      option.price
-                                    ).toLocaleString()}
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="font-semibold text-[#E75480]">
-                                Rs.{" "}
-                                {Number(
-                                  option.price
-                                ).toLocaleString()}
-                              </p>
-                            )}
+                                hover:bg-[#D94873]
+                                disabled:cursor-not-allowed
+                                disabled:opacity-50
+                              "
+                            >
+                              {busy
+                                ? "Saving..."
+                                : "Save Region"}
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    )
+                        </div>
+                      );
+                    }
                   )}
                 </div>
               </SettingsCard>
