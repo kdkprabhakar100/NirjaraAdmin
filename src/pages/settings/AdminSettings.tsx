@@ -236,6 +236,22 @@ export default function AdminSettings() {
     );
 
   const [
+    editingShippingKey,
+    setEditingShippingKey,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    shippingDraft,
+    setShippingDraft,
+  ] =
+    useState<ShippingOption | null>(
+      null
+    );
+
+  const [
     message,
     setMessage,
   ] =
@@ -596,9 +612,34 @@ export default function AdminSettings() {
       };
     };
 
-  const updateShippingOption = (
-    key: string,
+  const beginEditShipping = (
+    option: ShippingOption
+  ) => {
+    setEditingShippingKey(
+      option.key
+    );
 
+    setShippingDraft({
+      ...option,
+    });
+
+    setMessage(
+      ""
+    );
+  };
+
+  const cancelEditShipping =
+    () => {
+      setEditingShippingKey(
+        null
+      );
+
+      setShippingDraft(
+        null
+      );
+    };
+
+  const updateShippingDraft = (
     field:
       | "label"
       | "price"
@@ -611,86 +652,22 @@ export default function AdminSettings() {
       | number
       | boolean
   ) => {
-    setSettings(
+    setShippingDraft(
       (
         previous
-      ) => ({
-        ...previous,
+      ) =>
+        previous
+          ? {
+              ...previous,
 
-        shipping: {
-          ...previous.shipping,
-
-          options:
-            previous.shipping.options.map(
-              (
-                option
-              ) =>
-                option.key ===
-                key
-                  ? {
-                      ...option,
-
-                      [field]:
-                        value,
-                    }
-                  : option
-            ),
-        },
-      })
+              [field]:
+                value,
+            }
+          : previous
     );
 
     setMessage(
       ""
-    );
-  };
-
-  const toggleShippingEnabled = (
-    key: string
-  ) => {
-    const option =
-      settings.shipping.options.find(
-        (
-          item
-        ) =>
-          item.key ===
-          key
-      );
-
-    if (
-      !option
-    ) {
-      return;
-    }
-
-    updateShippingOption(
-      key,
-      "enabled",
-      !option.enabled
-    );
-  };
-
-  const toggleFreeShipping = (
-    key: string
-  ) => {
-    const option =
-      settings.shipping.options.find(
-        (
-          item
-        ) =>
-          item.key ===
-          key
-      );
-
-    if (
-      !option
-    ) {
-      return;
-    }
-
-    updateShippingOption(
-      key,
-      "freeShipping",
-      !option.freeShipping
     );
   };
 
@@ -861,12 +838,26 @@ export default function AdminSettings() {
     };
 
   const saveShippingOption =
-    async (
-      option:
-        ShippingOption
-    ) => {
+    async () => {
       if (
-        !option.label.trim()
+        !shippingDraft
+      ) {
+        return;
+      }
+
+      const option =
+        shippingDraft;
+
+      const label =
+        option.label.trim();
+
+      const price =
+        Number(
+          option.price
+        );
+
+      if (
+        !label
       ) {
         toast.error(
           "Shipping region name is required."
@@ -876,15 +867,27 @@ export default function AdminSettings() {
       }
 
       if (
-        option.enabled &&
-        !option.freeShipping &&
-        Number(
-          option.price
-        ) <=
+        !Number.isFinite(
+          price
+        ) ||
+        price <
           0
       ) {
         toast.error(
-          `Enter a shipping fee for ${option.label}, or enable Free Shipping.`
+          "Shipping fee cannot be negative."
+        );
+
+        return;
+      }
+
+      if (
+        option.enabled &&
+        !option.freeShipping &&
+        price <=
+          0
+      ) {
+        toast.error(
+          `Enter a shipping fee for ${label}, or enable Free Shipping.`
         );
 
         return;
@@ -910,13 +913,9 @@ export default function AdminSettings() {
 
               body:
                 JSON.stringify({
-                  label:
-                    option.label.trim(),
+                  label,
 
-                  price:
-                    Number(
-                      option.price
-                    ),
+                  price,
 
                   enabled:
                     option.enabled,
@@ -947,6 +946,35 @@ export default function AdminSettings() {
           );
         }
 
+        const savedOption:
+          ShippingOption = {
+          key:
+            data.key ??
+            option.key,
+
+          label:
+            data.label ??
+            label,
+
+          price:
+            Number(
+              data.price ??
+                price
+            ),
+
+          enabled:
+            data.enabled !==
+            false,
+
+          freeShipping:
+            data.freeShipping ===
+            true,
+
+          freeShippingNote:
+            data.freeShippingNote ??
+            "",
+        };
+
         setSettings(
           (
             previous
@@ -963,39 +991,23 @@ export default function AdminSettings() {
                   ) =>
                     current.key ===
                     option.key
-                      ? {
-                          key:
-                            data.key,
-
-                          label:
-                            data.label,
-
-                          price:
-                            Number(
-                              data.price ??
-                                0
-                            ),
-
-                          enabled:
-                            data.enabled !==
-                            false,
-
-                          freeShipping:
-                            data.freeShipping ===
-                            true,
-
-                          freeShippingNote:
-                            data.freeShippingNote ??
-                            "",
-                        }
+                      ? savedOption
                       : current
                 ),
             },
           })
         );
 
+        setEditingShippingKey(
+          null
+        );
+
+        setShippingDraft(
+          null
+        );
+
         toast.success(
-          `${data.label} updated.`
+          `${savedOption.label} updated.`
         );
       } catch (
         error
@@ -1091,6 +1103,19 @@ export default function AdminSettings() {
             },
           })
         );
+
+        if (
+          editingShippingKey ===
+          option.key
+        ) {
+          setEditingShippingKey(
+            null
+          );
+
+          setShippingDraft(
+            null
+          );
+        }
 
         toast.success(
           "Shipping region deleted."
@@ -2312,6 +2337,18 @@ export default function AdminSettings() {
                         shippingActionKey ===
                         option.key;
 
+                      const editing =
+                        editingShippingKey ===
+                          option.key &&
+                        shippingDraft?.key ===
+                          option.key;
+
+                      const displayOption =
+                        editing &&
+                        shippingDraft
+                          ? shippingDraft
+                          : option;
+
                       return (
                         <div
                           key={
@@ -2327,268 +2364,279 @@ export default function AdminSettings() {
                             sm:p-6
                           "
                         >
-                          {/* HEADER */}
-
-                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="w-full max-w-md">
-                              <FieldLabel>
-                                Region Name
-                              </FieldLabel>
-
-                              <input
-                                type="text"
-                                value={
-                                  option.label
-                                }
-                                disabled={
-                                  busy
-                                }
-                                maxLength={
-                                  150
-                                }
-                                onChange={(
-                                  event
-                                ) =>
-                                  updateShippingOption(
-                                    option.key,
-                                    "label",
-                                    event.target.value
-                                  )
-                                }
+                          {!editing ? (
+                            <>
+                              <div
                                 className="
-                                  h-11
-                                  w-full
-                                  rounded-xl
-                                  border
-                                  border-[#E75480]/15
-                                  bg-white
-                                  px-4
-                                  font-serif
-                                  text-lg
-                                  text-ink
-                                  outline-none
+                                  flex
+                                  flex-col
+                                  gap-4
 
-                                  focus:border-[#E75480]/50
-                                  disabled:opacity-60
-                                "
-                              />
-
-                              <p className="mt-2 text-[10px] text-muted">
-                                ID: {option.key}
-                              </p>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-3">
-                              <button
-                                type="button"
-                                disabled={
-                                  busy
-                                }
-                                onClick={() =>
-                                  deleteShippingOption(
-                                    option
-                                  )
-                                }
-                                className="
-                                  rounded-full
-                                  border
-                                  border-red-200
-                                  bg-white
-                                  px-4
-                                  py-2
-                                  text-[10px]
-                                  font-semibold
-                                  uppercase
-                                  tracking-[1px]
-                                  text-red-600
-                                  transition
-
-                                  hover:bg-red-50
-                                  disabled:opacity-50
+                                  sm:flex-row
+                                  sm:items-start
+                                  sm:justify-between
                                 "
                               >
-                                Delete
-                              </button>
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="font-serif text-xl text-ink">
+                                      {option.label}
+                                    </h3>
 
-                              <span className="text-[10px] font-semibold uppercase tracking-[1px] text-muted">
-                                {option.enabled
-                                  ? "Enabled"
-                                  : "Disabled"}
-                              </span>
+                                    <span
+                                      className={`
+                                        rounded-full
+                                        px-3
+                                        py-1
+                                        text-[9px]
+                                        font-semibold
+                                        uppercase
+                                        tracking-[1px]
 
-                              <Toggle
-                                checked={
-                                  option.enabled
-                                }
-                                onClick={() =>
-                                  toggleShippingEnabled(
-                                    option.key
-                                  )
-                                }
-                              />
-                            </div>
-                          </div>
+                                        ${
+                                          option.enabled
+                                            ? "bg-green-100 text-green-700"
+                                            : "bg-gray-100 text-gray-500"
+                                        }
+                                      `}
+                                    >
+                                      {option.enabled
+                                        ? "Enabled"
+                                        : "Disabled"}
+                                    </span>
 
-                          {/* CONTROLS */}
+                                    {option.enabled &&
+                                      option.freeShipping && (
+                                        <span className="rounded-full bg-green-100 px-3 py-1 text-[9px] font-semibold uppercase tracking-[1px] text-green-700">
+                                          Free Shipping
+                                        </span>
+                                      )}
+                                  </div>
 
-                          <div className="mt-5 grid gap-4 md:grid-cols-2">
-                            <div>
-                              <FieldLabel>
-                                Normal Shipping Fee
-                              </FieldLabel>
+                                  <p className="mt-2 text-[10px] text-muted">
+                                    ID: {option.key}
+                                  </p>
+                                </div>
 
-                              <div className="relative">
-                                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">
-                                  Rs.
-                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      busy ||
+                                      editingShippingKey !==
+                                        null
+                                    }
+                                    onClick={() =>
+                                      beginEditShipping(
+                                        option
+                                      )
+                                    }
+                                    className="
+                                      rounded-full
+                                      border
+                                      border-[#E75480]/25
+                                      bg-white
+                                      px-5
+                                      py-2.5
+                                      text-[10px]
+                                      font-semibold
+                                      uppercase
+                                      tracking-[1px]
+                                      text-[#E75480]
+                                      transition
 
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
+                                      hover:bg-[#FFF0F5]
+
+                                      disabled:cursor-not-allowed
+                                      disabled:opacity-50
+                                    "
+                                  >
+                                    Edit
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      busy ||
+                                      editingShippingKey !==
+                                        null
+                                    }
+                                    onClick={() =>
+                                      deleteShippingOption(
+                                        option
+                                      )
+                                    }
+                                    className="
+                                      rounded-full
+                                      border
+                                      border-red-200
+                                      bg-white
+                                      px-5
+                                      py-2.5
+                                      text-[10px]
+                                      font-semibold
+                                      uppercase
+                                      tracking-[1px]
+                                      text-red-600
+                                      transition
+
+                                      hover:bg-red-50
+
+                                      disabled:cursor-not-allowed
+                                      disabled:opacity-50
+                                    "
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                                <div className="rounded-2xl border border-[#E75480]/10 bg-white p-4">
+                                  <p className="text-[9px] font-semibold uppercase tracking-[2px] text-muted">
+                                    Normal Shipping Fee
+                                  </p>
+
+                                  <p className="mt-2 font-serif text-xl text-ink">
+                                    Rs.{" "}
+                                    {Number(
+                                      option.price
+                                    ).toLocaleString()}
+                                  </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-[#E75480]/10 bg-white p-4">
+                                  <p className="text-[9px] font-semibold uppercase tracking-[2px] text-muted">
+                                    Checkout Charge
+                                  </p>
+
+                                  <div className="mt-2">
+                                    {!option.enabled ? (
+                                      <p className="text-sm font-medium text-gray-500">
+                                        Not available at checkout
+                                      </p>
+                                    ) : option.freeShipping ? (
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        <span className="rounded-full bg-green-100 px-4 py-1.5 text-xs font-semibold text-green-700">
+                                          FREE
+                                        </span>
+
+                                        {option.price >
+                                          0 && (
+                                          <span className="text-xs text-muted line-through">
+                                            Rs.{" "}
+                                            {Number(
+                                              option.price
+                                            ).toLocaleString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="font-serif text-xl text-[#E75480]">
+                                        Rs.{" "}
+                                        {Number(
+                                          option.price
+                                        ).toLocaleString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {option.enabled &&
+                                option.freeShipping &&
+                                option.freeShippingNote && (
+                                  <div className="mt-4 rounded-2xl border border-green-100 bg-green-50 px-4 py-3">
+                                    <p className="text-[9px] font-semibold uppercase tracking-[1.5px] text-green-700">
+                                      Free Shipping Note
+                                    </p>
+
+                                    <p className="mt-1 text-xs leading-5 text-green-700/80">
+                                      {option.freeShippingNote}
+                                    </p>
+                                  </div>
+                                )}
+                            </>
+                          ) : (
+                            <>
+                              <div
+                                className="
+                                  flex
+                                  flex-col
+                                  gap-4
+
+                                  sm:flex-row
+                                  sm:items-start
+                                  sm:justify-between
+                                "
+                              >
+                                <div>
+                                  <p className="text-[10px] font-semibold uppercase tracking-[2px] text-[#E75480]">
+                                    Editing Region
+                                  </p>
+
+                                  <h3 className="mt-1 font-serif text-xl text-ink">
+                                    {displayOption.label ||
+                                      "Shipping Region"}
+                                  </h3>
+
+                                  <p className="mt-1 text-[10px] text-muted">
+                                    ID: {option.key}
+                                  </p>
+                                </div>
+
+                                <button
+                                  type="button"
                                   disabled={
-                                    !option.enabled ||
                                     busy
                                   }
-                                  value={
-                                    option.price
+                                  onClick={
+                                    cancelEditShipping
                                   }
-                                  onChange={(
-                                    event
-                                  ) => {
-                                    const raw =
-                                      event.target.value;
-
-                                    const parsed =
-                                      raw ===
-                                      ""
-                                        ? 0
-                                        : Number(
-                                            raw
-                                          );
-
-                                    updateShippingOption(
-                                      option.key,
-                                      "price",
-                                      Number.isFinite(
-                                        parsed
-                                      )
-                                        ? Math.max(
-                                            0,
-                                            parsed
-                                          )
-                                        : 0
-                                    );
-                                  }}
                                   className="
-                                    h-12
-                                    w-full
-                                    rounded-2xl
+                                    w-fit
+                                    rounded-full
                                     border
-                                    border-[#E75480]/15
+                                    border-[#E75480]/20
                                     bg-white
-                                    pl-12
-                                    pr-4
-                                    text-sm
-                                    text-ink
-                                    outline-none
+                                    px-5
+                                    py-2.5
+                                    text-[10px]
+                                    font-semibold
+                                    uppercase
+                                    tracking-[1px]
+                                    text-muted
 
-                                    focus:border-[#E75480]/50
-                                    disabled:cursor-not-allowed
+                                    hover:bg-[#FFF5F8]
+
                                     disabled:opacity-50
                                   "
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <FieldLabel>
-                                Free Shipping
-                              </FieldLabel>
-
-                              <button
-                                type="button"
-                                disabled={
-                                  !option.enabled ||
-                                  busy
-                                }
-                                onClick={() =>
-                                  toggleFreeShipping(
-                                    option.key
-                                  )
-                                }
-                                className={`
-                                  flex
-                                  h-12
-                                  w-full
-                                  items-center
-                                  justify-between
-                                  rounded-2xl
-                                  border
-                                  px-4
-                                  text-left
-
-                                  ${
-                                    option.freeShipping
-                                      ? "border-green-200 bg-green-50"
-                                      : "border-[#E75480]/15 bg-white"
-                                  }
-
-                                  disabled:cursor-not-allowed
-                                  disabled:opacity-50
-                                `}
-                              >
-                                <span
-                                  className={`
-                                    text-sm
-                                    font-medium
-
-                                    ${
-                                      option.freeShipping
-                                        ? "text-green-700"
-                                        : "text-ink"
-                                    }
-                                  `}
                                 >
-                                  {option.freeShipping
-                                    ? "Free shipping active"
-                                    : "Charge normal fee"}
-                                </span>
+                                  Cancel
+                                </button>
+                              </div>
 
-                                <ToggleVisual
-                                  checked={
-                                    option.freeShipping
-                                  }
-                                />
-                              </button>
-                            </div>
-                          </div>
-
-                          {option.enabled &&
-                            option.freeShipping && (
-                              <div className="mt-4">
+                              <div className="mt-5">
                                 <FieldLabel>
-                                  Free Shipping Note
+                                  Region Name
                                 </FieldLabel>
 
                                 <input
                                   type="text"
                                   value={
-                                    option.freeShippingNote
+                                    displayOption.label
                                   }
                                   disabled={
                                     busy
                                   }
                                   maxLength={
-                                    500
+                                    150
                                   }
-                                  placeholder="Example: Free shipping this week"
                                   onChange={(
                                     event
                                   ) =>
-                                    updateShippingOption(
-                                      option.key,
-                                      "freeShippingNote",
+                                    updateShippingDraft(
+                                      "label",
                                       event.target.value
                                     )
                                   }
@@ -2597,97 +2645,379 @@ export default function AdminSettings() {
                                     w-full
                                     rounded-2xl
                                     border
-                                    border-green-200
+                                    border-[#E75480]/15
                                     bg-white
                                     px-4
-                                    text-sm
+                                    font-serif
+                                    text-lg
                                     text-ink
                                     outline-none
 
-                                    focus:border-green-400
-                                    disabled:opacity-50
+                                    focus:border-[#E75480]/50
+
+                                    disabled:opacity-60
                                   "
                                 />
                               </div>
-                            )}
 
-                          {option.enabled && (
-                            <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-[#E75480]/10 bg-white p-4">
-                              <div>
-                                <p className="text-[10px] font-semibold uppercase tracking-[2px] text-muted">
-                                  Checkout Preview
-                                </p>
+                              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                <div>
+                                  <FieldLabel>
+                                    Normal Shipping Fee
+                                  </FieldLabel>
 
-                                <p className="mt-1 text-sm font-medium text-ink">
-                                  {option.label}
-                                </p>
+                                  <div className="relative">
+                                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">
+                                      Rs.
+                                    </span>
 
-                                {option.freeShipping &&
-                                  option.freeShippingNote && (
-                                    <p className="mt-1 text-xs text-green-600">
-                                      {option.freeShippingNote}
-                                    </p>
-                                  )}
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      disabled={
+                                        busy
+                                      }
+                                      value={
+                                        displayOption.price
+                                      }
+                                      onChange={(
+                                        event
+                                      ) => {
+                                        const raw =
+                                          event.target.value;
+
+                                        const parsed =
+                                          raw ===
+                                          ""
+                                            ? 0
+                                            : Number(
+                                                raw
+                                              );
+
+                                        updateShippingDraft(
+                                          "price",
+                                          Number.isFinite(
+                                            parsed
+                                          )
+                                            ? Math.max(
+                                                0,
+                                                parsed
+                                              )
+                                            : 0
+                                        );
+                                      }}
+                                      className="
+                                        h-12
+                                        w-full
+                                        rounded-2xl
+                                        border
+                                        border-[#E75480]/15
+                                        bg-white
+                                        pl-12
+                                        pr-4
+                                        text-sm
+                                        text-ink
+                                        outline-none
+
+                                        focus:border-[#E75480]/50
+
+                                        disabled:cursor-not-allowed
+                                        disabled:opacity-50
+                                      "
+                                    />
+                                  </div>
+
+                                  <p className="mt-2 text-[11px] leading-5 text-muted">
+                                    Keep the normal fee even when
+                                    free shipping is temporarily active.
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <FieldLabel>
+                                    Region Availability
+                                  </FieldLabel>
+
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      busy
+                                    }
+                                    onClick={() =>
+                                      updateShippingDraft(
+                                        "enabled",
+                                        !displayOption.enabled
+                                      )
+                                    }
+                                    className={`
+                                      flex
+                                      h-12
+                                      w-full
+                                      items-center
+                                      justify-between
+                                      rounded-2xl
+                                      border
+                                      px-4
+                                      text-left
+
+                                      ${
+                                        displayOption.enabled
+                                          ? "border-green-200 bg-green-50"
+                                          : "border-[#E75480]/15 bg-white"
+                                      }
+
+                                      disabled:opacity-50
+                                    `}
+                                  >
+                                    <span
+                                      className={`
+                                        text-sm
+                                        font-medium
+
+                                        ${
+                                          displayOption.enabled
+                                            ? "text-green-700"
+                                            : "text-ink"
+                                        }
+                                      `}
+                                    >
+                                      {displayOption.enabled
+                                        ? "Enabled"
+                                        : "Disabled"}
+                                    </span>
+
+                                    <ToggleVisual
+                                      checked={
+                                        displayOption.enabled
+                                      }
+                                    />
+                                  </button>
+                                </div>
                               </div>
 
-                              {option.freeShipping ? (
-                                <div className="text-right">
-                                  <span className="rounded-full bg-green-100 px-4 py-1.5 text-xs font-semibold text-green-700">
-                                    FREE
+                              <div className="mt-4">
+                                <FieldLabel>
+                                  Free Shipping
+                                </FieldLabel>
+
+                                <button
+                                  type="button"
+                                  disabled={
+                                    busy ||
+                                    !displayOption.enabled
+                                  }
+                                  onClick={() =>
+                                    updateShippingDraft(
+                                      "freeShipping",
+                                      !displayOption.freeShipping
+                                    )
+                                  }
+                                  className={`
+                                    flex
+                                    h-12
+                                    w-full
+                                    items-center
+                                    justify-between
+                                    rounded-2xl
+                                    border
+                                    px-4
+                                    text-left
+
+                                    ${
+                                      displayOption.freeShipping
+                                        ? "border-green-200 bg-green-50"
+                                        : "border-[#E75480]/15 bg-white"
+                                    }
+
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-50
+                                  `}
+                                >
+                                  <span
+                                    className={`
+                                      text-sm
+                                      font-medium
+
+                                      ${
+                                        displayOption.freeShipping
+                                          ? "text-green-700"
+                                          : "text-ink"
+                                      }
+                                    `}
+                                  >
+                                    {displayOption.freeShipping
+                                      ? "Free shipping active"
+                                      : "Charge normal fee"}
                                   </span>
 
-                                  {option.price >
-                                    0 && (
-                                    <p className="mt-1 text-xs text-muted line-through">
-                                      Rs. {Number(
-                                        option.price
+                                  <ToggleVisual
+                                    checked={
+                                      displayOption.freeShipping
+                                    }
+                                  />
+                                </button>
+                              </div>
+
+                              {displayOption.enabled &&
+                                displayOption.freeShipping && (
+                                  <div className="mt-4">
+                                    <FieldLabel>
+                                      Free Shipping Note
+                                    </FieldLabel>
+
+                                    <input
+                                      type="text"
+                                      value={
+                                        displayOption.freeShippingNote
+                                      }
+                                      disabled={
+                                        busy
+                                      }
+                                      maxLength={
+                                        500
+                                      }
+                                      placeholder="Example: Free shipping this week"
+                                      onChange={(
+                                        event
+                                      ) =>
+                                        updateShippingDraft(
+                                          "freeShippingNote",
+                                          event.target.value
+                                        )
+                                      }
+                                      className="
+                                        h-12
+                                        w-full
+                                        rounded-2xl
+                                        border
+                                        border-green-200
+                                        bg-white
+                                        px-4
+                                        text-sm
+                                        text-ink
+                                        outline-none
+
+                                        focus:border-green-400
+
+                                        disabled:opacity-50
+                                      "
+                                    />
+                                  </div>
+                                )}
+
+                              {displayOption.enabled && (
+                                <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-[#E75480]/10 bg-white p-4">
+                                  <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[2px] text-muted">
+                                      Checkout Preview
+                                    </p>
+
+                                    <p className="mt-1 text-sm font-medium text-ink">
+                                      {displayOption.label ||
+                                        "Shipping Region"}
+                                    </p>
+
+                                    {displayOption.freeShipping &&
+                                      displayOption.freeShippingNote && (
+                                        <p className="mt-1 text-xs text-green-600">
+                                          {
+                                            displayOption.freeShippingNote
+                                          }
+                                        </p>
+                                      )}
+                                  </div>
+
+                                  {displayOption.freeShipping ? (
+                                    <div className="text-right">
+                                      <span className="rounded-full bg-green-100 px-4 py-1.5 text-xs font-semibold text-green-700">
+                                        FREE
+                                      </span>
+
+                                      {displayOption.price >
+                                        0 && (
+                                        <p className="mt-1 text-xs text-muted line-through">
+                                          Rs.{" "}
+                                          {Number(
+                                            displayOption.price
+                                          ).toLocaleString()}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="font-semibold text-[#E75480]">
+                                      Rs.{" "}
+                                      {Number(
+                                        displayOption.price
                                       ).toLocaleString()}
                                     </p>
                                   )}
                                 </div>
-                              ) : (
-                                <p className="font-semibold text-[#E75480]">
-                                  Rs. {Number(
-                                    option.price
-                                  ).toLocaleString()}
-                                </p>
                               )}
-                            </div>
+
+                              <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                <button
+                                  type="button"
+                                  disabled={
+                                    busy
+                                  }
+                                  onClick={
+                                    cancelEditShipping
+                                  }
+                                  className="
+                                    rounded-full
+                                    border
+                                    border-[#E75480]/20
+                                    bg-white
+                                    px-6
+                                    py-3
+                                    text-[10px]
+                                    font-semibold
+                                    uppercase
+                                    tracking-[1.5px]
+                                    text-muted
+
+                                    hover:bg-[#FFF5F8]
+
+                                    disabled:opacity-50
+                                  "
+                                >
+                                  Cancel
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={
+                                    busy
+                                  }
+                                  onClick={
+                                    saveShippingOption
+                                  }
+                                  className="
+                                    rounded-full
+                                    bg-[#E75480]
+                                    px-6
+                                    py-3
+                                    text-[10px]
+                                    font-semibold
+                                    uppercase
+                                    tracking-[1.5px]
+                                    text-white
+                                    transition
+
+                                    hover:bg-[#D94873]
+
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-50
+                                  "
+                                >
+                                  {busy
+                                    ? "Saving..."
+                                    : "Save Changes"}
+                                </button>
+                              </div>
+                            </>
                           )}
-
-                          <div className="mt-5 flex justify-end">
-                            <button
-                              type="button"
-                              disabled={
-                                busy
-                              }
-                              onClick={() =>
-                                saveShippingOption(
-                                  option
-                                )
-                              }
-                              className="
-                                rounded-full
-                                bg-[#E75480]
-                                px-6
-                                py-3
-                                text-[10px]
-                                font-semibold
-                                uppercase
-                                tracking-[1.5px]
-                                text-white
-                                transition
-
-                                hover:bg-[#D94873]
-                                disabled:cursor-not-allowed
-                                disabled:opacity-50
-                              "
-                            >
-                              {busy
-                                ? "Saving..."
-                                : "Save Region"}
-                            </button>
-                          </div>
                         </div>
                       );
                     }
@@ -3224,35 +3554,6 @@ function ToggleVisual({
         `}
       />
     </div>
-  );
-}
-
-/* ============================================================
-   TOGGLE BUTTON
-============================================================ */
-
-function Toggle({
-  checked,
-  onClick,
-}: {
-  checked: boolean;
-  onClick:
-    () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={
-        onClick
-      }
-      className="shrink-0"
-    >
-      <ToggleVisual
-        checked={
-          checked
-        }
-      />
-    </button>
   );
 }
 
