@@ -37,6 +37,7 @@ import UsersAdmin from "./pages/users/UsersAdmin";
 import RolesAdmin from "./pages/roles/RolesAdmin";
 import ActivityLogsAdmin from "./pages/activityLogs/ActivityLogsAdmin";
 import LegalPagesAdmin from "./pages/legalPages/LegalPagesAdmin";
+import AdminSales from "./pages/sales/AdminSales";
 // A page inside the admin layout. With
 // `permission`, accounts whose role lacks
 // it see a "no access" note instead.
@@ -311,6 +312,15 @@ export default function App() {
           path="*"
           element={<HomeRedirect />}
         />
+<Route
+  path="/sales"
+  element={
+    <ProtectedPage permission="sales.view">
+      <AdminSales />
+    </ProtectedPage>
+  }
+/>
+
       </Routes>
     </BrowserRouter>
   );

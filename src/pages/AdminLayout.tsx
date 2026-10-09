@@ -13,6 +13,7 @@ const adminLinks = [
   { label: "Messages", path: "/admin/messages" },
   { label: "Blogs", path: "/admin/blogs" },
   { label: "Orders", path: "/admin/orders" },
+  { label: "Sales", path: "/admin/sales" },
   { label: "Products", path: "/admin/products" },
   { label: "Popups", path: "/admin/popup" },
   { label: "Events", path: "/admin/events" },

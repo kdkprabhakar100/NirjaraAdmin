@@ -109,6 +109,11 @@ export const navigation: NavItem[] = [
     permission: "orders.view",
   },
   {
+    label: "Sales",
+    path: "/sales",
+    permission: "sales.view",
+  },
+  {
     label: "Products",
     path: "/products",
     activeFor: ["/product-categories"],
