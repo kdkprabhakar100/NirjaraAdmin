@@ -19,7 +19,15 @@ import {
   refreshAdminSession,
 } from "../services/auth/authService";
 import { useAdminSession } from "../hooks/useAuth";
-import { usePendingBookingCount } from "../hooks/usePendingBookingCount";
+import { usePendingCount } from "../hooks/usePendingCount";
+import {
+  BOOKINGS_CHANGED_EVENT,
+  getPendingBookingCount,
+} from "../services/booking/bookingService";
+import {
+  ORDERS_CHANGED_EVENT,
+  getPendingOrderCount,
+} from "../services/order/orderService";
 import axios from "axios";
 import Topbar from "../components/Topbar";
 
@@ -211,15 +219,25 @@ export default function AdminLayout({
     session?.permissions ?? []
   );
 
-  const pendingBookings =
-    usePendingBookingCount(
-      session?.permissions.includes(
-        "bookings.view"
-      ) ?? false
-    );
+  const pendingBookings = usePendingCount(
+    getPendingBookingCount,
+    BOOKINGS_CHANGED_EVENT,
+    session?.permissions.includes(
+      "bookings.view"
+    ) ?? false
+  );
+
+  const pendingOrders = usePendingCount(
+    getPendingOrderCount,
+    ORDERS_CHANGED_EVENT,
+    session?.permissions.includes(
+      "orders.view"
+    ) ?? false
+  );
 
   const badges: Badges = {
     "/bookings": pendingBookings,
+    "/orders": pendingOrders,
   };
 
   // "Bookings (3)" in the mobile picker.

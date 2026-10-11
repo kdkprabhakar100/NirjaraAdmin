@@ -1,26 +1,30 @@
 import { useEffect, useState } from "react";
 
-import {
-  BOOKINGS_CHANGED_EVENT,
-  getPendingBookingCount,
-} from "../services/booking/bookingService";
-
-// New bookings come from the website, so
-// the panel cannot be told about them; it
-// asks again on this interval.
+// New bookings and orders come from the
+// website, so the panel cannot be told
+// about them; it asks again on this
+// interval.
 const POLL_MS = 60_000;
 
 // ========================================
-// PENDING BOOKING COUNT
+// PENDING COUNT
 //
-// For the sidebar badge. Refreshes on an
+// For a sidebar badge, e.g. pending
+// bookings or orders. Refreshes on an
 // interval, when the tab regains focus,
-// and right after the panel changes a
-// booking. `enabled` is false for accounts
-// without bookings.view, which never ask.
+// and when `changedEvent` fires (right
+// after the panel changes a record).
+// `enabled` is false for accounts without
+// the view permission, which never ask.
+//
+// `fetchCount` must be stable (a module
+// level function), or the effect reruns
+// on every render.
 // ========================================
 
-export function usePendingBookingCount(
+export function usePendingCount(
+  fetchCount: () => Promise<number>,
+  changedEvent: string,
   enabled: boolean
 ): number {
   const [count, setCount] = useState(0);
@@ -35,7 +39,7 @@ export function usePendingBookingCount(
     let cancelled = false;
 
     const refresh = () => {
-      getPendingBookingCount()
+      fetchCount()
         .then((pending) => {
           if (!cancelled) {
             setCount(pending);
@@ -54,7 +58,7 @@ export function usePendingBookingCount(
     );
 
     window.addEventListener(
-      BOOKINGS_CHANGED_EVENT,
+      changedEvent,
       refresh
     );
 
@@ -69,7 +73,7 @@ export function usePendingBookingCount(
       clearInterval(timer);
 
       window.removeEventListener(
-        BOOKINGS_CHANGED_EVENT,
+        changedEvent,
         refresh
       );
 
@@ -78,7 +82,7 @@ export function usePendingBookingCount(
         refresh
       );
     };
-  }, [enabled]);
+  }, [fetchCount, changedEvent, enabled]);
 
   return count;
 }

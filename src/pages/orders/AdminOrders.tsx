@@ -15,6 +15,14 @@ import DialogBox from "../../components/DialogBox";
 
 import RowActionsMenu from "../../components/RowActionsMenu";
 
+import { getApiErrorMessage } from "../../services/base/api";
+
+import {
+  announceOrdersChanged,
+  getOrdersPage,
+  type OrderQuery,
+} from "../../services/order/orderService";
+
 /* ========================================
    TYPES
 ======================================== */
@@ -67,6 +75,61 @@ type Order = {
 
   createdAt: string;
 };
+
+/* ========================================
+   FILTERS
+======================================== */
+
+const PAGE_SIZE = 20;
+
+const EMPTY_QUERY: OrderQuery = {
+  page: 1,
+  limit: PAGE_SIZE,
+  search: "",
+  customer: "",
+  phone: "",
+  status: "",
+  paymentStatus: "",
+  dateFrom: "",
+  dateTo: "",
+};
+
+// How long typing in a text filter waits
+// before asking the API.
+const SEARCH_DELAY_MS = 300;
+
+const ORDER_STATUSES = [
+  "Pending",
+  "Processing",
+  "Shipped",
+  "Delivered",
+  "Cancelled",
+];
+
+const PAYMENT_STATUSES: PaymentStatus[] = [
+  "Pending Verification",
+  "Verified",
+  "Rejected",
+];
+
+// The text filters, typed into at once and
+// copied into the query after a pause.
+type TextFilters = Pick<
+  OrderQuery,
+  "search" | "customer" | "phone"
+>;
+
+const EMPTY_TEXT: TextFilters = {
+  search: "",
+  customer: "",
+  phone: "",
+};
+
+const fieldClass =
+  "w-full rounded-xl border border-[#E75480]/20 bg-soft px-4 py-3 text-sm text-ink outline-none focus:border-[#E75480]";
+
+const pagerButton =
+  "rounded-full border border-[#E75480] px-5 py-2 text-xs uppercase tracking-[2px] text-[#E75480] transition hover:bg-soft disabled:cursor-not-allowed disabled:opacity-40";
 
 /* ========================================
    AUTH
@@ -209,74 +272,169 @@ export default function AdminOrders() {
   ] =
     useState(false);
 
+  /* ----------------------------------------
+     FILTERS & PAGINATION
+  ---------------------------------------- */
+
+  const [
+    query,
+    setQuery,
+  ] =
+    useState<OrderQuery>(
+      EMPTY_QUERY
+    );
+
+  const [
+    textInput,
+    setTextInput,
+  ] =
+    useState<TextFilters>(
+      EMPTY_TEXT
+    );
+
+  const [
+    pageInfo,
+    setPageInfo,
+  ] = useState({
+    total: 0,
+    page: 1,
+    pages: 1,
+  });
+
+  // Bumped to fetch the same page again,
+  // e.g. after a delete.
+  const [
+    reloadKey,
+    setReloadKey,
+  ] =
+    useState(0);
+
   /* ========================================
      FETCH ORDERS
   ========================================= */
 
-  const fetchOrders =
-    async () => {
-      try {
-        setLoading(
-          true
-        );
+  useEffect(() => {
+    let cancelled = false;
 
-        const res =
-          await fetch(
-            `${
-              import.meta.env
-                .VITE_API_URL
-            }/api/orders`,
-            {
-              headers:
-                getAuthHeaders(),
-            }
-          );
+    setLoading(true);
 
-        if (
-          !res.ok
-        ) {
-          throw new Error(
-            "Failed to fetch orders"
-          );
+    getOrdersPage<Order>(query)
+      .then((result) => {
+        if (cancelled) {
+          return;
         }
 
-        const data =
-          await res.json();
+        setOrders(result.items);
 
-        setOrders(
-          Array.isArray(
-            data
-          )
-            ? data
-            : []
-        );
-      } catch (
-        error
-      ) {
-        console.log(
-          error
-        );
+        setPageInfo({
+          total: result.total,
+          page: result.page,
+          pages: result.pages,
+        });
+      })
+      .catch((error: unknown) => {
+        console.log(error);
 
-        toast.error(
-          "Failed to fetch orders"
-        );
+        if (!cancelled) {
+          toast.error(
+            getApiErrorMessage(
+              error,
+              "Failed to fetch orders"
+            )
+          );
 
-        setOrders(
-          []
-        );
-      } finally {
-        setLoading(
-          false
-        );
-      }
+          setOrders([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    // A slow older request must not
+    // overwrite a newer one.
+    return () => {
+      cancelled = true;
     };
+  }, [query, reloadKey]);
 
-  useEffect(
-    () => {
-      fetchOrders();
-    },
-    []
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQuery((previous) => {
+        const next = {
+          search:
+            textInput.search.trim(),
+          customer:
+            textInput.customer.trim(),
+          phone:
+            textInput.phone.trim(),
+        };
+
+        return next.search ===
+          previous.search &&
+          next.customer ===
+            previous.customer &&
+          next.phone ===
+            previous.phone
+          ? previous
+          : {
+              ...previous,
+              ...next,
+              page: 1,
+            };
+      });
+    }, SEARCH_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [textInput]);
+
+  // Any filter change starts again from
+  // the first page.
+  const setFilter = (
+    field:
+      | "status"
+      | "paymentStatus"
+      | "dateFrom"
+      | "dateTo",
+    value: string
+  ) => {
+    setQuery((previous) => ({
+      ...previous,
+      [field]: value,
+      page: 1,
+    }));
+  };
+
+  const setText = (
+    field: keyof TextFilters,
+    value: string
+  ) => {
+    setTextInput((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+  };
+
+  const resetFilters = () => {
+    setTextInput(EMPTY_TEXT);
+    setQuery(EMPTY_QUERY);
+  };
+
+  const hasFilters =
+    Object.values(textInput).some(
+      Boolean
+    ) ||
+    query.status !== "" ||
+    query.paymentStatus !== "" ||
+    query.dateFrom !== "" ||
+    query.dateTo !== "";
+
+  const goToPage = (page: number) =>
+    setQuery((previous) => ({
+      ...previous,
+      page,
+    }));
 
   /* ========================================
      UPDATE ORDER STATUS
@@ -372,6 +530,8 @@ export default function AdminOrders() {
               : previous
         );
 
+        announceOrdersChanged();
+
         toast.success(
           `Order marked as ${status}`
         );
@@ -452,7 +612,14 @@ export default function AdminOrders() {
 
         /* ----------------------------------
            UPDATE TABLE
+
+           Verifying a Pending order also
+           moves it to Processing on the
+           server, so take its status too.
         ---------------------------------- */
+
+        const status: string =
+          data?.status;
 
         setOrders(
           (
@@ -468,6 +635,10 @@ export default function AdminOrders() {
                       ...order,
 
                       paymentStatus,
+
+                      status:
+                        status ||
+                        order.status,
                     }
                   : order
             )
@@ -487,9 +658,15 @@ export default function AdminOrders() {
                   ...previous,
 
                   paymentStatus,
+
+                  status:
+                    status ||
+                    previous.status,
                 }
               : previous
         );
+
+        announceOrdersChanged();
 
         if (
           paymentStatus ===
@@ -573,18 +750,22 @@ export default function AdminOrders() {
           );
         }
 
-        setOrders(
-          (
-            previous
-          ) =>
-            previous.filter(
-              (
-                order
-              ) =>
-                order._id !==
-                id
-            )
-        );
+        // Fetch again so the page refills
+        // and the totals stay right. The
+        // last row of a later page steps
+        // back one page instead.
+        if (
+          orders.length === 1 &&
+          query.page > 1
+        ) {
+          goToPage(query.page - 1);
+        } else {
+          setReloadKey(
+            (key) => key + 1
+          );
+        }
+
+        announceOrdersChanged();
 
         toast.success(
           "Order deleted successfully"
@@ -1143,11 +1324,183 @@ export default function AdminOrders() {
       </div>
 
       {/* ====================================
+          FILTERS
+      ==================================== */}
+
+      <div className="mt-10 rounded-3xl bg-surface p-5 shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <input
+            type="search"
+            value={textInput.search}
+            onChange={(event) =>
+              setText(
+                "search",
+                event.target.value
+              )
+            }
+            placeholder="Search order no., name, email, phone..."
+            aria-label="Search"
+            className={`${fieldClass} xl:col-span-2`}
+          />
+
+          <input
+            type="search"
+            value={textInput.customer}
+            onChange={(event) =>
+              setText(
+                "customer",
+                event.target.value
+              )
+            }
+            placeholder="Customer name"
+            aria-label="Customer name"
+            className={fieldClass}
+          />
+
+          <input
+            type="search"
+            inputMode="tel"
+            value={textInput.phone}
+            onChange={(event) =>
+              setText(
+                "phone",
+                event.target.value
+              )
+            }
+            placeholder="Phone"
+            aria-label="Phone"
+            className={fieldClass}
+          />
+
+          <select
+            value={query.status}
+            onChange={(event) =>
+              setFilter(
+                "status",
+                event.target.value
+              )
+            }
+            aria-label="Order status"
+            className={fieldClass}
+          >
+            <option value="">
+              All statuses
+            </option>
+
+            {ORDER_STATUSES.map(
+              (status) => (
+                <option
+                  key={status}
+                  value={status}
+                >
+                  {status}
+                </option>
+              )
+            )}
+          </select>
+
+          <select
+            value={query.paymentStatus}
+            onChange={(event) =>
+              setFilter(
+                "paymentStatus",
+                event.target.value
+              )
+            }
+            aria-label="Payment status"
+            className={fieldClass}
+          >
+            <option value="">
+              All payments
+            </option>
+
+            {PAYMENT_STATUSES.map(
+              (status) => (
+                <option
+                  key={status}
+                  value={status}
+                >
+                  {status}
+                </option>
+              )
+            )}
+          </select>
+
+          <div className="flex gap-2 xl:col-span-2">
+            <input
+              type="date"
+              value={query.dateFrom}
+              max={
+                query.dateTo || undefined
+              }
+              onChange={(event) =>
+                setFilter(
+                  "dateFrom",
+                  event.target.value
+                )
+              }
+              aria-label="Placed from"
+              title="Placed from"
+              className={`${fieldClass} px-3`}
+            />
+
+            <input
+              type="date"
+              value={query.dateTo}
+              min={
+                query.dateFrom ||
+                undefined
+              }
+              onChange={(event) =>
+                setFilter(
+                  "dateTo",
+                  event.target.value
+                )
+              }
+              aria-label="Placed to"
+              title="Placed to"
+              className={`${fieldClass} px-3`}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+          <p>
+            {pageInfo.total > 0
+              ? `Showing ${
+                  (pageInfo.page - 1) *
+                    PAGE_SIZE +
+                  1
+                }–${
+                  (pageInfo.page - 1) *
+                    PAGE_SIZE +
+                  orders.length
+                } of ${pageInfo.total} order${
+                  pageInfo.total === 1
+                    ? ""
+                    : "s"
+                }`
+              : "No orders"}
+          </p>
+
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-xs uppercase tracking-[1px] text-[#E75480] hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ====================================
           TABLE
       ==================================== */}
 
       <CustomTable
-        className="mt-10"
+        className="mt-6"
         columns={
           columns
         }
@@ -1164,8 +1517,16 @@ export default function AdminOrders() {
         }
         loadingMessage="Loading orders..."
         emptyIcon="🛍"
-        emptyTitle="No orders yet"
-        emptyMessage="Orders placed on the website will show up here."
+        emptyTitle={
+          hasFilters
+            ? "Nothing matches these filters"
+            : "No orders yet"
+        }
+        emptyMessage={
+          hasFilters
+            ? "Try a wider date range or clear the filters."
+            : "Orders placed on the website will show up here."
+        }
         minWidth="1380px"
         mobileTitle={(
           order
@@ -1197,6 +1558,52 @@ export default function AdminOrders() {
           renderActions
         }
       />
+
+      {/* ====================================
+          PAGINATION
+      ==================================== */}
+
+      {pageInfo.pages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-4">
+          <button
+            type="button"
+            disabled={
+              loading ||
+              pageInfo.page <= 1
+            }
+            onClick={() =>
+              goToPage(
+                pageInfo.page - 1
+              )
+            }
+            className={pagerButton}
+          >
+            Previous
+          </button>
+
+          <span className="text-sm text-muted">
+            Page {pageInfo.page} of{" "}
+            {pageInfo.pages}
+          </span>
+
+          <button
+            type="button"
+            disabled={
+              loading ||
+              pageInfo.page >=
+                pageInfo.pages
+            }
+            onClick={() =>
+              goToPage(
+                pageInfo.page + 1
+              )
+            }
+            className={pagerButton}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* ====================================
           ORDER DETAILS

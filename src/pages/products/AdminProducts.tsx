@@ -13,7 +13,6 @@ import RowActionsMenu from "../../components/RowActionsMenu";
 import {
   number,
   required,
-  url,
   validate,
 } from "../../utils/validation";
 
@@ -22,6 +21,8 @@ import api, {
 } from "../../services/base/api";
 
 import FormField from "../../components/FormField";
+
+import { uploadImage as uploadImageToServer } from "../../services/upload/uploadService";
 
 import { getProductCategories } from "../../services/productCategory/productCategoryService";
 
@@ -91,6 +92,9 @@ export default function AdminProducts() {
   ] = useState<Product | null>(null);
 
   const [saving, setSaving] =
+    useState(false);
+
+  const [uploading, setUploading] =
     useState(false);
 
   // The product awaiting delete
@@ -198,6 +202,40 @@ export default function AdminProducts() {
     setEditingProduct(null);
   };
 
+  const uploadImage = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      const imageUrl =
+        await uploadImageToServer(file);
+
+      setForm((previous) => ({
+        ...previous,
+        image: imageUrl,
+      }));
+
+      toast.success("Image uploaded");
+    } catch (error) {
+      console.log(error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Upload failed"
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     const error = validate(form, {
       name: ["Product name", [required()]],
@@ -210,7 +248,7 @@ export default function AdminProducts() {
         "Stock",
         [required(), number({ min: 0, integer: true })],
       ],
-      image: ["Image URL", [required(), url()]],
+      image: ["Image", [required()]],
       description: ["Description", [required()]],
     });
 
@@ -558,6 +596,7 @@ export default function AdminProducts() {
             ? "Update Product"
             : "Add Product"
         }
+        confirmDisabled={uploading}
         // A half filled form should not
         // vanish on a stray click.
         closeOnBackdrop={false}
@@ -673,20 +712,13 @@ export default function AdminProducts() {
           </FormField>
 
           <FormField
-            label="Image URL"
+            label="Product Image"
             required
           >
             <input
-              type="text"
-              required
-              value={form.image}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  image:
-                    event.target.value,
-                })
-              }
+              type="file"
+              accept="image/*"
+              onChange={uploadImage}
               className={inputClass}
             />
           </FormField>
@@ -711,6 +743,12 @@ export default function AdminProducts() {
             />
           </FormField>
         </div>
+
+        {uploading && (
+          <p className="mt-4 text-sm text-muted">
+            Uploading image...
+          </p>
+        )}
 
         {form.image && (
           <div className="mt-5">
