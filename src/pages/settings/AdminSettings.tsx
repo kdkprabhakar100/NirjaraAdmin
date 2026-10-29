@@ -23,6 +23,12 @@ type SocialLinks = {
   youtube: string;
 };
 
+type HomepageStats = {
+  establishedYear: number;
+  happyClients: number;
+  certifiedGraduates: number;
+};
+
 type PaymentSettings = {
   qrImage: string;
   accountName: string;
@@ -65,6 +71,8 @@ type SiteSettings = {
 
   socialLinks: SocialLinks;
 
+  homepageStats: HomepageStats;
+
   payment: PaymentSettings;
 
   shipping: ShippingSettings;
@@ -74,6 +82,7 @@ type SiteSettings = {
 
 type TabId =
   | "business"
+  | "homepage"
   | "social"
   | "payment"
   | "footer"
@@ -90,6 +99,10 @@ const TABS: {
   {
     id: "business",
     label: "Business",
+  },
+  {
+    id: "homepage",
+    label: "Homepage Stats",
   },
   {
     id: "social",
@@ -130,6 +143,12 @@ const initialSettings: SiteSettings = {
     instagram: "",
     tiktok: "",
     youtube: "",
+  },
+
+  homepageStats: {
+    establishedYear: 2014,
+    happyClients: 5000,
+    certifiedGraduates: 200,
   },
 
   payment: {
@@ -398,6 +417,35 @@ export default function AdminSettings() {
                   "",
               },
 
+              homepageStats: {
+                establishedYear:
+                  Number(
+                    data.homepageStats
+                      ?.establishedYear ??
+                      initialSettings
+                        .homepageStats
+                        .establishedYear
+                  ),
+
+                happyClients:
+                  Number(
+                    data.homepageStats
+                      ?.happyClients ??
+                      initialSettings
+                        .homepageStats
+                        .happyClients
+                  ),
+
+                certifiedGraduates:
+                  Number(
+                    data.homepageStats
+                      ?.certifiedGraduates ??
+                      initialSettings
+                        .homepageStats
+                        .certifiedGraduates
+                  ),
+              },
+
               payment: {
                 qrImage:
                   data.payment
@@ -548,6 +596,36 @@ export default function AdminSettings() {
           ...previous.socialLinks,
 
           [network]:
+            value,
+        },
+      })
+    );
+
+    setMessage(
+      ""
+    );
+  };
+
+  /* ============================================================
+     HOMEPAGE STATS
+  ============================================================ */
+
+  const updateHomepageStat = (
+    field:
+      keyof HomepageStats,
+
+    value: number
+  ) => {
+    setSettings(
+      (
+        previous
+      ) => ({
+        ...previous,
+
+        homepageStats: {
+          ...previous.homepageStats,
+
+          [field]:
             value,
         },
       })
@@ -1345,6 +1423,9 @@ export default function AdminSettings() {
           socialLinks:
             settings.socialLinks,
 
+          homepageStats:
+            settings.homepageStats,
+
           payment:
             settings.payment,
 
@@ -1425,6 +1506,12 @@ export default function AdminSettings() {
             socialLinks: {
               ...previous.socialLinks,
               ...(data.socialLinks ??
+                {}),
+            },
+
+            homepageStats: {
+              ...previous.homepageStats,
+              ...(data.homepageStats ??
                 {}),
             },
 
@@ -1845,6 +1932,337 @@ export default function AdminSettings() {
                     focus:bg-white
                   "
                 />
+              </div>
+            </SettingsCard>
+          )}
+
+          {/* ==================================================
+              HOMEPAGE STATS
+          ================================================== */}
+
+          {activeTab ===
+            "homepage" && (
+            <SettingsCard
+              title="Homepage Statistics"
+              description="Manage the counters displayed on the homepage. Branch count is calculated automatically from your Branches module."
+            >
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <FieldLabel>
+                    Established Year
+                  </FieldLabel>
+
+                  <input
+                    type="number"
+                    min="1900"
+                    max={
+                      new Date().getFullYear()
+                    }
+                    step="1"
+                    value={
+                      settings
+                        .homepageStats
+                        .establishedYear
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      const value =
+                        Number(
+                          event.target.value
+                        );
+
+                      updateHomepageStat(
+                        "establishedYear",
+
+                        Number.isFinite(
+                          value
+                        )
+                          ? Math.min(
+                              new Date().getFullYear(),
+                              Math.max(
+                                1900,
+                                Math.trunc(
+                                  value
+                                )
+                              )
+                            )
+                          : 2014
+                      );
+                    }}
+                    className="
+                      h-12
+                      w-full
+                      rounded-2xl
+                      border
+                      border-[#E75480]/15
+                      bg-softer
+                      px-5
+                      text-sm
+                      text-ink
+                      outline-none
+
+                      focus:border-[#E75480]/50
+                      focus:bg-white
+                    "
+                  />
+
+                  <p className="mt-2 text-[11px] leading-5 text-muted">
+                    Years of Excellence is calculated
+                    automatically from this year.
+                  </p>
+                </div>
+
+                <div>
+                  <FieldLabel>
+                    Happy Clients
+                  </FieldLabel>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={
+                      settings
+                        .homepageStats
+                        .happyClients
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      const value =
+                        Number(
+                          event.target.value
+                        );
+
+                      updateHomepageStat(
+                        "happyClients",
+
+                        Number.isFinite(
+                          value
+                        )
+                          ? Math.max(
+                              0,
+                              Math.trunc(
+                                value
+                              )
+                            )
+                          : 0
+                      );
+                    }}
+                    className="
+                      h-12
+                      w-full
+                      rounded-2xl
+                      border
+                      border-[#E75480]/15
+                      bg-softer
+                      px-5
+                      text-sm
+                      text-ink
+                      outline-none
+
+                      focus:border-[#E75480]/50
+                      focus:bg-white
+                    "
+                  />
+
+                  <p className="mt-2 text-[11px] leading-5 text-muted">
+                    Example: 5000 displays as 5K+.
+                  </p>
+                </div>
+
+                <div>
+                  <FieldLabel>
+                    Certified Graduates
+                  </FieldLabel>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={
+                      settings
+                        .homepageStats
+                        .certifiedGraduates
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      const value =
+                        Number(
+                          event.target.value
+                        );
+
+                      updateHomepageStat(
+                        "certifiedGraduates",
+
+                        Number.isFinite(
+                          value
+                        )
+                          ? Math.max(
+                              0,
+                              Math.trunc(
+                                value
+                              )
+                            )
+                          : 0
+                      );
+                    }}
+                    className="
+                      h-12
+                      w-full
+                      rounded-2xl
+                      border
+                      border-[#E75480]/15
+                      bg-softer
+                      px-5
+                      text-sm
+                      text-ink
+                      outline-none
+
+                      focus:border-[#E75480]/50
+                      focus:bg-white
+                    "
+                  />
+
+                  <p className="mt-2 text-[11px] leading-5 text-muted">
+                    Update this when your certified
+                    graduate count increases.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="
+                  mt-6
+                  rounded-[22px]
+                  border
+                  border-[#E75480]/10
+                  bg-[#FFF8FA]
+                  p-5
+                "
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[2px] text-[#E75480]">
+                  Homepage Preview
+                </p>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl bg-white p-4 text-center">
+                    <p className="font-serif text-2xl text-[#E75480]">
+                      {Math.max(
+                        0,
+
+                        new Date().getFullYear() -
+                          settings
+                            .homepageStats
+                            .establishedYear
+                      )}
+                      +
+                    </p>
+
+                    <p className="mt-1 text-[10px] uppercase tracking-[1.5px] text-muted">
+                      Years of Excellence
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white p-4 text-center">
+                    <p className="font-serif text-2xl text-[#E75480]">
+                      {settings
+                        .homepageStats
+                        .happyClients >=
+                      1000
+                        ? `${
+                            Number.isInteger(
+                              settings
+                                .homepageStats
+                                .happyClients /
+                                1000
+                            )
+                              ? settings
+                                  .homepageStats
+                                  .happyClients /
+                                1000
+                              : (
+                                  settings
+                                    .homepageStats
+                                    .happyClients /
+                                  1000
+                                ).toFixed(
+                                  1
+                                )
+                          }K+`
+                        : `${
+                            settings
+                              .homepageStats
+                              .happyClients
+                          }+`}
+                    </p>
+
+                    <p className="mt-1 text-[10px] uppercase tracking-[1.5px] text-muted">
+                      Happy Clients
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white p-4 text-center">
+                    <p className="font-serif text-2xl text-[#E75480]">
+                      {settings
+                        .homepageStats
+                        .certifiedGraduates >=
+                      1000
+                        ? `${
+                            Number.isInteger(
+                              settings
+                                .homepageStats
+                                .certifiedGraduates /
+                                1000
+                            )
+                              ? settings
+                                  .homepageStats
+                                  .certifiedGraduates /
+                                1000
+                              : (
+                                  settings
+                                    .homepageStats
+                                    .certifiedGraduates /
+                                  1000
+                                ).toFixed(
+                                  1
+                                )
+                          }K+`
+                        : `${
+                            settings
+                              .homepageStats
+                              .certifiedGraduates
+                          }+`}
+                    </p>
+
+                    <p className="mt-1 text-[10px] uppercase tracking-[1.5px] text-muted">
+                      Certified Graduates
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className="
+                    mt-4
+                    rounded-2xl
+                    border
+                    border-[#E75480]/10
+                    bg-white
+                    px-4
+                    py-3
+                  "
+                >
+                  <p className="text-xs leading-5 text-muted">
+                    <strong className="font-medium text-ink">
+                      Branch count is automatic.
+                    </strong>{" "}
+                    It is calculated from your Branches
+                    module and does not need to be entered
+                    here.
+                  </p>
+                </div>
               </div>
             </SettingsCard>
           )}
