@@ -2,68 +2,21 @@ import api from "../base/api";
 
 import type {
   SocialMedia,
-  SocialMediaFilters,
   SocialMediaPayload,
 } from "./socialMedia.types";
 
 /* ============================================================
-   GET ALL — ADMIN
+   GET ALL
 ============================================================ */
 
-export async function getSocialMedia(
-  filters: SocialMediaFilters = {}
-): Promise<SocialMedia[]> {
-  const params =
-    new URLSearchParams();
-
-  if (
-    filters.search?.trim()
-  ) {
-    params.set(
-      "search",
-      filters.search.trim()
-    );
-  }
-
-  if (
-    filters.platform?.trim()
-  ) {
-    params.set(
-      "platform",
-      filters.platform.trim()
-    );
-  }
-
-  if (
-    filters.active
-  ) {
-    params.set(
-      "active",
-      filters.active
-    );
-  }
-
-  if (
-    filters.featured
-  ) {
-    params.set(
-      "featured",
-      filters.featured
-    );
-  }
-
-  const query =
-    params.toString();
-
+export async function getSocialMedia(): Promise<
+  SocialMedia[]
+> {
   const response =
     await api.get<
       SocialMedia[]
     >(
-      `/api/social-media/admin/all${
-        query
-          ? `?${query}`
-          : ""
-      }`
+      "/api/social-media/admin/all"
     );
 
   return Array.isArray(
@@ -71,23 +24,6 @@ export async function getSocialMedia(
   )
     ? response.data
     : [];
-}
-
-/* ============================================================
-   GET ONE
-============================================================ */
-
-export async function getSocialMediaById(
-  id: string
-): Promise<SocialMedia> {
-  const response =
-    await api.get<
-      SocialMedia
-    >(
-      `/api/social-media/admin/${id}`
-    );
-
-  return response.data;
 }
 
 /* ============================================================
@@ -114,7 +50,6 @@ export async function createSocialMedia(
 
 export async function updateSocialMedia(
   id: string,
-
   payload: SocialMediaPayload
 ): Promise<SocialMedia> {
   const response =
@@ -129,7 +64,31 @@ export async function updateSocialMedia(
 }
 
 /* ============================================================
-   TOGGLE ACTIVE
+   REORDER
+============================================================ */
+
+export async function reorderSocialMedia(
+  orderedIds: string[]
+): Promise<SocialMedia[]> {
+  const response =
+    await api.patch<
+      SocialMedia[]
+    >(
+      "/api/social-media/reorder",
+      {
+        orderedIds,
+      }
+    );
+
+  return Array.isArray(
+    response.data
+  )
+    ? response.data
+    : [];
+}
+
+/* ============================================================
+   ACTIVE
 ============================================================ */
 
 export async function toggleSocialMedia(
@@ -146,7 +105,7 @@ export async function toggleSocialMedia(
 }
 
 /* ============================================================
-   TOGGLE FEATURED
+   FEATURED
 ============================================================ */
 
 export async function toggleFeaturedSocialMedia(

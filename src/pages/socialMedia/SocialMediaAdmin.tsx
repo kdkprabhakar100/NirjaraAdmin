@@ -1,23 +1,41 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
 import {
-  ExternalLink,
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+
+import {
+  CSS,
+} from "@dnd-kit/utilities";
+
+import {
+  GripVertical,
   ImagePlus,
   Link as LinkIcon,
   Plus,
   Search,
 } from "lucide-react";
 
-import { toast } from "react-toastify";
-
-import CustomTable, {
-  type TableColumn,
-} from "../../components/CustomTable";
+import {
+  toast,
+} from "react-toastify";
 
 import DialogBox from "../../components/DialogBox";
 
@@ -35,6 +53,7 @@ import {
   createSocialMedia,
   deleteSocialMedia,
   getSocialMedia,
+  reorderSocialMedia,
   toggleFeaturedSocialMedia,
   toggleSocialMedia,
   updateSocialMedia,
@@ -46,10 +65,11 @@ import type {
 } from "../../services/socialMedia/socialMedia.types";
 
 /* ============================================================
-   FORM DEFAULTS
+   DEFAULT FORM
 ============================================================ */
 
-const emptyForm: SocialMediaPayload = {
+const emptyForm:
+  SocialMediaPayload = {
   platform: "",
   accountName: "",
   username: "",
@@ -58,14 +78,10 @@ const emptyForm: SocialMediaPayload = {
   description: "",
   active: true,
   featured: false,
-  sortOrder: 0,
 };
 
 /* ============================================================
    PLATFORM SUGGESTIONS
-
-   These are only suggestions.
-   Admin can type ANY platform manually.
 ============================================================ */
 
 const PLATFORM_SUGGESTIONS = [
@@ -82,13 +98,7 @@ const PLATFORM_SUGGESTIONS = [
 ];
 
 /* ============================================================
-   CONFIG
-============================================================ */
-
-const SEARCH_DELAY_MS = 350;
-
-/* ============================================================
-   SHARED STYLES
+   STYLES
 ============================================================ */
 
 const inputClass =
@@ -98,97 +108,85 @@ const labelClass =
   "mb-2 block text-[10px] font-semibold uppercase tracking-[2px] text-[#8A6F78]";
 
 /* ============================================================
-   HELPERS
-============================================================ */
-
-function getPlatformInitial(
-  platform: string
-) {
-  return (
-    platform
-      .trim()
-      .charAt(0)
-      .toUpperCase() || "✦"
-  );
-}
-
-/* ============================================================
-   SOCIAL MEDIA ADMIN
+   PAGE
 ============================================================ */
 
 export default function SocialMediaAdmin() {
-  /* ==========================================================
-     DATA
-  ========================================================== */
-
   const [
     accounts,
     setAccounts,
-  ] = useState<SocialMedia[]>([]);
+  ] =
+    useState<
+      SocialMedia[]
+    >([]);
 
   const [
     loading,
     setLoading,
-  ] = useState(true);
+  ] =
+    useState(true);
 
   /* ==========================================================
-     SEARCH / FILTER
+     FILTERS
   ========================================================== */
 
   const [
     search,
     setSearch,
-  ] = useState("");
-
-  const [
-    appliedSearch,
-    setAppliedSearch,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     platformFilter,
     setPlatformFilter,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     statusFilter,
     setStatusFilter,
-  ] = useState("");
+  ] =
+    useState("");
 
   /* ==========================================================
-     ADD / EDIT
+     FORM
   ========================================================== */
 
   const [
     formOpen,
     setFormOpen,
-  ] = useState(false);
-
-  const [
-    form,
-    setForm,
   ] =
-    useState<SocialMediaPayload>(
-      emptyForm
-    );
+    useState(false);
 
   const [
     editingId,
     setEditingId,
   ] =
-    useState<string | null>(
-      null
+    useState<
+      string | null
+    >(null);
+
+  const [
+    form,
+    setForm,
+  ] =
+    useState<
+      SocialMediaPayload
+    >(
+      emptyForm
     );
 
   const [
     saving,
     setSaving,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     uploading,
     setUploading,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   /* ==========================================================
      PROCESSING
@@ -198,9 +196,15 @@ export default function SocialMediaAdmin() {
     processingId,
     setProcessingId,
   ] =
-    useState<string | null>(
-      null
-    );
+    useState<
+      string | null
+    >(null);
+
+  const [
+    reordering,
+    setReordering,
+  ] =
+    useState(false);
 
   /* ==========================================================
      DELETE
@@ -210,21 +214,41 @@ export default function SocialMediaAdmin() {
     accountToDelete,
     setAccountToDelete,
   ] =
-    useState<SocialMedia | null>(
-      null
-    );
+    useState<
+      SocialMedia | null
+    >(null);
 
   const [
     deleting,
     setDeleting,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   /* ==========================================================
-     REQUEST TRACKER
+     DRAG SENSORS
   ========================================================== */
 
-  const latestRequest =
-    useRef(0);
+  const sensors =
+    useSensors(
+      useSensor(
+        PointerSensor,
+        {
+          activationConstraint: {
+            distance: 5,
+          },
+        }
+      ),
+
+      useSensor(
+        TouchSensor,
+        {
+          activationConstraint: {
+            delay: 150,
+            tolerance: 5,
+          },
+        }
+      )
+    );
 
   /* ==========================================================
      FETCH
@@ -232,42 +256,22 @@ export default function SocialMediaAdmin() {
 
   const fetchAccounts =
     async () => {
-      const requestId =
-        ++latestRequest.current;
-
       try {
+        setLoading(true);
+
         const data =
-          await getSocialMedia({
-            search:
-              appliedSearch,
+          await getSocialMedia();
 
-            platform:
-              platformFilter,
-
-            active:
-              statusFilter,
-          });
-
-        if (
-          requestId !==
-          latestRequest.current
-        ) {
-          return;
-        }
-
-        setAccounts(data);
-      } catch (error) {
+        setAccounts(
+          data
+        );
+      } catch (
+        error
+      ) {
         console.error(
           "Fetch social media error:",
           error
         );
-
-        if (
-          requestId !==
-          latestRequest.current
-        ) {
-          return;
-        }
 
         toast.error(
           getApiErrorMessage(
@@ -275,80 +279,123 @@ export default function SocialMediaAdmin() {
             "Failed to load social media accounts"
           )
         );
-
-        setAccounts([]);
       } finally {
-        if (
-          requestId ===
-          latestRequest.current
-        ) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
-  /* ==========================================================
-     SEARCH DEBOUNCE
-  ========================================================== */
-
-  useEffect(() => {
-    const timer =
-      window.setTimeout(
-        () => {
-          setAppliedSearch(
-            search.trim()
-          );
-        },
-        SEARCH_DELAY_MS
-      );
-
-    return () => {
-      window.clearTimeout(
-        timer
-      );
-    };
-  }, [search]);
-
-  /* ==========================================================
-     LOAD
-  ========================================================== */
-
-  useEffect(() => {
-    fetchAccounts();
-  }, [
-    appliedSearch,
-    platformFilter,
-    statusFilter,
-  ]);
+  useEffect(
+    () => {
+      fetchAccounts();
+    },
+    []
+  );
 
   /* ==========================================================
      PLATFORM OPTIONS
-
-     We combine:
-     - known platforms
-     - anything already saved in database
   ========================================================== */
 
   const platformOptions =
-    useMemo(() => {
-      const databasePlatforms =
-        accounts
-          .map(
-            (account) =>
-              account.platform
-                ?.trim()
+    useMemo(
+      () =>
+        Array.from(
+          new Set(
+            accounts
+              .map(
+                (
+                  account
+                ) =>
+                  account.platform
+                    ?.trim()
+              )
+              .filter(
+                Boolean
+              )
           )
-          .filter(Boolean);
+        ).sort(
+          (
+            a,
+            b
+          ) =>
+            a.localeCompare(
+              b
+            )
+        ),
 
-      return Array.from(
-        new Set([
-          ...PLATFORM_SUGGESTIONS,
-          ...databasePlatforms,
-        ])
-      ).sort((a, b) =>
-        a.localeCompare(b)
-      );
-    }, [accounts]);
+      [
+        accounts,
+      ]
+    );
+
+  /* ==========================================================
+     CLIENT SIDE FILTERING
+  ========================================================== */
+
+  const visibleAccounts =
+    useMemo(
+      () => {
+        const query =
+          search
+            .trim()
+            .toLowerCase();
+
+        return accounts.filter(
+          (
+            account
+          ) => {
+            const matchesSearch =
+              !query ||
+              account.accountName
+                .toLowerCase()
+                .includes(
+                  query
+                ) ||
+              account.username
+                .toLowerCase()
+                .includes(
+                  query
+                ) ||
+              account.platform
+                .toLowerCase()
+                .includes(
+                  query
+                );
+
+            const matchesPlatform =
+              !platformFilter ||
+              account.platform ===
+                platformFilter;
+
+            const matchesStatus =
+              !statusFilter ||
+              String(
+                account.active
+              ) ===
+                statusFilter;
+
+            return (
+              matchesSearch &&
+              matchesPlatform &&
+              matchesStatus
+            );
+          }
+        );
+      },
+
+      [
+        accounts,
+        search,
+        platformFilter,
+        statusFilter,
+      ]
+    );
+
+  const filtersActive =
+    Boolean(
+      search.trim() ||
+        platformFilter ||
+        statusFilter
+    );
 
   /* ==========================================================
      OPEN ADD
@@ -356,13 +403,17 @@ export default function SocialMediaAdmin() {
 
   const openAddForm =
     () => {
-      setEditingId(null);
+      setEditingId(
+        null
+      );
 
       setForm({
         ...emptyForm,
       });
 
-      setFormOpen(true);
+      setFormOpen(
+        true
+      );
     };
 
   /* ==========================================================
@@ -411,15 +462,11 @@ export default function SocialMediaAdmin() {
           Boolean(
             account.featured
           ),
-
-        sortOrder:
-          Number(
-            account.sortOrder ??
-              0
-          ),
       });
 
-      setFormOpen(true);
+      setFormOpen(
+        true
+      );
     };
 
   /* ==========================================================
@@ -435,9 +482,13 @@ export default function SocialMediaAdmin() {
         return;
       }
 
-      setFormOpen(false);
+      setFormOpen(
+        false
+      );
 
-      setEditingId(null);
+      setEditingId(
+        null
+      );
 
       setForm({
         ...emptyForm,
@@ -454,10 +505,14 @@ export default function SocialMediaAdmin() {
         File
     ) => {
       try {
-        setUploading(true);
+        setUploading(
+          true
+        );
 
         const imageUrl =
-          await uploadImage(file);
+          await uploadImage(
+            file
+          );
 
         setForm(
           (
@@ -473,7 +528,9 @@ export default function SocialMediaAdmin() {
         toast.success(
           "Image uploaded successfully!"
         );
-      } catch (error) {
+      } catch (
+        error
+      ) {
         console.error(
           "Social media image upload error:",
           error
@@ -486,7 +543,9 @@ export default function SocialMediaAdmin() {
           )
         );
       } finally {
-        setUploading(false);
+        setUploading(
+          false
+        );
       }
     };
 
@@ -526,17 +585,6 @@ export default function SocialMediaAdmin() {
         return false;
       }
 
-      if (
-        form.sortOrder <
-        0
-      ) {
-        toast.error(
-          "Sort order cannot be negative."
-        );
-
-        return false;
-      }
-
       return true;
     };
 
@@ -553,7 +601,9 @@ export default function SocialMediaAdmin() {
       }
 
       try {
-        setSaving(true);
+        setSaving(
+          true
+        );
 
         const payload:
           SocialMediaPayload =
@@ -581,11 +631,6 @@ export default function SocialMediaAdmin() {
 
             featured:
               form.featured,
-
-            sortOrder:
-              Number(
-                form.sortOrder
-              ),
           };
 
         if (
@@ -609,16 +654,40 @@ export default function SocialMediaAdmin() {
           );
         }
 
-        await fetchAccounts();
+        /*
+          Clear filters after save.
 
-        setFormOpen(false);
+          This prevents a newly-created
+          account from looking like it
+          disappeared.
+        */
 
-        setEditingId(null);
+        setSearch("");
+
+        setPlatformFilter(
+          ""
+        );
+
+        setStatusFilter(
+          ""
+        );
+
+        setFormOpen(
+          false
+        );
+
+        setEditingId(
+          null
+        );
 
         setForm({
           ...emptyForm,
         });
-      } catch (error) {
+
+        await fetchAccounts();
+      } catch (
+        error
+      ) {
         console.error(
           "Save social media error:",
           error
@@ -631,7 +700,144 @@ export default function SocialMediaAdmin() {
           )
         );
       } finally {
-        setSaving(false);
+        setSaving(
+          false
+        );
+      }
+    };
+
+  /* ==========================================================
+     DRAG / REORDER
+  ========================================================== */
+
+  const handleDragEnd =
+    async (
+      event:
+        DragEndEvent
+    ) => {
+      const {
+        active,
+        over,
+      } =
+        event;
+
+      if (
+        !over ||
+        active.id ===
+          over.id
+      ) {
+        return;
+      }
+
+      if (
+        filtersActive
+      ) {
+        toast.info(
+          "Clear filters before changing the order."
+        );
+
+        return;
+      }
+
+      const oldIndex =
+        accounts.findIndex(
+          (
+            account
+          ) =>
+            account._id ===
+            active.id
+        );
+
+      const newIndex =
+        accounts.findIndex(
+          (
+            account
+          ) =>
+            account._id ===
+            over.id
+        );
+
+      if (
+        oldIndex <
+          0 ||
+        newIndex <
+          0
+      ) {
+        return;
+      }
+
+      const previousAccounts =
+        accounts;
+
+      const reordered =
+        arrayMove(
+          accounts,
+          oldIndex,
+          newIndex
+        ).map(
+          (
+            account,
+            index
+          ) => ({
+            ...account,
+
+            sortOrder:
+              index + 1,
+          })
+        );
+
+      /*
+        Immediate visual slide.
+      */
+
+      setAccounts(
+        reordered
+      );
+
+      try {
+        setReordering(
+          true
+        );
+
+        const saved =
+          await reorderSocialMedia(
+            reordered.map(
+              (
+                account
+              ) =>
+                account._id
+            )
+          );
+
+        setAccounts(
+          saved
+        );
+
+        toast.success(
+          "Display order updated."
+        );
+      } catch (
+        error
+      ) {
+        /*
+          Roll back visually if
+          backend save fails.
+        */
+
+        setAccounts(
+          previousAccounts
+        );
+
+        toast.error(
+          getApiErrorMessage(
+            error,
+            "Unable to save the new order"
+          )
+        );
+      } finally {
+        setReordering(
+          false
+        );
       }
     };
 
@@ -663,7 +869,7 @@ export default function SocialMediaAdmin() {
                 item
               ) =>
                 item._id ===
-                account._id
+                updated._id
                   ? updated
                   : item
             )
@@ -674,20 +880,19 @@ export default function SocialMediaAdmin() {
             ? "Account activated."
             : "Account deactivated."
         );
-      } catch (error) {
-        console.error(
-          "Toggle account error:",
-          error
-        );
-
+      } catch (
+        error
+      ) {
         toast.error(
           getApiErrorMessage(
             error,
-            "Unable to change account status"
+            "Unable to update account status"
           )
         );
       } finally {
-        setProcessingId(null);
+        setProcessingId(
+          null
+        );
       }
     };
 
@@ -719,7 +924,7 @@ export default function SocialMediaAdmin() {
                 item
               ) =>
                 item._id ===
-                account._id
+                updated._id
                   ? updated
                   : item
             )
@@ -730,12 +935,9 @@ export default function SocialMediaAdmin() {
             ? "Account marked as featured."
             : "Account removed from featured."
         );
-      } catch (error) {
-        console.error(
-          "Toggle featured error:",
-          error
-        );
-
+      } catch (
+        error
+      ) {
         toast.error(
           getApiErrorMessage(
             error,
@@ -743,7 +945,9 @@ export default function SocialMediaAdmin() {
           )
         );
       } finally {
-        setProcessingId(null);
+        setProcessingId(
+          null
+        );
       }
     };
 
@@ -753,46 +957,33 @@ export default function SocialMediaAdmin() {
 
   const confirmDelete =
     async () => {
-      const id =
-        accountToDelete?._id;
-
-      if (!id) {
+      if (
+        !accountToDelete
+      ) {
         return;
       }
 
       try {
-        setDeleting(true);
+        setDeleting(
+          true
+        );
 
         await deleteSocialMedia(
-          id
-        );
-
-        setAccounts(
-          (
-            previous
-          ) =>
-            previous.filter(
-              (
-                account
-              ) =>
-                account._id !==
-                id
-            )
-        );
-
-        toast.success(
-          "Social media account deleted."
+          accountToDelete._id
         );
 
         setAccountToDelete(
           null
         );
-      } catch (error) {
-        console.error(
-          "Delete social media error:",
-          error
-        );
 
+        await fetchAccounts();
+
+        toast.success(
+          "Social media account deleted."
+        );
+      } catch (
+        error
+      ) {
         toast.error(
           getApiErrorMessage(
             error,
@@ -800,540 +991,11 @@ export default function SocialMediaAdmin() {
           )
         );
       } finally {
-        setDeleting(false);
+        setDeleting(
+          false
+        );
       }
     };
-
-  /* ==========================================================
-     THUMBNAIL
-  ========================================================== */
-
-  const thumbnail =
-    (
-      account:
-        SocialMedia
-    ) =>
-      account.image ? (
-        <img
-          src={account.image}
-          alt={
-            account.accountName
-          }
-          className="
-            h-14
-            w-14
-
-            rounded-2xl
-
-            border
-            border-[#E75480]/10
-
-            object-cover
-          "
-        />
-      ) : (
-        <div
-          className="
-            flex
-
-            h-14
-            w-14
-
-            items-center
-            justify-center
-
-            rounded-2xl
-
-            border
-            border-[#E75480]/10
-
-            bg-[#FFF5F8]
-
-            font-serif
-            text-xl
-
-            text-[#E75480]
-          "
-        >
-          {getPlatformInitial(
-            account.platform
-          )}
-        </div>
-      );
-
-  /* ==========================================================
-     PLATFORM BADGE
-  ========================================================== */
-
-  const platformBadge =
-    (
-      account:
-        SocialMedia
-    ) => (
-      <span
-        className="
-          inline-flex
-
-          items-center
-          gap-2
-
-          rounded-full
-
-          bg-[#FCE7EF]
-
-          px-3
-          py-1.5
-
-          text-[10px]
-          font-semibold
-          uppercase
-          tracking-[1px]
-
-          text-[#E75480]
-        "
-      >
-        <span
-          className="
-            flex
-
-            h-5
-            w-5
-
-            items-center
-            justify-center
-
-            rounded-full
-
-            bg-white
-
-            font-serif
-          "
-        >
-          {getPlatformInitial(
-            account.platform
-          )}
-        </span>
-
-        {account.platform}
-      </span>
-    );
-
-  /* ==========================================================
-     STATUS
-  ========================================================== */
-
-  const statusBadge =
-    (
-      account:
-        SocialMedia
-    ) => (
-      <div
-        className="
-          flex
-          flex-wrap
-          gap-2
-        "
-      >
-        <span
-          className={`
-            inline-flex
-            items-center
-            gap-1.5
-
-            rounded-full
-
-            px-3
-            py-1.5
-
-            text-[9px]
-            font-semibold
-            uppercase
-            tracking-[1px]
-
-            ${
-              account.active
-                ? `
-                    bg-emerald-50
-                    text-emerald-700
-                  `
-                : `
-                    bg-gray-100
-                    text-gray-500
-                  `
-            }
-          `}
-        >
-          <span
-            className={`
-              h-1.5
-              w-1.5
-
-              rounded-full
-
-              ${
-                account.active
-                  ? "bg-emerald-500"
-                  : "bg-gray-400"
-              }
-            `}
-          />
-
-          {account.active
-            ? "Active"
-            : "Inactive"}
-        </span>
-
-        {account.featured && (
-          <span
-            className="
-              inline-flex
-
-              items-center
-
-              rounded-full
-
-              bg-[#FFF5F8]
-
-              px-3
-              py-1.5
-
-              text-[9px]
-              font-semibold
-              uppercase
-              tracking-[1px]
-
-              text-[#E75480]
-            "
-          >
-            ★ Featured
-          </span>
-        )}
-      </div>
-    );
-
-  /* ==========================================================
-     LINK
-  ========================================================== */
-
-  const renderLink =
-    (
-      account:
-        SocialMedia
-    ) => (
-      <a
-        href={account.url}
-        target="_blank"
-        rel="noreferrer"
-        className="
-          inline-flex
-
-          items-center
-          gap-1.5
-
-          whitespace-nowrap
-
-          text-xs
-          font-medium
-
-          text-[#E75480]
-
-          transition
-
-          hover:text-[#c93f69]
-        "
-      >
-        Open
-
-        <ExternalLink
-          size={13}
-        />
-      </a>
-    );
-
-  /* ==========================================================
-     ACTIONS
-  ========================================================== */
-
-  const renderActions =
-    (
-      account:
-        SocialMedia
-    ) => (
-      <RowActionsMenu
-        label={`Actions for ${account.accountName}`}
-        busy={
-          processingId ===
-          account._id
-        }
-        actions={[
-          {
-            key:
-              "open",
-
-            label:
-              "Open account",
-
-            icon:
-              "↗",
-
-            onSelect:
-              () =>
-                window.open(
-                  account.url,
-                  "_blank",
-                  "noopener,noreferrer"
-                ),
-          },
-
-          {
-            key:
-              "edit",
-
-            label:
-              "Edit",
-
-            icon:
-              "✎",
-
-            onSelect:
-              () =>
-                openEditForm(
-                  account
-                ),
-          },
-
-          {
-            key:
-              "featured",
-
-            label:
-              account.featured
-                ? "Remove featured"
-                : "Make featured",
-
-            icon:
-              "★",
-
-            onSelect:
-              () =>
-                handleToggleFeatured(
-                  account
-                ),
-          },
-
-          {
-            key:
-              "active",
-
-            label:
-              account.active
-                ? "Deactivate"
-                : "Activate",
-
-            icon:
-              account.active
-                ? "○"
-                : "✓",
-
-            tone:
-              account.active
-                ? "default"
-                : "success",
-
-            onSelect:
-              () =>
-                handleToggleActive(
-                  account
-                ),
-          },
-
-          {
-            key:
-              "delete",
-
-            label:
-              "Delete",
-
-            icon:
-              "🗑",
-
-            tone:
-              "danger",
-
-            dividerBefore:
-              true,
-
-            onSelect:
-              () =>
-                setAccountToDelete(
-                  account
-                ),
-          },
-        ]}
-      />
-    );
-
-  /* ==========================================================
-     TABLE COLUMNS
-  ========================================================== */
-
-  const columns:
-    TableColumn<SocialMedia>[] =
-    [
-      {
-        key:
-          "image",
-
-        header:
-          "Image",
-
-        width:
-          "90px",
-
-        hideOnMobile:
-          true,
-
-        render:
-          thumbnail,
-      },
-
-      {
-        key:
-          "account",
-
-        header:
-          "Account",
-
-        render: (
-          account
-        ) => (
-          <div>
-            <p
-              className="
-                font-medium
-                text-[#3A2A2F]
-              "
-            >
-              {
-                account.accountName
-              }
-            </p>
-
-            {account.username && (
-              <p
-                className="
-                  mt-1
-
-                  text-xs
-
-                  text-[#8A6F78]
-                "
-              >
-                {
-                  account.username
-                }
-              </p>
-            )}
-          </div>
-        ),
-      },
-
-      {
-        key:
-          "platform",
-
-        header:
-          "Platform",
-
-        hideOnMobile:
-          true,
-
-        render:
-          platformBadge,
-      },
-
-      {
-        key:
-          "link",
-
-        header:
-          "Link",
-
-        hideOnMobile:
-          true,
-
-        render:
-          renderLink,
-      },
-
-      {
-        key:
-          "order",
-
-        header:
-          "Order",
-
-        width:
-          "80px",
-
-        hideOnMobile:
-          true,
-
-        cellClassName:
-          "font-medium text-[#8A6F78]",
-
-        render: (
-          account
-        ) =>
-          account.sortOrder ??
-          0,
-      },
-
-      {
-        key:
-          "status",
-
-        header:
-          "Status",
-
-        width:
-          "210px",
-
-        render:
-          statusBadge,
-      },
-
-      {
-        key:
-          "actions",
-
-        header:
-          "Actions",
-
-        align:
-          "right",
-
-        width:
-          "90px",
-
-        hideOnMobile:
-          true,
-
-        render:
-          renderActions,
-      },
-    ];
-
-  /* ==========================================================
-     FILTER STATE
-  ========================================================== */
-
-  const filtersActive =
-    Boolean(
-      appliedSearch ||
-        platformFilter ||
-        statusFilter
-    );
 
   /* ==========================================================
      STATS
@@ -1341,13 +1003,17 @@ export default function SocialMediaAdmin() {
 
   const activeCount =
     accounts.filter(
-      (account) =>
+      (
+        account
+      ) =>
         account.active
     ).length;
 
   const featuredCount =
     accounts.filter(
-      (account) =>
+      (
+        account
+      ) =>
         account.featured
     ).length;
 
@@ -1365,10 +1031,8 @@ export default function SocialMediaAdmin() {
         className="
           flex
           flex-wrap
-
           items-start
           justify-between
-
           gap-5
         "
       >
@@ -1378,7 +1042,6 @@ export default function SocialMediaAdmin() {
               text-xs
               uppercase
               tracking-[3px]
-
               text-[#E75480]
             "
           >
@@ -1388,11 +1051,8 @@ export default function SocialMediaAdmin() {
           <h1
             className="
               mt-2
-
               font-serif
-
               text-4xl
-
               text-[#E75480]
 
               md:text-5xl
@@ -1404,18 +1064,15 @@ export default function SocialMediaAdmin() {
           <p
             className="
               mt-2
-
               max-w-2xl
-
               text-[#8A6F78]
             "
           >
             Manage Nirjara's social
-            accounts, links and
-            featured profiles. You
-            can create multiple
-            accounts for the same
-            platform.
+            accounts and drag them
+            into the order they
+            should appear on the
+            website.
           </p>
         </div>
 
@@ -1426,31 +1083,26 @@ export default function SocialMediaAdmin() {
           }
           className="
             inline-flex
-
             items-center
             gap-2
-
             rounded-full
-
             bg-[#E75480]
-
             px-7
             py-3
-
             text-xs
             font-medium
             uppercase
             tracking-[2px]
-
             text-white
-
             transition
 
             hover:bg-[#d94873]
           "
         >
           <Plus
-            size={16}
+            size={
+              16
+            }
           />
 
           Add Account
@@ -1464,10 +1116,8 @@ export default function SocialMediaAdmin() {
       <div
         className="
           mt-7
-
           grid
           gap-3
-
           sm:grid-cols-3
         "
       >
@@ -1500,13 +1150,9 @@ export default function SocialMediaAdmin() {
       <div
         className="
           mt-6
-
           rounded-3xl
-
           bg-white
-
           p-5
-
           shadow-sm
         "
       >
@@ -1514,7 +1160,6 @@ export default function SocialMediaAdmin() {
           className="
             flex
             flex-col
-
             gap-4
 
             xl:flex-row
@@ -1522,34 +1167,59 @@ export default function SocialMediaAdmin() {
             xl:justify-between
           "
         >
-          <p
-            className="
-              text-sm
-              text-[#8A6F78]
-            "
-          >
-            {accounts.length}{" "}
-            account
-            {accounts.length ===
-            1
-              ? ""
-              : "s"}{" "}
-            {filtersActive
-              ? "found"
-              : "in total"}
-          </p>
+          <div>
+            <p
+              className="
+                text-sm
+                text-[#8A6F78]
+              "
+            >
+              {
+                visibleAccounts.length
+              }{" "}
+              account
+              {visibleAccounts.length ===
+              1
+                ? ""
+                : "s"}
+            </p>
+
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+
+                  setPlatformFilter(
+                    ""
+                  );
+
+                  setStatusFilter(
+                    ""
+                  );
+                }}
+                className="
+                  mt-1
+                  text-xs
+                  font-medium
+                  text-[#E75480]
+                "
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
 
           <div
             className="
               grid
               w-full
-
               gap-3
 
               sm:grid-cols-2
 
               xl:w-auto
-              xl:grid-cols-[320px_190px_170px]
+              xl:grid-cols-[300px_190px_170px]
             "
           >
             {/* SEARCH */}
@@ -1557,29 +1227,28 @@ export default function SocialMediaAdmin() {
             <div
               className="
                 relative
-
                 sm:col-span-2
-
                 xl:col-span-1
               "
             >
               <Search
-                size={16}
+                size={
+                  16
+                }
                 className="
                   absolute
-
                   left-4
                   top-1/2
-
                   -translate-y-1/2
-
                   text-[#A98994]
                 "
               />
 
               <input
                 type="search"
-                value={search}
+                value={
+                  search
+                }
                 onChange={(
                   event
                 ) =>
@@ -1589,32 +1258,11 @@ export default function SocialMediaAdmin() {
                   )
                 }
                 placeholder="Search accounts..."
-                className="
-                  w-full
-
-                  rounded-xl
-
-                  border
-                  border-[#E75480]/20
-
-                  bg-[#FFF5F8]
-
-                  py-3
-                  pl-10
-                  pr-4
-
-                  text-sm
-
-                  outline-none
-
-                  transition
-
-                  focus:border-[#E75480]
-                "
+                className={`${inputClass} pl-10`}
               />
             </div>
 
-            {/* PLATFORM FILTER */}
+            {/* PLATFORM */}
 
             <select
               value={
@@ -1688,76 +1336,198 @@ export default function SocialMediaAdmin() {
             </select>
           </div>
         </div>
+
+        {filtersActive && (
+          <p
+            className="
+              mt-3
+              text-[11px]
+              text-[#A98994]
+            "
+          >
+            Clear search and filters
+            to drag accounts into a
+            new order.
+          </p>
+        )}
       </div>
 
       {/* =====================================================
-          TABLE
+          SORTABLE LIST
       ===================================================== */}
 
-      <CustomTable
-        className="mt-6"
-        columns={columns}
-        rows={accounts}
-        rowKey={(account) =>
-          account._id
-        }
-        loading={loading}
-        loadingMessage="Loading social media accounts..."
-        emptyIcon="◎"
-        emptyTitle={
-          filtersActive
-            ? "No matching accounts"
-            : "No social media accounts yet"
-        }
-        emptyMessage={
-          filtersActive
-            ? "Try a different search or filter."
-            : "Add your first social media account using the button above."
-        }
-        minWidth="1050px"
-        mobileTitle={(
-          account
-        ) => (
-          <span
+      <div
+        className="
+          mt-6
+          overflow-hidden
+          rounded-3xl
+          border
+          border-[#E75480]/10
+          bg-white
+          shadow-sm
+        "
+      >
+        {/* HEADER */}
+
+        <div
+          className="
+            hidden
+            grid-cols-[55px_75px_minmax(190px,1.6fr)_minmax(140px,1fr)_90px_110px_80px]
+            gap-4
+            bg-[#FCE7EF]
+            px-5
+            py-4
+            text-[11px]
+            font-semibold
+            text-[#E75480]
+
+            md:grid
+          "
+        >
+          <span>
+            Move
+          </span>
+
+          <span>
+            Image
+          </span>
+
+          <span>
+            Account
+          </span>
+
+          <span>
+            Platform
+          </span>
+
+          <span>
+            Order
+          </span>
+
+          <span>
+            Status
+          </span>
+
+          <span className="text-right">
+            Actions
+          </span>
+        </div>
+
+        {/* CONTENT */}
+
+        {loading ? (
+          <div
             className="
-              flex
-              items-center
-              gap-3
+              p-10
+              text-center
+              text-sm
+              text-[#8A6F78]
             "
           >
-            {
-              thumbnail(
-                account
-              )
-            }
+            Loading social media
+            accounts...
+          </div>
+        ) : visibleAccounts.length ===
+          0 ? (
+          <div
+            className="
+              p-10
+              text-center
+            "
+          >
+            <p
+              className="
+                font-serif
+                text-xl
+                text-[#3A2A2F]
+              "
+            >
+              No accounts found
+            </p>
 
-            <span>
-              {
-                account.accountName
+            <p
+              className="
+                mt-2
+                text-sm
+                text-[#8A6F78]
+              "
+            >
+              Try changing your
+              search or filters.
+            </p>
+          </div>
+        ) : (
+          <DndContext
+            sensors={
+              sensors
+            }
+            collisionDetection={
+              closestCenter
+            }
+            onDragEnd={
+              handleDragEnd
+            }
+          >
+            <SortableContext
+              items={
+                visibleAccounts.map(
+                  (
+                    account
+                  ) =>
+                    account._id
+                )
               }
-            </span>
-          </span>
+              strategy={
+                verticalListSortingStrategy
+              }
+            >
+              {visibleAccounts.map(
+                (
+                  account
+                ) => (
+                  <SortableAccountRow
+                    key={
+                      account._id
+                    }
+                    account={
+                      account
+                    }
+                    dragDisabled={
+                      filtersActive ||
+                      reordering
+                    }
+                    busy={
+                      processingId ===
+                      account._id
+                    }
+                    onEdit={
+                      openEditForm
+                    }
+                    onToggle={
+                      handleToggleActive
+                    }
+                    onFeatured={
+                      handleToggleFeatured
+                    }
+                    onDelete={
+                      setAccountToDelete
+                    }
+                  />
+                )
+              )}
+            </SortableContext>
+          </DndContext>
         )}
-        mobileSubtitle={(
-          account
-        ) =>
-          `${account.platform}${
-            account.username
-              ? ` • ${account.username}`
-              : ""
-          }`
-        }
-        mobileActions={
-          renderActions
-        }
-      />
+      </div>
 
       {/* =====================================================
           ADD / EDIT
       ===================================================== */}
 
       <DialogBox
-        open={formOpen}
+        open={
+          formOpen
+        }
         onClose={
           closeForm
         }
@@ -1767,7 +1537,7 @@ export default function SocialMediaAdmin() {
             ? "Edit Account"
             : "Add Social Account"
         }
-        description="Add a social profile to the website. Multiple profiles can belong to the same platform."
+        description="Add as many social accounts as needed. Their display order can be changed by dragging the list."
         size="lg"
         onSubmit={
           handleSubmit
@@ -1796,7 +1566,6 @@ export default function SocialMediaAdmin() {
           className="
             grid
             gap-5
-
             md:grid-cols-2
           "
         >
@@ -1856,9 +1625,7 @@ export default function SocialMediaAdmin() {
             <p
               className="
                 mt-2
-
                 text-xs
-
                 text-[#A98994]
               "
             >
@@ -1868,7 +1635,7 @@ export default function SocialMediaAdmin() {
             </p>
           </div>
 
-          {/* ACCOUNT NAME */}
+          {/* ACCOUNT */}
 
           <div>
             <label
@@ -1917,7 +1684,7 @@ export default function SocialMediaAdmin() {
               value={
                 form.username
               }
-              placeholder="e.g. @nirjarabeauty"
+              placeholder="@nirjarabeauty"
               onChange={(
                 event
               ) =>
@@ -1935,7 +1702,7 @@ export default function SocialMediaAdmin() {
             />
           </div>
 
-          {/* SORT */}
+          {/* ORDER INFO */}
 
           <div>
             <label
@@ -1943,46 +1710,25 @@ export default function SocialMediaAdmin() {
                 labelClass
               }
             >
-              Sort Order
+              Display Order
             </label>
 
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={
-                form.sortOrder
-              }
-              onChange={(
-                event
-              ) =>
-                setForm({
-                  ...form,
-
-                  sortOrder:
-                    Number(
-                      event.target
-                        .value
-                    ),
-                })
-              }
-              className={
-                inputClass
-              }
-            />
-
-            <p
+            <div
               className="
-                mt-2
-
-                text-xs
-
-                text-[#A98994]
+                rounded-xl
+                border
+                border-[#E75480]/10
+                bg-[#FFF5F8]
+                px-4
+                py-3
+                text-sm
+                text-[#8A6F78]
               "
             >
-              Lower numbers appear
-              first.
-            </p>
+              {editingId
+                ? "Change by dragging the account after saving."
+                : "New account will be added to the end automatically."}
+            </div>
           </div>
 
           {/* URL */}
@@ -2000,21 +1746,16 @@ export default function SocialMediaAdmin() {
               Social Media URL *
             </label>
 
-            <div
-              className="
-                relative
-              "
-            >
+            <div className="relative">
               <LinkIcon
-                size={16}
+                size={
+                  16
+                }
                 className="
                   absolute
-
                   left-4
                   top-1/2
-
                   -translate-y-1/2
-
                   text-[#A98994]
                 "
               />
@@ -2057,7 +1798,9 @@ export default function SocialMediaAdmin() {
             </label>
 
             <textarea
-              rows={3}
+              rows={
+                3
+              }
               value={
                 form.description
               }
@@ -2079,7 +1822,7 @@ export default function SocialMediaAdmin() {
             />
           </div>
 
-          {/* IMAGE UPLOAD */}
+          {/* IMAGE */}
 
           <div
             className="
@@ -2097,29 +1840,19 @@ export default function SocialMediaAdmin() {
             <label
               className="
                 flex
-
                 cursor-pointer
-
                 items-center
                 justify-center
-
                 gap-2
-
                 rounded-2xl
-
                 border
                 border-dashed
                 border-[#E75480]/30
-
                 bg-[#FFF5F8]
-
                 px-5
                 py-5
-
                 text-sm
-
                 text-[#8A6F78]
-
                 transition
 
                 hover:border-[#E75480]
@@ -2127,7 +1860,9 @@ export default function SocialMediaAdmin() {
               "
             >
               <ImagePlus
-                size={18}
+                size={
+                  18
+                }
                 className="
                   text-[#E75480]
                 "
@@ -2152,7 +1887,9 @@ export default function SocialMediaAdmin() {
                     event.target
                       .files?.[0];
 
-                  if (!file) {
+                  if (
+                    !file
+                  ) {
                     return;
                   }
 
@@ -2179,17 +1916,12 @@ export default function SocialMediaAdmin() {
               <div
                 className="
                   flex
-
                   items-center
                   gap-4
-
                   rounded-2xl
-
                   border
                   border-[#E75480]/10
-
                   bg-[#FFF5F8]
-
                   p-4
                 "
               >
@@ -2197,13 +1929,11 @@ export default function SocialMediaAdmin() {
                   src={
                     form.image
                   }
-                  alt="Social account preview"
+                  alt="Preview"
                   className="
                     h-20
                     w-20
-
                     rounded-2xl
-
                     object-cover
                   "
                 />
@@ -2217,55 +1947,31 @@ export default function SocialMediaAdmin() {
                   <p
                     className="
                       font-medium
-
                       text-[#3A2A2F]
                     "
                   >
                     Image Preview
                   </p>
-
-                  <p
-                    className="
-                      mt-1
-
-                      text-xs
-
-                      text-[#8A6F78]
-                    "
-                  >
-                    This can be used
-                    as the account
-                    image on the
-                    public page.
-                  </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={
-                    () =>
-                      setForm({
-                        ...form,
+                  onClick={() =>
+                    setForm({
+                      ...form,
 
-                        image: "",
-                      })
+                      image:
+                        "",
+                    })
                   }
                   className="
                     rounded-full
-
                     border
                     border-[#E75480]/20
-
                     px-3
                     py-2
-
                     text-xs
-
                     text-[#E75480]
-
-                    transition
-
-                    hover:bg-white
                   "
                 >
                   Remove
@@ -2276,170 +1982,135 @@ export default function SocialMediaAdmin() {
 
           {/* ACTIVE */}
 
-          <div
+          <label
             className="
+              flex
+              cursor-pointer
+              items-start
+              gap-3
               rounded-2xl
-
               border
               border-[#E75480]/10
-
               bg-[#FFF5F8]
-
               p-4
             "
           >
-            <label
+            <input
+              type="checkbox"
+              checked={
+                form.active
+              }
+              onChange={(
+                event
+              ) =>
+                setForm({
+                  ...form,
+
+                  active:
+                    event.target
+                      .checked,
+                })
+              }
               className="
-                flex
-
-                cursor-pointer
-
-                items-start
-                gap-3
+                mt-1
+                h-4
+                w-4
+                accent-[#E75480]
               "
-            >
-              <input
-                type="checkbox"
-                checked={
-                  form.active
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm({
-                    ...form,
+            />
 
-                    active:
-                      event.target
-                        .checked,
-                  })
-                }
+            <span>
+              <span
+                className="
+                  block
+                  text-sm
+                  font-medium
+                  text-[#3A2A2F]
+                "
+              >
+                Active
+              </span>
+
+              <span
                 className="
                   mt-1
-
-                  h-4
-                  w-4
-
-                  accent-[#E75480]
+                  block
+                  text-xs
+                  leading-5
+                  text-[#8A6F78]
                 "
-              />
-
-              <span>
-                <span
-                  className="
-                    block
-
-                    text-sm
-                    font-medium
-
-                    text-[#3A2A2F]
-                  "
-                >
-                  Active
-                </span>
-
-                <span
-                  className="
-                    mt-1
-                    block
-
-                    text-xs
-                    leading-5
-
-                    text-[#8A6F78]
-                  "
-                >
-                  Show this account
-                  on the public
-                  website.
-                </span>
+              >
+                Show on the public
+                website.
               </span>
-            </label>
-          </div>
+            </span>
+          </label>
 
           {/* FEATURED */}
 
-          <div
+          <label
             className="
+              flex
+              cursor-pointer
+              items-start
+              gap-3
               rounded-2xl
-
               border
               border-[#E75480]/10
-
               bg-[#FFF5F8]
-
               p-4
             "
           >
-            <label
+            <input
+              type="checkbox"
+              checked={
+                form.featured
+              }
+              onChange={(
+                event
+              ) =>
+                setForm({
+                  ...form,
+
+                  featured:
+                    event.target
+                      .checked,
+                })
+              }
               className="
-                flex
-
-                cursor-pointer
-
-                items-start
-                gap-3
+                mt-1
+                h-4
+                w-4
+                accent-[#E75480]
               "
-            >
-              <input
-                type="checkbox"
-                checked={
-                  form.featured
-                }
-                onChange={(
-                  event
-                ) =>
-                  setForm({
-                    ...form,
+            />
 
-                    featured:
-                      event.target
-                        .checked,
-                  })
-                }
+            <span>
+              <span
+                className="
+                  block
+                  text-sm
+                  font-medium
+                  text-[#3A2A2F]
+                "
+              >
+                Featured
+              </span>
+
+              <span
                 className="
                   mt-1
-
-                  h-4
-                  w-4
-
-                  accent-[#E75480]
+                  block
+                  text-xs
+                  leading-5
+                  text-[#8A6F78]
                 "
-              />
-
-              <span>
-                <span
-                  className="
-                    block
-
-                    text-sm
-                    font-medium
-
-                    text-[#3A2A2F]
-                  "
-                >
-                  Featured
-                </span>
-
-                <span
-                  className="
-                    mt-1
-                    block
-
-                    text-xs
-                    leading-5
-
-                    text-[#8A6F78]
-                  "
-                >
-                  Give this profile
-                  extra prominence
-                  on the Social
-                  Media page.
-                </span>
+              >
+                Give this account
+                extra prominence.
               </span>
-            </label>
-          </div>
+            </span>
+          </label>
         </div>
       </DialogBox>
 
@@ -2480,15 +2151,12 @@ export default function SocialMediaAdmin() {
           className="
             text-sm
             leading-6
-
             text-[#8A6F78]
           "
         >
-          This account will no
-          longer appear on the
-          public Social Media page.
-          This action cannot be
-          undone.
+          The remaining accounts
+          will automatically be
+          renumbered after deletion.
         </p>
       </DialogBox>
     </div>
@@ -2496,29 +2164,505 @@ export default function SocialMediaAdmin() {
 }
 
 /* ============================================================
-   STAT CARD
+   SORTABLE ROW
+============================================================ */
+
+function SortableAccountRow({
+  account,
+  dragDisabled,
+  busy,
+  onEdit,
+  onToggle,
+  onFeatured,
+  onDelete,
+}: {
+  account:
+    SocialMedia;
+
+  dragDisabled:
+    boolean;
+
+  busy:
+    boolean;
+
+  onEdit:
+    (
+      account:
+        SocialMedia
+    ) => void;
+
+  onToggle:
+    (
+      account:
+        SocialMedia
+    ) => void;
+
+  onFeatured:
+    (
+      account:
+        SocialMedia
+    ) => void;
+
+  onDelete:
+    (
+      account:
+        SocialMedia
+    ) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } =
+    useSortable({
+      id:
+        account._id,
+
+      disabled:
+        dragDisabled,
+    });
+
+  return (
+    <div
+      ref={
+        setNodeRef
+      }
+      style={{
+        transform:
+          CSS.Transform.toString(
+            transform
+          ),
+
+        transition,
+
+        position:
+          isDragging
+            ? "relative"
+            : undefined,
+
+        zIndex:
+          isDragging
+            ? 30
+            : undefined,
+      }}
+      className={`
+        border-b
+        border-[#E75480]/10
+        px-4
+        py-4
+
+        last:border-b-0
+
+        md:grid
+        md:grid-cols-[55px_75px_minmax(190px,1.6fr)_minmax(140px,1fr)_90px_110px_80px]
+        md:items-center
+        md:gap-4
+        md:px-5
+
+        ${
+          isDragging
+            ? `
+                bg-white
+                shadow-[0_16px_45px_rgba(58,42,47,0.15)]
+              `
+            : `
+                bg-white
+                hover:bg-[#FFF9FB]
+              `
+        }
+      `}
+    >
+      {/* MOVE */}
+
+      <div
+        className="
+          mb-3
+          flex
+          items-center
+          justify-between
+
+          md:mb-0
+          md:block
+        "
+      >
+        <button
+          type="button"
+          disabled={
+            dragDisabled
+          }
+          {...attributes}
+          {...listeners}
+          title={
+            dragDisabled
+              ? "Clear filters to reorder"
+              : "Drag to reorder"
+          }
+          className={`
+            flex
+            h-9
+            w-9
+            touch-none
+            items-center
+            justify-center
+            rounded-xl
+            border
+            border-[#E75480]/10
+
+            ${
+              dragDisabled
+                ? `
+                    cursor-not-allowed
+                    text-gray-300
+                  `
+                : `
+                    cursor-grab
+                    text-[#E75480]
+                    hover:bg-[#FFF5F8]
+                    active:cursor-grabbing
+                  `
+            }
+          `}
+        >
+          <GripVertical
+            size={
+              17
+            }
+          />
+        </button>
+
+        <span
+          className="
+            rounded-full
+            bg-[#FFF5F8]
+            px-3
+            py-1
+            text-[10px]
+            font-semibold
+            text-[#E75480]
+
+            md:hidden
+          "
+        >
+          Order{" "}
+          {
+            account.sortOrder
+          }
+        </span>
+      </div>
+
+      {/* IMAGE */}
+
+      <div
+        className="
+          hidden
+          md:block
+        "
+      >
+        {account.image ? (
+          <img
+            src={
+              account.image
+            }
+            alt={
+              account.accountName
+            }
+            className="
+              h-14
+              w-14
+              rounded-2xl
+              object-cover
+            "
+          />
+        ) : (
+          <div
+            className="
+              flex
+              h-14
+              w-14
+              items-center
+              justify-center
+              rounded-2xl
+              border
+              border-[#E75480]/10
+              bg-[#FFF5F8]
+              font-serif
+              text-xl
+              text-[#E75480]
+            "
+          >
+            {account.platform
+              .charAt(
+                0
+              )
+              .toUpperCase()}
+          </div>
+        )}
+      </div>
+
+      {/* ACCOUNT */}
+
+      <div
+        className="
+          min-w-0
+        "
+      >
+        <p
+          className="
+            truncate
+            font-medium
+            text-[#3A2A2F]
+          "
+        >
+          {
+            account.accountName
+          }
+        </p>
+
+        {account.username && (
+          <p
+            className="
+              mt-1
+              truncate
+              text-xs
+              text-[#8A6F78]
+            "
+          >
+            {
+              account.username
+            }
+          </p>
+        )}
+      </div>
+
+      {/* PLATFORM */}
+
+      <div
+        className="
+          mt-3
+          md:mt-0
+        "
+      >
+        <span
+          className="
+            inline-flex
+            rounded-full
+            bg-[#FCE7EF]
+            px-3
+            py-1.5
+            text-[9px]
+            font-semibold
+            uppercase
+            tracking-[1px]
+            text-[#E75480]
+          "
+        >
+          {
+            account.platform
+          }
+        </span>
+      </div>
+
+      {/* ORDER */}
+
+      <div
+        className="
+          hidden
+          font-medium
+          text-[#8A6F78]
+
+          md:block
+        "
+      >
+        {
+          account.sortOrder
+        }
+      </div>
+
+      {/* STATUS */}
+
+      <div
+        className="
+          mt-3
+          md:mt-0
+        "
+      >
+        <span
+          className={`
+            inline-flex
+            rounded-full
+            px-3
+            py-1.5
+            text-[9px]
+            font-semibold
+            uppercase
+
+            ${
+              account.active
+                ? `
+                    bg-emerald-50
+                    text-emerald-700
+                  `
+                : `
+                    bg-gray-100
+                    text-gray-500
+                  `
+            }
+          `}
+        >
+          {account.active
+            ? "Active"
+            : "Inactive"}
+        </span>
+      </div>
+
+      {/* ACTIONS */}
+
+      <div
+        className="
+          mt-3
+          flex
+          justify-end
+
+          md:mt-0
+        "
+      >
+        <RowActionsMenu
+          label={`Actions for ${account.accountName}`}
+          busy={
+            busy
+          }
+          actions={[
+            {
+              key:
+                "open",
+
+              label:
+                "Open account",
+
+              icon:
+                "↗",
+
+              onSelect:
+                () =>
+                  window.open(
+                    account.url,
+                    "_blank",
+                    "noopener,noreferrer"
+                  ),
+            },
+
+            {
+              key:
+                "edit",
+
+              label:
+                "Edit",
+
+              icon:
+                "✎",
+
+              onSelect:
+                () =>
+                  onEdit(
+                    account
+                  ),
+            },
+
+            {
+              key:
+                "featured",
+
+              label:
+                account.featured
+                  ? "Remove featured"
+                  : "Make featured",
+
+              icon:
+                "★",
+
+              onSelect:
+                () =>
+                  onFeatured(
+                    account
+                  ),
+            },
+
+            {
+              key:
+                "active",
+
+              label:
+                account.active
+                  ? "Deactivate"
+                  : "Activate",
+
+              icon:
+                account.active
+                  ? "○"
+                  : "✓",
+
+              onSelect:
+                () =>
+                  onToggle(
+                    account
+                  ),
+            },
+
+            {
+              key:
+                "delete",
+
+              label:
+                "Delete",
+
+              icon:
+                "🗑",
+
+              tone:
+                "danger",
+
+              dividerBefore:
+                true,
+
+              onSelect:
+                () =>
+                  onDelete(
+                    account
+                  ),
+            },
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   STAT
 ============================================================ */
 
 function StatCard({
   label,
   value,
 }: {
-  label: string;
-  value: number;
+  label:
+    string;
+
+  value:
+    number;
 }) {
   return (
     <div
       className="
         rounded-2xl
-
         border
         border-[#E75480]/10
-
         bg-white
-
         px-5
         py-4
-
         shadow-sm
       "
     >
@@ -2528,7 +2672,6 @@ function StatCard({
           font-semibold
           uppercase
           tracking-[2px]
-
           text-[#A98994]
         "
       >
@@ -2538,10 +2681,8 @@ function StatCard({
       <p
         className="
           mt-1
-
           font-serif
           text-3xl
-
           text-[#3A2A2F]
         "
       >
