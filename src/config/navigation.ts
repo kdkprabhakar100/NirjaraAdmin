@@ -100,6 +100,11 @@ export const navigation: NavItem[] = [
         label: "Legal Pages", 
         path: "/legal-pages",
         permission: "legalPages.view",  
+      },
+      {
+        label: "Social Media",
+        path: "/social-media",
+        permission: "socialMedia.view",
       }
     ],
   },
@@ -139,7 +144,6 @@ export const navigation: NavItem[] = [
     path: "/activity-logs",
     permission: "activityLogs.view",
   },
-
   {
     label: "Settings",
     path: "/settings",

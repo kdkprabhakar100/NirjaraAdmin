@@ -1,3 +1,4 @@
+import { Share2 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 type AdminLayoutProps = {
@@ -19,7 +20,8 @@ const adminLinks = [
   { label: "Events", path: "/admin/events" },
   { label: "Careers", path: "/admin/careers" },
   { label: "Customers", path: "/admin/customers" },
-  { label: "Legal Pages", path: "/legal-pages" },
+  { label: "Legal Pages", path: "/admin/legal-pages" },
+  { label: "social Media", path: "/admin/social-media", icon: Share2 },
   { label: "Settings", path: "/admin/settings" },
 ];
 

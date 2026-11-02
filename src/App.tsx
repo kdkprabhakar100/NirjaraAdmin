@@ -38,6 +38,9 @@ import RolesAdmin from "./pages/roles/RolesAdmin";
 import ActivityLogsAdmin from "./pages/activityLogs/ActivityLogsAdmin";
 import LegalPagesAdmin from "./pages/legalPages/LegalPagesAdmin";
 import AdminSales from "./pages/sales/AdminSales";
+import SocialMediaAdmin from "./pages/socialMedia/SocialMediaAdmin";
+
+
 // A page inside the admin layout. With
 // `permission`, accounts whose role lacks
 // it see a "no access" note instead.
@@ -317,6 +320,14 @@ export default function App() {
   element={
     <ProtectedPage permission="sales.view">
       <AdminSales />
+    </ProtectedPage>
+  }
+/>
+<Route
+  path="/social-media"
+  element={
+    <ProtectedPage permission="socialMedia.view">
+      <SocialMediaAdmin />
     </ProtectedPage>
   }
 />
