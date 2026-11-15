@@ -3614,9 +3614,18 @@ export default function AdminSettings() {
 
           {activeTab ===
             "email" && (
+            <EmailSenderSettings
+              apiUrl={
+                API_URL
+              }
+            />
+          )}
+
+          {activeTab ===
+            "email" && (
             <SettingsCard
-              title="Email"
-              description="Send a test email to verify the server email configuration."
+              title="Test Email"
+              description="Send a test email to check that the sender above works."
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-end">
                 <div className="flex-1">
@@ -4031,5 +4040,244 @@ function SettingSwitch({
         }
       />
     </button>
+  );
+}
+
+/* ============================================================
+   EMAIL SENDER
+
+   Which Gmail account the website sends emails from (order
+   placed, booking confirmed, admin alerts...). Saved through
+   its own protected endpoint — the app password is encrypted
+   on the server and never sent back to the browser.
+============================================================ */
+
+type EmailSettingsResponse = {
+  senderName: string;
+  senderEmail: string;
+  hasAppPassword: boolean;
+  active: {
+    source: "settings" | "server" | "none";
+    provider: "gmail" | "brevo" | null;
+    senderEmail: string | null;
+  };
+  problem: string | null;
+};
+
+function adminAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem("adminToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function EmailSenderSettings({ apiUrl }: { apiUrl: string }) {
+  const [data, setData] = useState<EmailSettingsResponse | null>(null);
+  const [senderName, setSenderName] = useState("");
+  const [senderEmail, setSenderEmail] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const endpoint = `${apiUrl}/api/site-settings/email`;
+
+  const apply = (next: EmailSettingsResponse) => {
+    setData(next);
+    setSenderName(next.senderName);
+    setSenderEmail(next.senderEmail);
+    setAppPassword("");
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await fetch(endpoint, { headers: adminAuthHeaders() });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || "Could not load the email settings.");
+        if (!cancelled) apply(body as EmailSettingsResponse);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load the email settings.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [endpoint]);
+
+  const save = async (removeSender = false) => {
+    if (
+      removeSender &&
+      !window.confirm("Remove the saved sender? Emails will then use the server's own settings, if it has any.")
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const payload = removeSender
+        ? { senderEmail: "" }
+        : {
+            senderName: senderName.trim(),
+            ...(senderEmail.trim() ? { senderEmail: senderEmail.trim() } : {}),
+            ...(appPassword.trim() ? { appPassword } : {}),
+          };
+
+      const response = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...adminAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Could not save the email settings.");
+
+      apply(body as EmailSettingsResponse);
+      toast.success(removeSender ? "Saved sender removed." : "Email sender saved.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the email settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const active = data?.active;
+
+  return (
+    <SettingsCard
+      title="Email Sender"
+      description="The Gmail account the website sends emails from: order and booking updates to customers, and new order and booking alerts to admins."
+    >
+      {loading ? (
+        <p className="text-sm text-muted">Loading...</p>
+      ) : (
+        <div className="space-y-5">
+          {active && (
+            <div
+              className={`rounded-2xl border px-4 py-3 text-sm ${
+                active.source === "none"
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-green-200 bg-green-50 text-green-800"
+              }`}
+            >
+              {active.source === "settings" && (
+                <>
+                  Emails are sent from <b>{active.senderEmail}</b>.
+                </>
+              )}
+              {active.source === "server" && (
+                <>
+                  No sender saved here yet. Emails are currently sent from <b>{active.senderEmail}</b> using the
+                  server&apos;s settings.
+                </>
+              )}
+              {active.source === "none" && <>Email is not set up. Nobody receives any emails.</>}
+            </div>
+          )}
+
+          {data?.problem && <p className="text-sm text-red-600">{data.problem}</p>}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input label="Sender Name" value={senderName} placeholder="Nirjara Beauty" onChange={setSenderName} />
+
+            <Input
+              label="Sender Gmail Address"
+              type="email"
+              value={senderEmail}
+              placeholder="yoursalon@gmail.com"
+              onChange={setSenderEmail}
+            />
+          </div>
+
+          <div>
+            <FieldLabel>Gmail App Password</FieldLabel>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={appPassword}
+              placeholder={
+                data?.hasAppPassword ? "Saved. Leave blank to keep it" : "16 letters, e.g. abcd efgh ijkl mnop"
+              }
+              onChange={(event) => setAppPassword(event.target.value)}
+              className="
+                h-12
+                w-full
+                rounded-2xl
+                border
+                border-[#E75480]/15
+                bg-softer
+                px-5
+                text-sm
+                text-ink
+                outline-none
+
+                focus:border-[#E75480]/50
+                focus:bg-white
+              "
+            />
+            <p className="mt-2 text-xs leading-5 text-muted">
+              Not your normal Gmail password. In the sender&apos;s Google account, turn on 2-Step Verification, then
+              create one at{" "}
+              <a
+                href="https://myaccount.google.com/apppasswords"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#E75480] underline"
+              >
+                myaccount.google.com/apppasswords
+              </a>
+              . Saving checks the login with Gmail first.
+            </p>
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => save()}
+              disabled={saving}
+              className="
+                h-12
+                rounded-full
+                bg-[#E75480]
+                px-8
+                text-xs
+                font-semibold
+                uppercase
+                tracking-[2px]
+                text-white
+
+                hover:bg-[#d4436f]
+
+                disabled:opacity-50
+              "
+            >
+              {saving ? "Checking with Gmail..." : "Save Sender"}
+            </button>
+
+            {data?.senderEmail && (
+              <button
+                type="button"
+                onClick={() => save(true)}
+                disabled={saving}
+                className="text-xs font-semibold uppercase tracking-[2px] text-muted hover:text-red-600 disabled:opacity-50"
+              >
+                Remove saved sender
+              </button>
+            )}
+          </div>
+
+          <p className="text-xs leading-5 text-muted">
+            Who receives alerts does not change: new booking alerts go to the admin accounts of that booking&apos;s
+            branch, and new order alerts go to admin accounts that can view orders.
+          </p>
+        </div>
+      )}
+    </SettingsCard>
   );
 }
