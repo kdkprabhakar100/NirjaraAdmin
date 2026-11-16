@@ -102,7 +102,7 @@ export const navigation: NavItem[] = [
         permission: "legalPages.view",  
       },
       {
-        label: "Social Media",
+        label: "Social Medias",
         path: "/social-media",
         permission: "socialMedia.view",
       }
