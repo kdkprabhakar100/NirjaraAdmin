@@ -196,53 +196,73 @@ export default function CoursesAdmin() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!form.image) {
-      toast.error(
-        "Please upload an image."
-      );
 
-      return;
+const handleSubmit = async () => {
+  if (!form.image) {
+    toast.error("Please upload an image.");
+    return;
+  }
+
+  try {
+    setSaving(true);
+
+    const url = editingId
+      ? `${import.meta.env.VITE_API_URL}/api/courses/${editingId}`
+      : `${import.meta.env.VITE_API_URL}/api/courses`;
+
+    const response = await fetch(url, {
+      method: editingId ? "PUT" : "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        title: form.title.trim(),
+        description: form.description.trim(),
+        duration: form.duration.trim(),
+        fee: form.fee.trim(),
+        certificate: form.certificate.trim(),
+        image: form.image,
+        available: form.available !== false,
+      }),
+    });
+
+    const result = await response.json().catch(() => null);
+
+    // IMPORTANT:
+    // fetch() does not throw automatically on 400/500 errors.
+    if (!response.ok) {
+      console.error("COURSE SAVE FAILED:", {
+        status: response.status,
+        result,
+      });
+
+      throw new Error(
+        result?.message ||
+        result?.error ||
+        `Failed to save course (HTTP ${response.status})`
+      );
     }
 
-    try {
-      setSaving(true);
+    await fetchCourses();
 
-      await fetch(
-        editingId
-          ? `${import.meta.env.VITE_API_URL}/api/courses/${editingId}`
-          : `${import.meta.env.VITE_API_URL}/api/courses`,
-        {
-          method: editingId
-            ? "PUT"
-            : "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(form),
-        }
-      );
+    toast.success(
+      editingId
+        ? "Course updated successfully!"
+        : "Course added successfully!"
+    );
 
-      await fetchCourses();
+    closeForm();
+  } catch (error) {
+    console.error("Save course error:", error);
 
-      toast.success(
-        editingId
-          ? "Course updated successfully!"
-          : "Course added successfully!"
-      );
+    toast.error(
+      error instanceof Error
+        ? error.message
+        : "Unable to save the course"
+    );
+  } finally {
+    setSaving(false);
+  }
+};
 
-      closeForm();
-    } catch (error) {
-      console.error(
-        "Save course error:",
-        error
-      );
-
-      toast.error(
-        "Unable to save the course"
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // ============================
   // DELETE
