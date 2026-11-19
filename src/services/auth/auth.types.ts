@@ -45,17 +45,42 @@ export type AdminSummary = {
   // Missing from sessions saved before
   // roles moved to the database.
   roleName?: string;
-  // The branch the account works for; the
-  // API narrows its bookings, dashboard
-  // counts and service switches to it.
-  // Null (or missing on older sessions)
-  // means it sees every branch.
-  branch?: {
-    _id: string;
-    name: string;
-  } | null;
+  // The branches the account works for;
+  // the API narrows its bookings,
+  // dashboard counts and service switches
+  // to them. Empty means it sees every
+  // branch. Read it through
+  // sessionBranches(), which also handles
+  // sessions saved before accounts could
+  // hold several branches.
+  branches?: SessionBranch[];
+  // Sessions saved by older versions.
+  branch?: SessionBranch | null;
   permissions: Permission[];
 };
+
+export type SessionBranch = {
+  _id: string;
+  name: string;
+};
+
+// The account's branches; empty when it
+// sees every branch.
+export function sessionBranches(
+  session: AdminSummary | null | undefined
+): SessionBranch[] {
+  if (!session) {
+    return [];
+  }
+
+  if (session.branches) {
+    return session.branches;
+  }
+
+  return session.branch
+    ? [session.branch]
+    : [];
+}
 
 export type AdminLoginResponse = {
   message: string;

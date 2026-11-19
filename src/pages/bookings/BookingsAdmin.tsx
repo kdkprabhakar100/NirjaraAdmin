@@ -15,6 +15,8 @@ import RowActionsMenu from "../../components/RowActionsMenu";
 
 import { useAdminSession } from "../../hooks/useAuth";
 
+import { sessionBranches } from "../../services/auth/auth.types";
+
 import { getApiErrorMessage } from "../../services/base/api";
 
 import { getBranches } from "../../services/branch/branchService";
@@ -49,9 +51,15 @@ const filterLabelClass =
 
 export default function BookingsAdmin() {
   // The API only sends a branch account
-  // its own branch's bookings.
-  const branchName =
-    useAdminSession()?.branch?.name;
+  // its own branches' bookings. Empty for
+  // an account that sees every branch.
+  const ownBranches = sessionBranches(
+    useAdminSession()
+  );
+
+  const branchNames = ownBranches
+    .map((branch) => branch.name)
+    .join(", ");
 
   const [bookings, setBookings] = useState<Booking[]>([]);
 
@@ -94,6 +102,17 @@ export default function BookingsAdmin() {
 
   const [branches, setBranches] =
     useState<Branch[]>([]);
+
+  // The branch filter offers only the
+  // branches this account can see.
+  const filterBranches =
+    ownBranches.length > 0
+      ? branches.filter((branch) =>
+          ownBranches.some(
+            (own) => own._id === branch._id
+          )
+        )
+      : branches;
 
   useEffect(() => {
     // For the branch filter and the
@@ -637,8 +656,8 @@ export default function BookingsAdmin() {
         </h1>
 
         <p className="mt-2 text-muted">
-          {branchName
-            ? `Bookings and enrollments made at ${branchName}.`
+          {branchNames
+            ? `Bookings and enrollments made at ${branchNames}.`
             : "View, confirm, cancel, or delete customer bookings."}
         </p>
       </div>
@@ -747,9 +766,9 @@ export default function BookingsAdmin() {
             </select>
           </label>
 
-          {/* A branch account only ever
-              gets its own branch. */}
-          {!branchName && (
+          {/* Nothing to pick for an account
+              with a single branch. */}
+          {ownBranches.length !== 1 && (
             <label className="block">
               <span className={filterLabelClass}>
                 Branch
@@ -765,10 +784,12 @@ export default function BookingsAdmin() {
                 className={`${filterClass} w-full`}
               >
                 <option value="">
-                  All Branches
+                  {ownBranches.length > 0
+                    ? "All My Branches"
+                    : "All Branches"}
                 </option>
 
-                {branches.map((branch) => (
+                {filterBranches.map((branch) => (
                   <option
                     key={branch._id}
                     value={branch._id}

@@ -24,6 +24,8 @@ import {
   usePermissions,
 } from "../../hooks/useAuth";
 
+import { sessionBranches } from "../../services/auth/auth.types";
+
 import { getApiErrorMessage } from "../../services/base/api";
 
 import { getBranches } from "../../services/branch/branchService";
@@ -171,9 +173,15 @@ export default function ServicesAdmin() {
      SESSION / BRANCH
   ======================================================= */
 
-  const ownBranchId =
-    useAdminSession()
-      ?.branch?._id;
+  // Empty for an account that sees every
+  // branch.
+  const ownBranchIds =
+    sessionBranches(
+      useAdminSession(),
+    ).map(
+      (branch) =>
+        branch._id,
+    );
 
   const [
     branches,
@@ -184,13 +192,14 @@ export default function ServicesAdmin() {
     );
 
   const shownBranches =
-    ownBranchId
+    ownBranchIds.length > 0
       ? branches.filter(
           (
             branch
           ) =>
-            branch._id ===
-            ownBranchId
+            ownBranchIds.includes(
+              branch._id,
+            )
         )
       : branches;
 
@@ -1468,9 +1477,11 @@ export default function ServicesAdmin() {
           "branches",
 
         header:
-          ownBranchId
+          ownBranchIds.length === 1
             ? "Your Branch"
-            : "Branches",
+            : ownBranchIds.length > 1
+              ? "Your Branches"
+              : "Branches",
 
         render:
           branchChips,

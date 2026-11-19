@@ -1681,7 +1681,7 @@ export default function AdminSettings() {
       <div
         className="
           flex
-          min-h-[500px]
+          min-h-125
           items-center
           justify-center
         "
@@ -2379,11 +2379,11 @@ export default function AdminSettings() {
                     <div
                       className="
                         flex
-                        min-h-[280px]
+                        min-h-70
                         items-center
                         justify-center
                         overflow-hidden
-                        rounded-[24px]
+                        rounded-3xl
                         border
                         border-dashed
                         border-[#E75480]/25
@@ -2402,7 +2402,7 @@ export default function AdminSettings() {
                           }
                           alt="Payment QR"
                           className="
-                            max-h-[240px]
+                            max-h-60
                             max-w-full
                             rounded-2xl
                             bg-white
@@ -2565,7 +2565,7 @@ export default function AdminSettings() {
 
                 <div
                   className="
-                    rounded-[24px]
+                    rounded-3xl
                     border
                     border-dashed
                     border-[#E75480]/25
@@ -2735,7 +2735,7 @@ export default function AdminSettings() {
 
                 {settings.shipping.options.length ===
                   0 && (
-                  <div className="mt-5 rounded-[24px] border border-[#E75480]/10 bg-white p-8 text-center">
+                  <div className="mt-5 rounded-3xl border border-[#E75480]/10 bg-white p-8 text-center">
                     <p className="font-serif text-xl text-ink">
                       No shipping regions yet
                     </p>
@@ -2773,7 +2773,7 @@ export default function AdminSettings() {
                             option.key
                           }
                           className="
-                            rounded-[24px]
+                            rounded-3xl
                             border
                             border-[#E75480]/10
                             bg-[#FFF8FA]
@@ -4273,8 +4273,9 @@ function EmailSenderSettings({ apiUrl }: { apiUrl: string }) {
           </div>
 
           <p className="text-xs leading-5 text-muted">
-            Who receives alerts does not change: new booking alerts go to the admin accounts of that booking&apos;s
-            branch, and new order alerts go to admin accounts that can view orders.
+            Who receives alerts does not change: new booking alerts go to the admin accounts that have that
+            booking&apos;s branch among their branches, and new order alerts go to admin accounts that can view
+            orders.
           </p>
         </div>
       )}
