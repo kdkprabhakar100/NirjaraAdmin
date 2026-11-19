@@ -7,7 +7,9 @@ import CustomTable, {
 
 import DialogBox from "../../components/DialogBox";
 
-import FormField from "../../components/FormField";
+import FormField, {
+  FormLabel,
+} from "../../components/FormField";
 
 import PasswordInput from "../../components/PasswordInput";
 
@@ -20,6 +22,7 @@ import {
 
 import {
   SUPER_ADMIN_ROLE,
+  sessionBranches,
   type AdminRole,
 } from "../../services/auth/auth.types";
 
@@ -62,12 +65,12 @@ const EMPTY_FORM: AdminUserPayload = {
   name: "",
   email: "",
   role: "staff",
-  branch: "",
+  branches: [],
   password: "",
 };
 
-// The role that usually goes with a
-// branch; picking a branch suggests it.
+// The role that usually goes with
+// branches; picking one suggests it.
 const BRANCH_ADMIN_ROLE = "branch_admin";
 
 // ========================================
@@ -106,10 +109,22 @@ export default function UsersAdmin() {
     Branch[]
   >([]);
 
-  // An account tied to a branch can only
-  // add accounts to that branch.
-  const ownBranchId =
-    session?.branch?._id ?? "";
+  // An account tied to branches can only
+  // add accounts within those branches.
+  const ownBranchIds = sessionBranches(
+    session
+  ).map((branch) => branch._id);
+
+  const tiedToBranches =
+    ownBranchIds.length > 0;
+
+  // The branches this account may hand
+  // out.
+  const pickableBranches = tiedToBranches
+    ? branches.filter((branch) =>
+        ownBranchIds.includes(branch._id)
+      )
+    : branches;
 
   const [users, setUsers] = useState<
     AdminUser[]
@@ -266,7 +281,7 @@ export default function UsersAdmin() {
     setForm({
       ...EMPTY_FORM,
       role: defaultRole,
-      branch: ownBranchId,
+      branches: ownBranchIds,
     });
     setEditingId(null);
     setFormOpen(true);
@@ -277,7 +292,10 @@ export default function UsersAdmin() {
       name: user.name,
       email: user.email,
       role: user.role,
-      branch: user.branch?._id ?? "",
+      branches:
+        user.branches?.map(
+          (branch) => branch._id
+        ) ?? [],
       password: "",
     });
 
@@ -303,24 +321,63 @@ export default function UsersAdmin() {
     }));
   };
 
-  // Picking a branch for a new account
+  // Ticks or unticks one branch. Picking
+  // the first branch for a new account
   // suggests the Branch Admin role, when
   // it can be assigned; the role can still
   // be changed afterwards.
-  const changeBranch = (branch: string) => {
-    setForm((previous) => ({
-      ...previous,
-      branch,
-      role:
-        !editingId &&
-        branch &&
-        assignableRoles.some(
-          (role) =>
-            role.key === BRANCH_ADMIN_ROLE
-        )
-          ? BRANCH_ADMIN_ROLE
-          : previous.role,
-    }));
+  const toggleBranch = (branchId: string) => {
+    setForm((previous) => {
+      const branches =
+        previous.branches.includes(branchId)
+          ? previous.branches.filter(
+              (id) => id !== branchId
+            )
+          : [...previous.branches, branchId];
+
+      const firstPick =
+        previous.branches.length === 0 &&
+        branches.length > 0;
+
+      return {
+        ...previous,
+        branches,
+        role:
+          !editingId &&
+          firstPick &&
+          assignableRoles.some(
+            (role) =>
+              role.key === BRANCH_ADMIN_ROLE
+          )
+            ? BRANCH_ADMIN_ROLE
+            : previous.role,
+      };
+    });
+  };
+
+  // Ticks every branch this account may
+  // hand out, or clears them all when
+  // they are already ticked. Nothing
+  // ticked still means "every branch" to
+  // the API.
+  const allPicked =
+    pickableBranches.length > 0 &&
+    pickableBranches.every((branch) =>
+      form.branches.includes(branch._id)
+    );
+
+  const toggleAllBranches = () => {
+    if (allPicked) {
+      updateField("branches", []);
+
+      return;
+    }
+
+    pickableBranches.forEach((branch) => {
+      if (!form.branches.includes(branch._id)) {
+        toggleBranch(branch._id);
+      }
+    });
   };
 
   // ============================
@@ -350,6 +407,19 @@ export default function UsersAdmin() {
 
     if (error) {
       toast.error(error);
+
+      return;
+    }
+
+    // The API refuses "every branch" from
+    // an account tied to branches.
+    if (
+      tiedToBranches &&
+      form.branches.length === 0
+    ) {
+      toast.error(
+        "Pick at least one branch"
+      );
 
       return;
     }
@@ -631,23 +701,30 @@ export default function UsersAdmin() {
       render: roleBadge,
     },
     {
-      key: "branch",
-      header: "Branch",
+      key: "branches",
+      header: "Branches",
       width: "220px",
       hideOnMobile: true,
       cellClassName: "text-sm",
       render: (user) =>
-        user.branch ? (
-          <span>
-            <span className="block text-ink">
-              {user.branch.name}
-            </span>
+        user.branches?.length ? (
+          <span className="flex flex-col gap-1">
+            {user.branches.map((branch) => (
+              <span key={branch._id}>
+                <span className="block text-ink">
+                  {branch.name}
+                </span>
 
-            {user.branch.address && (
-              <span className="block text-xs text-muted">
-                {user.branch.address}
+                {/* One address is useful;
+                    several crowd the cell. */}
+                {user.branches!.length === 1 &&
+                  branch.address && (
+                    <span className="block text-xs text-muted">
+                      {branch.address}
+                    </span>
+                  )}
               </span>
-            )}
+            ))}
           </span>
         ) : (
           <span className="text-muted">
@@ -845,44 +922,73 @@ export default function UsersAdmin() {
             </select>
           </FormField>
 
-          <FormField
-            label="Branch"
-            hint={
-              editingSelf
-                ? "you cannot change your own branch"
-                : ownBranchId
-                  ? "you can only add accounts to your branch"
-                  : "a branch account only sees that branch's bookings"
-            }
-          >
-            <select
-              value={form.branch}
-              disabled={
-                editingSelf ||
-                Boolean(ownBranchId)
+          {/* Not a FormField: that is a
+              <label>, and each checkbox has
+              its own. */}
+          <div>
+            <FormLabel
+              label="Branches"
+              hint={
+                editingSelf
+                  ? "you cannot change your own branches"
+                  : tiedToBranches
+                    ? "you can only add accounts to your branches"
+                    : "sees and is emailed these branches' bookings; none ticked sees every branch without emails"
               }
-              onChange={(e) =>
-                changeBranch(e.target.value)
-              }
-              className={inputClass}
-            >
-              <option value="">
-                All branches
-              </option>
+            />
 
-              {branches.map((branch) => (
-                <option
-                  key={branch._id}
-                  value={branch._id}
+            <div
+              role="group"
+              aria-label="Branches"
+              className={`${inputClass} flex max-h-56 flex-col gap-2 overflow-y-auto ${
+                editingSelf
+                  ? "cursor-not-allowed opacity-60"
+                  : ""
+              }`}
+            >
+              {pickableBranches.length > 1 && (
+                <button
+                  type="button"
+                  disabled={editingSelf}
+                  onClick={toggleAllBranches}
+                  className="self-start text-xs font-semibold uppercase tracking-[1.5px] text-[#E75480] hover:underline disabled:cursor-not-allowed disabled:no-underline"
                 >
-                  {branch.name}
-                  {branch.address
-                    ? ` — ${branch.address}`
-                    : ""}
-                </option>
+                  {allPicked
+                    ? "Clear all"
+                    : "Select all"}
+                </button>
+              )}
+
+              {pickableBranches.map((branch) => (
+                <label
+                  key={branch._id}
+                  className="flex items-start gap-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.branches.includes(
+                      branch._id
+                    )}
+                    disabled={editingSelf}
+                    onChange={() =>
+                      toggleBranch(branch._id)
+                    }
+                    className="mt-1 accent-[#E75480]"
+                  />
+
+                  <span>
+                    {branch.name}
+
+                    {branch.address && (
+                      <span className="block text-xs text-muted">
+                        {branch.address}
+                      </span>
+                    )}
+                  </span>
+                </label>
               ))}
-            </select>
-          </FormField>
+            </div>
+          </div>
 
           {/* Editing changes the password
               through Change Password. */}

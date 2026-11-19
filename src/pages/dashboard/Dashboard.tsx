@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminSession } from "../../hooks/useAuth";
+import { sessionBranches } from "../../services/auth/auth.types";
 import api from "../../services/base/api";
 
 type DashboardStats = {
@@ -182,6 +183,14 @@ export default function Dashboard() {
     },
   ];
 
+  // "" for an account that sees every
+  // branch.
+  const branchNames = sessionBranches(
+    session
+  )
+    .map((branch) => branch.name)
+    .join(", ");
+
   // Only pages the account can open; a
   // branch admin sees just their own.
   const cards = allCards.filter((card) =>
@@ -203,8 +212,8 @@ export default function Dashboard() {
         </h1>
 
         <p className="mt-3 text-sm text-muted">
-          {session?.branch
-            ? `Bookings and services at ${session.branch.name}.`
+          {branchNames
+            ? `Bookings and services at ${branchNames}.`
             : "Manage your website content and activity from one place."}
         </p>
       </div>

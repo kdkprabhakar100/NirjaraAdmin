@@ -3,7 +3,10 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 import { visibleQuickLinks } from "../config/navigation";
 
-import type { AdminSummary } from "../services/auth/auth.types";
+import {
+  sessionBranches,
+  type AdminSummary,
+} from "../services/auth/auth.types";
 
 import { toggleTheme, useTheme } from "../utils/theme";
 
@@ -221,7 +224,9 @@ function ProfileMenu({
               </span>
 
               <p className="mt-2 truncate text-xs text-muted">
-                {session.branch?.name ??
+                {sessionBranches(session)
+                  .map((branch) => branch.name)
+                  .join(", ") ||
                   "All branches"}
               </p>
             </div>
