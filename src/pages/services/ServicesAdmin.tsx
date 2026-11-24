@@ -97,47 +97,6 @@ const CATEGORIES_PATH =
 const SEARCH_DELAY_MS = 350;
 
 /* =========================================================
-   SLUG PREVIEW
-
-   This only creates the visual preview shown
-   in admin.
-
-   The backend remains responsible for the
-   actual unique slug saved in MongoDB.
-========================================================= */
-
-const createSlugPreview = (
-  value: string
-) => {
-  const slug = value
-    .normalize("NFKD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .toLowerCase()
-    .trim()
-    .replace(
-      /&/g,
-      " and "
-    )
-    .replace(
-      /[^a-z0-9]+/g,
-      "-"
-    )
-    .replace(
-      /^-+|-+$/g,
-      ""
-    )
-    .replace(
-      /-+/g,
-      "-"
-    );
-
-  return slug || "service";
-};
-
-/* =========================================================
    SHARED INPUT STYLE
 ========================================================= */
 
@@ -281,20 +240,6 @@ export default function ServicesAdmin() {
     useState<
       string | null
     >(null);
-
-  /*
-   * Stores the actual slug returned
-   * from the backend while editing.
-   *
-   * When adding a new service, this
-   * remains blank and we show the
-   * title-generated preview instead.
-   */
-  const [
-    editingSlug,
-    setEditingSlug,
-  ] =
-    useState("");
 
   /*
    * Branch IDs where this service
@@ -540,10 +485,6 @@ export default function ServicesAdmin() {
         null
       );
 
-      setEditingSlug(
-        ""
-      );
-
       setFormOpen(
         true
       );
@@ -598,11 +539,6 @@ export default function ServicesAdmin() {
         null
     );
 
-    setEditingSlug(
-      service.slug ||
-        ""
-    );
-
     setFormOpen(
       true
     );
@@ -624,10 +560,6 @@ export default function ServicesAdmin() {
 
       setEditingId(
         null
-      );
-
-      setEditingSlug(
-        ""
       );
 
       setFormOffBranches(
@@ -752,6 +684,54 @@ export default function ServicesAdmin() {
             : [
                 ...previous,
                 branchId,
+              ]
+      );
+    };
+
+  // Not available for booking means not
+  // bookable at any branch: switching it
+  // off turns every branch off, switching
+  // it back on turns them all on again.
+  const setFormAvailable =
+    (
+      available: boolean
+    ) => {
+      setForm(
+        (
+          previous
+        ) => ({
+          ...previous,
+
+          available,
+        })
+      );
+
+      const ids =
+        shownBranches.map(
+          (
+            branch
+          ) =>
+            branch._id
+        );
+
+      setFormOffBranches(
+        (
+          previous
+        ) =>
+          available
+            ? previous.filter(
+                (
+                  id
+                ) =>
+                  !ids.includes(
+                    id
+                  )
+              )
+            : [
+                ...new Set([
+                  ...previous,
+                  ...ids,
+                ]),
               ]
       );
     };
@@ -923,11 +903,36 @@ export default function ServicesAdmin() {
         );
 
       try {
-        const updated =
+        let updated =
           await setServiceAvailability(
             service._id,
             next
           );
+
+        // Every branch follows the global
+        // switch, as in the form.
+        if (
+          canSwitchBranches
+        ) {
+          for (
+            const branch
+            of shownBranches
+          ) {
+            if (
+              isOnAtBranch(
+                updated,
+                branch._id
+              ) !== next
+            ) {
+              updated =
+                await setServiceBranchAvailability(
+                  service._id,
+                  branch._id,
+                  next
+                );
+            }
+          }
+        }
 
         setServices(
           (
@@ -1318,131 +1323,83 @@ export default function ServicesAdmin() {
     TableColumn<Service>[] =
     [
       {
-        key: "image",
+        key: "service",
 
         header:
-          "Image",
-
-        width:
-          "90px",
+          "Service",
 
         hideOnMobile:
           true,
-
-        render:
-          thumbnail,
-      },
-
-      {
-        key: "title",
-
-        header:
-          "Title",
-
-        hideOnMobile:
-          true,
-
-        cellClassName:
-          "font-medium text-ink",
-
-        render: (
-          service
-        ) =>
-          service.title,
-      },
-
-      /*
-       * New slug / URL column.
-       */
-      {
-        key: "slug",
-
-        header:
-          "Page URL",
-
-        hideOnMobile:
-          true,
-
-        width:
-          "230px",
-
-        cellClassName:
-          "max-w-[230px]",
 
         render: (
           service
         ) => (
-          <span
-            title={
-              service.slug
-                ? `/services/${service.slug}`
-                : "No slug"
-            }
+          <div
             className="
-              block
-              max-w-[220px]
-              truncate
-              rounded-lg
-              bg-soft
-              px-3
-              py-1.5
-              font-mono
-              text-[11px]
-              text-muted
+              flex
+              min-w-55
+              items-center
+              gap-4
             "
           >
-            {service.slug
-              ? `/services/${service.slug}`
-              : "—"}
-          </span>
+            {thumbnail(
+              service
+            )}
+
+            <div
+              className="
+                min-w-0
+              "
+            >
+              <p
+                className="
+                  font-medium
+                  text-ink
+                "
+              >
+                {
+                  service.title
+                }
+              </p>
+
+              {service.category ? (
+                <span
+                  className="
+                    mt-1
+                    inline-block
+                    rounded-full
+                    bg-blush
+                    px-3
+                    py-0.5
+                    text-[10px]
+                    uppercase
+                    tracking-[1px]
+                    text-[#E75480]
+                  "
+                >
+                  {
+                    service
+                      .category
+                      .name
+                  }
+                </span>
+              ) : (
+                <span
+                  className="
+                    mt-1
+                    block
+                    text-[10px]
+                    uppercase
+                    tracking-[1px]
+                    text-faint
+                  "
+                >
+                  No category
+                </span>
+              )}
+            </div>
+          </div>
         ),
-      },
-
-      {
-        key:
-          "category",
-
-        header:
-          "Category",
-
-        hideOnMobile:
-          true,
-
-        render: (
-          service
-        ) =>
-          service.category ? (
-            <span
-              className="
-                inline-block
-                rounded-full
-                bg-blush
-                px-4
-                py-1
-                text-xs
-                uppercase
-                tracking-[1px]
-                text-[#E75480]
-              "
-            >
-              {
-                service
-                  .category
-                  .name
-              }
-            </span>
-          ) : (
-            <span
-              className="
-                text-xs
-                uppercase
-                tracking-[1px]
-                text-faint
-              "
-            >
-              No category
-            </span>
-          ),
       },
 
       {
@@ -1451,6 +1408,9 @@ export default function ServicesAdmin() {
 
         header:
           "Price",
+
+        width:
+          "130px",
 
         cellClassName:
           "whitespace-nowrap font-medium text-[#E75480]",
@@ -1467,6 +1427,9 @@ export default function ServicesAdmin() {
 
         header:
           "Booking",
+
+        width:
+          "140px",
 
         render:
           availabilityBadge,
@@ -1485,32 +1448,6 @@ export default function ServicesAdmin() {
 
         render:
           branchChips,
-      },
-
-      {
-        key:
-          "description",
-
-        header:
-          "Description",
-
-        cellClassName:
-          "max-w-sm",
-
-        render: (
-          service
-        ) => (
-          <p
-            className="
-              line-clamp-2
-              leading-6
-            "
-          >
-            {
-              service.description
-            }
-          </p>
-        ),
       },
 
       {
@@ -1543,26 +1480,6 @@ export default function ServicesAdmin() {
       appliedSearch ||
       categoryFilter
     );
-
-  /* =======================================================
-     SLUG / URL PREVIEW
-  ======================================================= */
-
-  /*
-   * When editing:
-   * use the actual saved slug from MongoDB.
-   *
-   * When creating:
-   * show a preview generated from the title.
-   */
-  const serviceSlugPreview =
-    editingSlug ||
-    createSlugPreview(
-      form.title
-    );
-
-  const servicePathPreview =
-    `/services/${serviceSlugPreview}`;
 
   /* =======================================================
      UI
@@ -1868,7 +1785,7 @@ export default function ServicesAdmin() {
             ? "Try a different name, or pick another category."
             : "Add your first service using the button above."
         }
-        minWidth="1400px"
+        minWidth="900px"
         mobileTitle={(
           service
         ) => (
@@ -1978,55 +1895,6 @@ export default function ServicesAdmin() {
                 inputClass
               }
             />
-          </FormField>
-
-          {/* PAGE URL */}
-
-          <FormField
-            label="Page URL"
-          >
-            <div
-              className="
-                flex
-                min-h-[46px]
-                w-full
-                items-center
-                rounded-xl
-                border
-                border-[#E75480]/15
-                bg-soft
-                px-4
-                py-3
-              "
-            >
-              <span
-                className="
-                  break-all
-                  font-mono
-                  text-xs
-                  text-muted
-
-                  sm:text-sm
-                "
-              >
-                {form.title.trim()
-                  ? servicePathPreview
-                  : "/services/service"}
-              </span>
-            </div>
-
-            <p
-              className="
-                mt-1.5
-                text-[11px]
-                leading-5
-                text-muted
-              "
-            >
-              {editingId
-                ? "This is the service's current URL. The backend manages the slug automatically."
-                : "Preview only. The backend will generate the final unique URL when the service is saved."}
-            </p>
           </FormField>
 
           {/* PRICE */}
@@ -2142,6 +2010,34 @@ export default function ServicesAdmin() {
                 inputClass
               }
             />
+
+            {uploading && (
+              <p
+                className="
+                  mt-2
+                  text-xs
+                  text-muted
+                "
+              >
+                Uploading image...
+              </p>
+            )}
+
+            {form.image && (
+              <img
+                src={
+                  form.image
+                }
+                alt="Preview"
+                className="
+                  mt-3
+                  h-40
+                  w-full
+                  rounded-2xl
+                  object-cover
+                "
+              />
+            )}
           </FormField>
 
           {/* DESCRIPTION */}
@@ -2202,14 +2098,11 @@ export default function ServicesAdmin() {
               onChange={(
                 event
               ) =>
-                setForm({
-                  ...form,
-
-                  available:
-                    event
-                      .target
-                      .checked,
-                })
+                setFormAvailable(
+                  event
+                    .target
+                    .checked
+                )
               }
               className="
                 mt-1
@@ -2272,9 +2165,10 @@ export default function ServicesAdmin() {
                     text-muted
                   "
                 >
-                  Untick a branch to stop
-                  bookings for this service
-                  there only.
+                  {form.available !==
+                  false
+                    ? "Untick a branch to stop bookings for this service there only."
+                    : "Off at every branch while the service is not available for booking."}
                 </p>
 
                 <div
@@ -2294,9 +2188,8 @@ export default function ServicesAdmin() {
                         key={
                           branch._id
                         }
-                        className="
+                        className={`
                           flex
-                          cursor-pointer
                           items-start
                           gap-3
                           rounded-xl
@@ -2305,10 +2198,21 @@ export default function ServicesAdmin() {
                           bg-soft
                           px-4
                           py-3
-                        "
+
+                          ${
+                            form.available !==
+                            false
+                              ? "cursor-pointer"
+                              : "cursor-not-allowed opacity-60"
+                          }
+                        `}
                       >
                         <input
                           type="checkbox"
+                          disabled={
+                            form.available ===
+                            false
+                          }
                           checked={
                             !formOffBranches.includes(
                               branch._id
@@ -2362,55 +2266,6 @@ export default function ServicesAdmin() {
               </div>
             )}
         </div>
-
-        {/* UPLOADING */}
-
-        {uploading && (
-          <p
-            className="
-              mt-4
-              text-sm
-              text-muted
-            "
-          >
-            Uploading image...
-          </p>
-        )}
-
-        {/* IMAGE PREVIEW */}
-
-        {form.image && (
-          <div
-            className="
-              mt-5
-            "
-          >
-            <p
-              className="
-                mb-2
-                text-sm
-                text-muted
-              "
-            >
-              Image Preview
-            </p>
-
-            <img
-              src={
-                form.image
-              }
-              alt="Preview"
-              className="
-                h-44
-                w-full
-                rounded-2xl
-                object-cover
-
-                md:max-w-md
-              "
-            />
-          </div>
-        )}
       </DialogBox>
 
       {/* ===================================================
